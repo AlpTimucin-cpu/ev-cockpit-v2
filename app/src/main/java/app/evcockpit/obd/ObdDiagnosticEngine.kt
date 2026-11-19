@@ -4,7 +4,7 @@ import java.util.Locale
 
 /** The profile is a communication path, NOT a verified BMS/PID scale. */
 enum class DiagnosticProfile {
-    NONE, STANDARD_SPEED, MEB_FULL_HEADER, MEB_SHORT_HEADER,
+    NONE, STANDARD_SPEED, MEB_FULL_HEADER, MEB_SHORT_HEADER, MEB_SHORT_PADDED,
 }
 
 data class DiagnosticStep(
@@ -23,6 +23,7 @@ data class DiagnosticOutcome(
     val standardSpeedSupported: Boolean,
     val mebFullResponded: Boolean,
     val mebShortResponded: Boolean,
+    val mebShortPaddedResponded: Boolean,
     val meb11BitResponded: Boolean,
     val proposedProfile: DiagnosticProfile,
     val summary: String,
@@ -51,10 +52,13 @@ object DiagnosticEvidence {
             id
         }
 
-    fun propose(standardSpeed: Boolean, full: Boolean, short: Boolean): DiagnosticProfile =
+    fun propose(
+        standardSpeed: Boolean, full: Boolean, short: Boolean, padded: Boolean = false,
+    ): DiagnosticProfile =
         when {
             full -> DiagnosticProfile.MEB_FULL_HEADER
             short -> DiagnosticProfile.MEB_SHORT_HEADER
+            padded -> DiagnosticProfile.MEB_SHORT_PADDED
             standardSpeed -> DiagnosticProfile.STANDARD_SPEED
             else -> DiagnosticProfile.NONE
         }
@@ -100,7 +104,7 @@ class ObdDiagnosticEngine(
         }
     }
 
-    private suspend fun mode29(full: Boolean): String {
+    private suspend fun mode29(full: Boolean): Pair<String, Boolean> {
         group = if (full) "MEB 29-bit / 8 hane" else "MEB 29-bit / ATCP17"
         cmd("ATSP7")
         cmd("ATH1")
@@ -119,9 +123,9 @@ class ObdDiagnosticEngine(
             cmd("ATFCSD300000")
             cmd("ATFCSM1")
             val padded = cmd("0322028C55555555")
-            if (DiagnosticEvidence.hasUds(padded, "028C")) return padded
+            if (DiagnosticEvidence.hasUds(padded, "028C")) return Pair(padded, true)
         }
-        return reply
+        return Pair(reply, false)
     }
 
     suspend fun run(): DiagnosticOutcome {
@@ -129,6 +133,7 @@ class ObdDiagnosticEngine(
         var speed = false
         var full = false
         var short = false
+        var shortPadded = false
         var eleven = false
         try {
             group = "A ELM tanimi"
@@ -164,8 +169,11 @@ class ObdDiagnosticEngine(
                 throw failure
             }
 
-            full = DiagnosticEvidence.hasUds(mode29(true), "028C")
-            short = DiagnosticEvidence.hasUds(mode29(false), "028C")
+            val fullResult = mode29(true)
+            full = DiagnosticEvidence.hasUds(fullResult.first, "028C")
+            val shortResult = mode29(false)
+            shortPadded = shortResult.second
+            short = !shortPadded && DiagnosticEvidence.hasUds(shortResult.first, "028C")
 
             group = "E 29-bit vites ECU / evDash"
             cmd("ATSP7")
@@ -189,12 +197,13 @@ class ObdDiagnosticEngine(
             line("TANI DURDU (sonuçlar eksik): " + error)
         }
         val ids = DiagnosticEvidence.monitorIdentifiers(monitorRaw)
-        val profile = DiagnosticEvidence.propose(speed, full, short)
+        val profile = DiagnosticEvidence.propose(speed, full, short, shortPadded)
         val diagnosis = buildString {
             append("Standart 0100: ").append(if (standard) "yanıt var" else "doğrulanmadı")
             append("; 010D: ").append(if (speed) "yanıt var" else "doğrulanmadı")
             append("; MEB 8-hane: ").append(if (full) "UDS pozitif" else "doğrulanmadı")
             append("; MEB ATCP17: ").append(if (short) "UDS pozitif" else "doğrulanmadı")
+            append("; MEB ATCP17/CAF0: ").append(if (shortPadded) "UDS pozitif" else "doğrulanmadı")
             append("; 11-bit MEB: ").append(if (eleven) "UDS pozitif" else "doğrulanmadı")
             append("; ATMA: ").append(ids.size).append(" okunabilen çerçeve")
             append("; öneri: ").append(profile.name)
@@ -204,7 +213,7 @@ class ObdDiagnosticEngine(
         line("TANI ÖZETİ: " + diagnosis)
         return DiagnosticOutcome(
             steps.toList(), ids.size, ids.toSet(), standard, speed,
-            full, short, eleven, profile, diagnosis,
+            full, short, shortPadded, eleven, profile, diagnosis,
         )
     }
 }

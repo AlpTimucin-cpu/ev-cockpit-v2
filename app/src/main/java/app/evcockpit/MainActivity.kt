@@ -59,6 +59,8 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
     val state by vm.state.collectAsStateWithLifecycle()
     val logs by vm.log.collectAsStateWithLifecycle()
     val logPath by vm.logFilePath.collectAsStateWithLifecycle()
+    val diagnosisPath by vm.diagnosisFilePath.collectAsStateWithLifecycle()
+    val diagnosisSummary by vm.diagnosisSummary.collectAsStateWithLifecycle()
     val devices by vm.devices.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val gps by vm.gps.collectAsStateWithLifecycle()
@@ -109,10 +111,24 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
                 state = state,
                 log = logs,
                 logFilePath = logPath,
+                diagnosisFilePath = diagnosisPath,
+                diagnosisSummary = diagnosisSummary,
                 devices = devices,
                 message = shareError ?: message,
                 onRefresh = vm::refreshBonded,
                 onConnect = vm::connect,
+                onDiagnose = vm::diagnose,
+                onShareDiagnosis = {
+                    shareError = null
+                    try {
+                        if (!ObdLogShare.launch(context, diagnosisPath)) {
+                            shareError = "Tanı logu bulunamadı."
+                        }
+                    } catch (error: Exception) {
+                        shareError = "Tanı logu paylaşılamadı: " +
+                            error.javaClass.simpleName
+                    }
+                },
                 onDemo = vm::startDemo,
                 onStop = vm::stop,
                 onShareLog = {
