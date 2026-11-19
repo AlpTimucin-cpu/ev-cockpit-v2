@@ -19,6 +19,7 @@ import app.evcockpit.MainActivity
  * Navigation can use a separate location FGS when phase 2 is approved.
  */
 class ObdConnectionService : Service() {
+    private var ownsConnection = false
     private val repo: ObdRepository
         get() = (application as CockpitApplication).obdRepository
 
@@ -39,7 +40,9 @@ class ObdConnectionService : Service() {
                 ?.adapter?.getRemoteDevice(address)
                 ?: throw IllegalStateException("Bluetooth adaptörü bulunamadı")
             repo.connect(device)
+            ownsConnection = true
         } catch (error: Exception) {
+            ownsConnection = false
             repo.stop()
             repo.state.value = VehicleState(statusText = when (error) {
                 is SecurityException -> "Bluetooth veya bağlı cihaz servisi izni eksik"
@@ -73,7 +76,8 @@ class ObdConnectionService : Service() {
     }
 
     override fun onDestroy() {
-        if (!repo.state.value.demo) repo.stop()
+        // Preserve a startup error message when the connection never started.
+        if (ownsConnection && !repo.state.value.demo) repo.stop()
         super.onDestroy()
     }
 

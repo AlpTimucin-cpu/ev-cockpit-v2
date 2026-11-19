@@ -121,7 +121,10 @@ class ObdRepository(private val ctx: Context, private val scope: CoroutineScope)
                     addLine("HATA: $reason (${error.javaClass.simpleName}: ${error.message})")
                     state.value = VehicleState(statusText = "$reason; ${delayMs / 1_000} sn sonra yeniden denenecek")
                     // Missing permission cannot be repaired by automatic retries.
-                    if (error is SecurityException) break
+                    if (error is SecurityException) return@launch
+                    // Release the failed socket before waiting; no open resources during backoff.
+                    transport.close()
+                    if (activeTransport === transport) activeTransport = null
                     delay(delayMs)
                 } finally {
                     transport.close()
@@ -149,6 +152,8 @@ class ObdRepository(private val ctx: Context, private val scope: CoroutineScope)
 
     fun startDemo() {
         stop()
+        // Mark demo immediately so a pending Service.onDestroy cannot cancel it.
+        state.value = VehicleState(demo = true, statusText = "Demo başlatılıyor")
         job = scope.launch(Dispatchers.IO) {
             var time = 0.0
             var soc = 72.0
