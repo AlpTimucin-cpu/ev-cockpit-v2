@@ -26,10 +26,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.evcockpit.navigation.EncryptedRouteKeyStore
+import app.evcockpit.location.GpsSnapshot
 import kotlinx.coroutines.launch
 
 @Composable
-fun RouteSettingsScreen() {
+fun RouteSettingsScreen(gps: GpsSnapshot, onStartGps: () -> Unit, onStopGps: () -> Unit) {
     val context = LocalContext.current
     val store = remember(context) { EncryptedRouteKeyStore(context) }
     val configured by store.isConfigured.collectAsState(initial = false)
@@ -41,6 +42,12 @@ fun RouteSettingsScreen() {
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        Text("Konum: ${gps.status}")
+        Text("Hassasiyet: ${gps.accuracyMeters?.toInt()?.toString() ?: "--"} m • "
+            + (gps.provider ?: "Konum sağlayıcı yok"))
+        Button(onClick = onStartGps) { Text("GPS takibini başlat") }
+        OutlinedButton(onClick = onStopGps) { Text("GPS takibini durdur") }
+        Text("GPS izni bu düğmeyle istenir. Konum işlenmesi için görünür bildirimli konum servisi kullanılır.")
         Text("Rota servisi: openrouteservice (HeiGIT)")
         Text("API anahtarı: " + if (configured) "kayıtlı (doğrulanmadı)" else "kayıtlı değil")
         Text("Anahtarını kendi HeiGIT hesabından oluştur. Bu uygulama anahtar üretmez.")

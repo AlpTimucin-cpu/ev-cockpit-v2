@@ -58,6 +58,7 @@ private fun App(vm: ObdViewModel) {
     val logPath by vm.logFilePath.collectAsStateWithLifecycle()
     val devices by vm.devices.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
+    val gps by vm.gps.collectAsStateWithLifecycle()
     var shareError by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableIntStateOf(1) }
 
@@ -79,6 +80,14 @@ private fun App(vm: ObdViewModel) {
     ) { vm.refreshBonded() }
     LaunchedEffect(vm) { launcher.launch(permissions) }
 
+    val gpsPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        if (results[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        ) vm.startGps() else vm.denyGps()
+    }
+
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         TabRow(selectedTabIndex = tab) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Gösterge") })
@@ -86,7 +95,7 @@ private fun App(vm: ObdViewModel) {
             Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Rota Ayarları") })
         }
         when (tab) {
-            0 -> DashboardScreen(state, cfg.usableKwh)
+            0 -> DashboardScreen(state, cfg.usableKwh, gps)
             1 -> ObdTestScreen(
                 state = state,
                 log = logs,
@@ -116,7 +125,15 @@ private fun App(vm: ObdViewModel) {
                     }
                 },
             )
-            else -> RouteSettingsScreen()
+            else -> RouteSettingsScreen(
+                gps = gps,
+                onStartGps = {
+                    gpsPermissionLauncher.launch(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                    )
+                },
+                onStopGps = vm::stopGps,
+            )
         }
     }
 }

@@ -35,6 +35,13 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Birim testleri **örnek (sentetik) JSON** üstündedir; HeiGIT anahtarı olmadan gerçek rota/API erişimi **doğrulanmadı**.
 - Varsayılan ücretsiz Directions kotası 2000/24 saat, 40/dk; lisans ve koşulları kontrol edin: https://giscience.github.io/openrouteservice/frequently-asked-questions.html
 
+## Aşama 2 / İterasyon 1 — GPS + hız yedeği (PR-4)
+- Kullanıcı **Rota Ayarları > GPS takibini başlat** düğmesine basar; fine+coarse konum izni o anda istenir.
+- Android LocationManager GPS_PROVIDER (ve geçerli ağ konumu yedeği) + `location` foreground service ve bildirim.
+- OBD hızı mevcutsa öncelikli fakat PID `verified=false` olduğu için **OBD — PID doğrulanmadı** yazısı; OBD hızında veri yoksa son 15 saniyede alınmış geçerli GPS hızına düşer. Demo her zaman **DEMO** etiketlidir.
+- GPS konumu/batarya/araç testleri **henüz fiziksel cihazda doğrulanmadı**.
+- https://developer.android.com/develop/background-work/services/fgs/service-types
+
 ## CI / telefondan APK indirme
 
 - [Android CI](../../actions/workflows/android.yml): Gradle **8.10.2**, Java 17, `:app:testDebugUnitTest`, `:app:assembleDebug`.

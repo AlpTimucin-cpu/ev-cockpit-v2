@@ -11,6 +11,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import app.evcockpit.CockpitApplication
+import app.evcockpit.location.LocationTrackingService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -21,6 +22,7 @@ class ObdViewModel(application: Application) : AndroidViewModel(application) {
     val state = repo.state.asStateFlow()
     val log = repo.log.asStateFlow()
     val logFilePath = repo.logFilePath.asStateFlow()
+    val gps = app.locationRepository.state.asStateFlow()
 
     private val _devices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
     val devices = _devices.asStateFlow()
@@ -69,6 +71,36 @@ class ObdViewModel(application: Application) : AndroidViewModel(application) {
         } catch (error: Exception) {
             _message.value = "OBD servisi başlatılamadı: ${error.message ?: "Bilinmeyen hata"}"
         }
+    }
+
+    fun startGps() {
+        val fine = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!fine && !coarse) {
+            app.locationRepository.failure("Konum izni verilmedi")
+            return
+        }
+        try {
+            ContextCompat.startForegroundService(
+                app,
+                Intent(app, LocationTrackingService::class.java).apply {
+                    action = LocationTrackingService.ACTION_START
+                },
+            )
+        } catch (_: Exception) {
+            app.locationRepository.failure("Konum servisi başlatılamadı")
+        }
+    }
+
+    fun denyGps() {
+        app.locationRepository.failure("Konum izni verilmedi")
+    }
+
+    fun stopGps() {
+        app.stopService(Intent(app, LocationTrackingService::class.java))
+        app.locationRepository.stop()
     }
 
     fun stop() {
