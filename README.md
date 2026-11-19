@@ -28,6 +28,13 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Yeni HeiGIT API host: `https://api.heigit.org/openrouteservice/`. Kullanıcı kendisi https://account.heigit.org/ hesabında anahtar oluşturur.
 - https://giscience.github.io/openrouteservice/frequently-asked-questions.html
 
+## Aşama 2 / İterasyon 1 — RouteProvider + openrouteservice (PR-3)
+- `RouteProvider` arayüzü ve `OrsRouteProvider` ile sabit HTTPS `api.heigit.org/openrouteservice/v2/directions/driving-car/geojson` yolu.
+- Rota isteğinde kullanıcının kendi anahtarı sadece `Authorization` başlığına yazılır; yönlendirme isteği bilinmeyen sunucuya takip edilmez. Türkçe `language=tr`, `instructions=true`.
+- GeoJSON LineString koordinatları [lon,lat], toplam metre/saniye ve Türkçe manevraları ayrıştırılır; hata kodlarında anahtar veya yanıt gövdesi loglanmaz.
+- Birim testleri **örnek (sentetik) JSON** üstündedir; HeiGIT anahtarı olmadan gerçek rota/API erişimi **doğrulanmadı**.
+- Varsayılan ücretsiz Directions kotası 2000/24 saat, 40/dk; lisans ve koşulları kontrol edin: https://giscience.github.io/openrouteservice/frequently-asked-questions.html
+
 ## CI / telefondan APK indirme
 
 - [Android CI](../../actions/workflows/android.yml): Gradle **8.10.2**, Java 17, `:app:testDebugUnitTest`, `:app:assembleDebug`.
