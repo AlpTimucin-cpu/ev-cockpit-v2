@@ -70,6 +70,14 @@ class NavigationViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun selectDestination(point: GeoPoint) {
+        if (mutable.value.busy) return
+        mutable.value = RouteUiState(
+            destination = point,
+            message = "Haritada hedef seçildi. Rota sekmesinde Rota hesapla düğmesine bas.",
+        )
+    }
+
     fun clear() {
         mutable.value = RouteUiState(message = "Rota temizlendi.")
     }

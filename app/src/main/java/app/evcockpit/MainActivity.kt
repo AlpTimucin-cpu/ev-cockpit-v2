@@ -100,7 +100,10 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
             Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text("Ayarlar") })
         }
         when (tab) {
-            0 -> DashboardScreen(state, cfg.usableKwh, gps)
+            0 -> DashboardScreen(
+                s = state, usableKwh = cfg.usableKwh, gps = gps,
+                navigation = navState, onSelectDestination = navVm::selectDestination,
+            )
             1 -> ObdTestScreen(
                 state = state,
                 log = logs,

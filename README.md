@@ -49,6 +49,12 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Geçerli bir API anahtarı ve cihaz/rota testi **henüz doğrulanmadı**. OpenFreeMap'e rota çizgisini çizme ve TTS sonraki ayrı PR.
 - Canlı trafik, otomatik geocoding, BRouter/PMTiles, Android Auto özellikleri yok.
 
+## Aşama 2 / İterasyon 1 — harita rota çizgisi (PR-6)
+- Gerçek ORS GeoJSON geometry alındığında MapLibre haritada çizgi gösterir; **sahada henüz doğrulanmadı**.
+- Harita uzun basışında gerçek seçilen koordinat hedef olur; Rota sekmesi hedef alanına aktarılır. Uygulama kendiliğinden rota istemez.
+- Harita üzerindeki manevra kutusu yalnızca rota ve taze/rotaya yakın GPS ile görünür.
+- MapLibre legacy annotation API bu ilk iterasyonda kullanıldı; ileride GeoJSON source/layer'a geçiş değerlendirilir.
+
 ## CI / telefondan APK indirme
 
 - [Android CI](../../actions/workflows/android.yml): Gradle **8.10.2**, Java 17, `:app:testDebugUnitTest`, `:app:assembleDebug`.
