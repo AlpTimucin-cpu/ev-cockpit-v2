@@ -7,7 +7,8 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Klasik Bluetooth SPP ile ELM327; 29-bit CAN MEB PID tablosu (`app/src/main/assets/pids_meb.json`)
 - **Klon toleransı:** Opsiyonel AT komutları (`ATCRA`, `ATFC*`, `ATAT1`, `ATST64`) desteklenmiyorsa uyarı loglanır, zorunlu protokol/header başarısızsa oturum durdurulup yeniden denenir.
 - **Dayanıklılık:** Cevap istemi (`>`) zaman aşımı, soket kapanması ve diğer IO hatalarında 1/2/4/8/16/30 saniyeye kadar kontrollü yeniden bağlanma.
-- **OBD Test:** ham komut/yanıt kayıtları, FileProvider ve Android paylaşım penceresi ile log gönderme.
+- **OBD Test:** ham komut/yanıt kayıtları, FileProvider ve Android paylaşım penceresi ile log gönderme. Sol kontrol paneli kaydırılabilir; log paylaşımı/kayıt yolu ekran boyundan bağımsız erişilebilir. Eşleşmiş cihaz yoksa Bluetooth ayarlarına geçiş düğmesi gösterilir.
+- **Ekran güvenli alanı:** `WindowInsets.safeDrawing` ile sekmeler durum çubuğu, navigasyon çubuğu ve ekran kesimi alanlarından uzak tutulur. Fiziksel cihaz arayüz testi henüz yapılmadı.
 - **Foreground service:** Android 14+ `connectedDevice` türü ile OBD oturumu Activity'den bağımsız. Android 12+ Bluetooth Connect izni, Android 13+ bildirim izni istenir.
 - **Gösterge:** hız / çekiş veya rejenerasyon güç çubuğu / batarya %, ayrı demo veri modu.
 - **Trafik özelliği yoktur ve eklenmeyecektir.**
