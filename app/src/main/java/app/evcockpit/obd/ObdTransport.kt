@@ -20,6 +20,13 @@ interface ObdTransport {
     /** Return only after '>' prompt; otherwise throw a recoverable timeout. */
     suspend fun readUntilPrompt(timeoutMs: Long): String
     fun close()
+
+    /** Three-second passive CAN capture; implementations must send CR and regain prompt. */
+    suspend fun monitorFor(durationMs: Long): String =
+        throw UnsupportedOperationException("ATMA izleme desteklenmiyor")
+
+    /** A lone CR resynchronizes the ELM prompt after a timeout (no input flush). */
+    suspend fun sendBreak(): Unit = write("")
 }
 
 /** Classic Bluetooth SPP/RFCOMM. The socket can be closed from another thread to abort connect. */
@@ -70,6 +77,42 @@ class BluetoothSppTransport(private val device: BluetoothDevice) : ObdTransport 
             }
         }
         throw ObdTimeoutException("ELM327 istem işareti (>) zaman aşımına uğradı")
+    }
+
+    override suspend fun sendBreak() = withContext(Dispatchers.IO) {
+        val out = output ?: throw IOException("Bluetooth çıkış akışı kapalı")
+        out.write(byteArrayOf(13))
+        out.flush()
+    }
+
+    override suspend fun monitorFor(durationMs: Long): String = withContext(Dispatchers.IO) {
+        val ins = input ?: throw IOException("Bluetooth giriş akışı kapalı")
+        write("ATMA")
+        val outputText = StringBuilder()
+        val deadline = System.nanoTime() + durationMs * 1_000_000L
+        var endedEarly = false
+        while (System.nanoTime() < deadline) {
+            if (ins.available() > 0) {
+                val byte = ins.read()
+                if (byte < 0) throw IOException("CAN izlemede Bluetooth kapandı")
+                if (byte == '>'.code) {
+                    endedEarly = true
+                    break
+                }
+                if (outputText.length < 32_768) outputText.append(byte.toChar())
+            } else delay(10)
+        }
+        if (!endedEarly) {
+            sendBreak() // ATMA is a streaming command; do not flush pending CAN frames.
+            try {
+                val tail = readUntilPrompt(1_800)
+                if (outputText.length + tail.length < 32_768) outputText.append(tail)
+            } catch (failure: ObdTimeoutException) {
+                close() // Never send another AT command to an unsynchronized clone.
+                throw ObdTimeoutException("ATMA CR sonrasında istem işareti yok; yeniden bağlantı gerekli")
+            }
+        }
+        outputText.toString()
     }
 
     override fun close() {
