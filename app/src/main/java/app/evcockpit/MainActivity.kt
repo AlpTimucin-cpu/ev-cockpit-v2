@@ -35,6 +35,7 @@ import app.evcockpit.obd.ObdViewModel
 import app.evcockpit.obd.PidTable
 import app.evcockpit.ui.DashboardScreen
 import app.evcockpit.ui.ObdTestScreen
+import app.evcockpit.ui.RouteSettingsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,10 +83,11 @@ private fun App(vm: ObdViewModel) {
         TabRow(selectedTabIndex = tab) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Gösterge") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("OBD Test") })
+            Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Rota Ayarları") })
         }
         when (tab) {
             0 -> DashboardScreen(state, cfg.usableKwh)
-            else -> ObdTestScreen(
+            1 -> ObdTestScreen(
                 state = state,
                 log = logs,
                 logFilePath = logPath,
@@ -114,6 +116,7 @@ private fun App(vm: ObdViewModel) {
                     }
                 },
             )
+            else -> RouteSettingsScreen()
         }
     }
 }
