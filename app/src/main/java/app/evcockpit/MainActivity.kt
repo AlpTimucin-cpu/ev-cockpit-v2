@@ -33,6 +33,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.evcockpit.obd.ObdLogShare
 import app.evcockpit.obd.ObdViewModel
 import app.evcockpit.obd.PidTable
+import app.evcockpit.navigation.NavigationViewModel
+import app.evcockpit.ui.RouteScreen
 import app.evcockpit.ui.DashboardScreen
 import app.evcockpit.ui.ObdTestScreen
 import app.evcockpit.ui.RouteSettingsScreen
@@ -42,15 +44,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
-                val viewModel: ObdViewModel = viewModel()
-                App(viewModel)
+                val obdViewModel: ObdViewModel = viewModel()
+                val navViewModel: NavigationViewModel = viewModel()
+                App(obdViewModel, navViewModel)
             }
         }
     }
 }
 
 @Composable
-private fun App(vm: ObdViewModel) {
+private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
     val context = LocalContext.current
     val cfg = remember { PidTable.load(context) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -59,6 +62,7 @@ private fun App(vm: ObdViewModel) {
     val devices by vm.devices.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val gps by vm.gps.collectAsStateWithLifecycle()
+    val navState by navVm.state.collectAsStateWithLifecycle()
     var shareError by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableIntStateOf(1) }
 
@@ -92,7 +96,8 @@ private fun App(vm: ObdViewModel) {
         TabRow(selectedTabIndex = tab) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Gösterge") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("OBD Test") })
-            Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Rota Ayarları") })
+            Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Rota") })
+            Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text("Ayarlar") })
         }
         when (tab) {
             0 -> DashboardScreen(state, cfg.usableKwh, gps)
@@ -124,6 +129,14 @@ private fun App(vm: ObdViewModel) {
                         shareError = "Bluetooth ayarları açılamadı: ${error.message ?: "Bilinmeyen hata"}"
                     }
                 },
+            )
+            2 -> RouteScreen(
+                state = navState,
+                gps = gps,
+                socPct = state.socPct,
+                usableKwh = cfg.usableKwh,
+                onCalculate = navVm::calculate,
+                onClear = navVm::clear,
             )
             else -> RouteSettingsScreen(
                 gps = gps,

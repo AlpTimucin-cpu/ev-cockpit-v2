@@ -42,6 +42,13 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - GPS konumu/batarya/araç testleri **henüz fiziksel cihazda doğrulanmadı**.
 - https://developer.android.com/develop/background-work/services/fgs/service-types
 
+## Aşama 2 / İterasyon 1 — Rota paneli ve varış enerjisi (PR-5)
+- Kullanıcı `Rota` sekmesinde hedef enlem/boylam girerek `RouteProvider` üzerinden açıkça rota hesaplatır; GPS mevcut ve tazeyse, varsa şifreli saklanan kişisel HeiGIT anahtarı çözülüp yalnızca istekte kullanılır.
+- Türkçe manevra paneli, toplam rota km/süre, canlı GPS konumunun rota çizgisine uzaklığına göre yaklaşık kalan km, rota dışındaysa bilgi **gösterilemez**.
+- `Varış enerjisi (TAHMİN)` formül: `usableKWh × SoC/100 − remainingKm × userAverageKWhPer100Km / 100`. SoC/ortalama tüketim/kalan mesafe yoksa sonuç **yok**; enerji değeri kesin değil.
+- Geçerli bir API anahtarı ve cihaz/rota testi **henüz doğrulanmadı**. OpenFreeMap'e rota çizgisini çizme ve TTS sonraki ayrı PR.
+- Canlı trafik, otomatik geocoding, BRouter/PMTiles, Android Auto özellikleri yok.
+
 ## CI / telefondan APK indirme
 
 - [Android CI](../../actions/workflows/android.yml): Gradle **8.10.2**, Java 17, `:app:testDebugUnitTest`, `:app:assembleDebug`.
