@@ -114,3 +114,10 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Gösterge ekranı ve varış kWh TAHMİN aynı SoC kaynak seçimini kullanır; kullanıcı ortalama tüketimini girmeden kWh uydurulmaz. Formül değişmedi.
 - GPS hız yedeği ve mevcut hız kaynağı etiketi korunur. SoC kaynak tercihi ile MEB PID verified işaretleri ilişkisizdir; verified=false kalır.
 - Manuel girişin fiziksel Android DataStore kalıcılığı ve araç ekranı karşılaştırması DOĞRULANMADI.
+
+## M3 / PR2 — Arka plan rehberi ve GÜVENLİ test raporu
+- Rota Ayarları > pil optimizasyonu ve otomatik başlatma / uygulama bilgileri: resmî Android Settings intent'leri açılır; Xiaomi/POCO cihazlarında bilinen MIUI bileşenine erişme denenir, bulunamazsa Android uygulama detaylarına düşer. Ayar otomatik değiştirilmez. Kaynaklar: https://developer.android.com/reference/android/provider/Settings ; https://www.mi.com/uk/support/user-guide-pdf/generic-user-guide-for-hyperos-3/
+- OBD Test > **Güvenli test raporunu dışa aktar**: uygulama sürümü/paket, Android SDK ve model, Bluetooth/konum/bildirim izinleri, son Tanı özeti ve son 200 OBD log satırı.
+- Test raporu kaynağı yalnız OBD logudur; GPS/Route/Keystore API anahtarları okunmaz. VIN 0902, koordinat dizileri, token/Authorization/API key şüpheli satırlar tamamen gizlenir. **Ayrı orijinal ham tanı logu gizlilik filtresi uygulanmaz**; paylaşmadan önce kontrol edin.
+- Rapor Android FileProvider ve sistem paylaşım seçicisiyle açılır; fiziksel telefonda dışa aktarma ve OEM ayarları DOĞRULANMADI.
+- M1, M2, M3 ardından Durma Noktası 1: araç park halindeyken Ready, adaptör tam oturmuş şekilde tanı çalıştırılıp güvenli test raporu ve gerekiyorsa kontrollü ham tanı dosyası paylaşılacak. M4-M7 için saha sonucu / ayrıca onay beklenir.
