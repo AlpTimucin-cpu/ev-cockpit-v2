@@ -16,7 +16,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 **Doğrulama sınırı:** CI testleri ve APK derlemesi araç testi değildir. ELM327 klon davranışı, gerçek PID sonuçları, soket kopma senaryoları ve foreground service davranışı **telefon/araç üzerinde henüz doğrulanmadı**.
 
 ## Aşama 2 / İterasyon 1 — online harita (PR-1)
-- MapLibre Native Android 13.5.4 + OpenFreeMap Liberty çevrimiçi stil entegrasyonu. Türkiye merkezli başlangıç görünümü kullanır; **gerçek GPS konumu değildir**.
+- MapLibre Native Android 11.13.0 + OpenFreeMap Liberty çevrimiçi stil entegrasyonu. Türkiye merkezli başlangıç görünümü kullanır; **gerçek GPS konumu değildir**.
 - Harita internet gerektirir; **PMTiles/BRouter yoktur**. OpenFreeMap çevrimdışı karo indirme özelliği uygulanmadı.
 - Haritanın cihazda görüntülenmesi henüz test edilmedi. OSM/OpenFreeMap atıfları korunmalıdır.
 - OpenFreeMap TOS (2026-10-14): https://openfreemap.org/tos/
