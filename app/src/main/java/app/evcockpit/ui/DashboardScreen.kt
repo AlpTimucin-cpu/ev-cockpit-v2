@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.evcockpit.obd.VehicleState
+import app.evcockpit.obd.SocReading
 import app.evcockpit.location.GpsSnapshot
 import app.evcockpit.location.SpeedSelector
 import app.evcockpit.navigation.GeoPoint
@@ -42,6 +43,7 @@ private val Track = Color(0xFF22272E)
 @Composable
 fun DashboardScreen(
     s: VehicleState,
+    soc: SocReading,
     usableKwh: Double,
     gps: GpsSnapshot,
     navigation: RouteUiState,
@@ -73,7 +75,7 @@ fun DashboardScreen(
                 if (s.demo) Text("DEMO", color = Color(0xFFFFB300), fontSize = 14.sp)
             }
             PowerBar(s.powerKw)
-            BatteryBlock(s.socPct, usableKwh)
+            BatteryBlock(soc, usableKwh)
         }
         OnlineMap(
             modifier = Modifier.weight(0.62f).fillMaxHeight().clip(RoundedCornerShape(20.dp)),
@@ -105,8 +107,8 @@ private fun PowerBar(kw: Double?, maxKw: Double = 125.0) {
 }
 
 @Composable
-private fun BatteryBlock(soc: Double?, usableKwh: Double) {
-    val pct = soc?.coerceIn(0.0, 100.0)
+private fun BatteryBlock(soc: SocReading, usableKwh: Double) {
+    val pct = soc.pct?.coerceIn(0.0, 100.0)
     Column {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
@@ -130,6 +132,7 @@ private fun BatteryBlock(soc: Double?, usableKwh: Double) {
                 )
             }
         }
+        Text(soc.source, color = Dim, fontSize = 12.sp)
         if (pct != null) {
             Spacer(Modifier.height(4.dp))
             Text("≈ %.1f kWh".format(pct / 100.0 * usableKwh), color = Dim, fontSize = 14.sp)
