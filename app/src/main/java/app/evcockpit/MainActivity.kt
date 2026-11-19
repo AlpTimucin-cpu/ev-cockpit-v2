@@ -1,6 +1,8 @@
 package app.evcockpit
 
 import android.Manifest
+import android.content.Intent
+import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,6 +10,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
@@ -73,7 +78,7 @@ private fun App(vm: ObdViewModel) {
     ) { vm.refreshBonded() }
     LaunchedEffect(vm) { launcher.launch(permissions) }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         TabRow(selectedTabIndex = tab) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Gösterge") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("OBD Test") })
@@ -98,6 +103,14 @@ private fun App(vm: ObdViewModel) {
                         }
                     } catch (error: Exception) {
                         shareError = "Kayıt paylaşılamadı: ${error.message ?: "Bilinmeyen hata"}"
+                    }
+                },
+                onOpenBluetoothSettings = {
+                    shareError = null
+                    try {
+                        context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+                    } catch (error: Exception) {
+                        shareError = "Bluetooth ayarları açılamadı: ${error.message ?: "Bilinmeyen hata"}"
                     }
                 },
             )

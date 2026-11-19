@@ -5,9 +5,12 @@ import android.bluetooth.BluetoothDevice
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -36,13 +39,17 @@ fun ObdTestScreen(
     onDemo: () -> Unit,
     onStop: () -> Unit,
     onShareLog: () -> Unit,
+    onOpenBluetoothSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(log.size) { if (log.isNotEmpty()) listState.scrollToItem(log.lastIndex) }
 
     Row(modifier.fillMaxSize().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.weight(0.4f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier.weight(0.4f).fillMaxHeight().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text("OBD bağlantı testi", fontSize = 18.sp)
             Text(state.statusText, fontSize = 14.sp)
             message?.let { Text(it, color = Color(0xFFFFB300), fontSize = 12.sp) }
@@ -50,8 +57,13 @@ fun ObdTestScreen(
             OutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
                 Text("Eşleşmiş cihazları yenile")
             }
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(devices) { device ->
+            if (devices.isEmpty()) {
+                Text("Eşleşmiş cihaz yok", fontSize = 13.sp)
+                OutlinedButton(onClick = onOpenBluetoothSettings, modifier = Modifier.fillMaxWidth()) {
+                    Text("Bluetooth ayarlarını aç")
+                }
+            } else {
+                devices.forEach { device ->
                     Button(onClick = { onConnect(device) }, modifier = Modifier.fillMaxWidth()) {
                         Text("${device.name ?: "?"} (${device.address})", fontSize = 13.sp)
                     }
