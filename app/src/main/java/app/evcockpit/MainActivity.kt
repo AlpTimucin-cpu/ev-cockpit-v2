@@ -1,8 +1,6 @@
 package app.evcockpit
 
 import android.Manifest
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,8 +24,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
-import app.evcockpit.obd.ObdRepository
+import androidx.lifecycle.viewmodel.compose.viewModel
+import app.evcockpit.obd.ObdLogShare
+import app.evcockpit.obd.ObdViewModel
 import app.evcockpit.obd.PidTable
 import app.evcockpit.ui.DashboardScreen
 import app.evcockpit.ui.ObdTestScreen
@@ -35,35 +34,44 @@ import app.evcockpit.ui.ObdTestScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val repo = ObdRepository(applicationContext, lifecycleScope)
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) { App(repo) }
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                val viewModel: ObdViewModel = viewModel()
+                App(viewModel)
+            }
         }
     }
 }
 
 @Composable
-private fun App(repo: ObdRepository) {
-    val ctx = LocalContext.current
-    val cfg = remember { PidTable.load(ctx) }
-    val state by repo.state.collectAsStateWithLifecycle()
-    var tab by remember { mutableIntStateOf(1) } // ilk açılışta test ekranı
-    var devices by remember { mutableStateOf(emptyList<BluetoothDevice>()) }
+private fun App(vm: ObdViewModel) {
+    val context = LocalContext.current
+    val cfg = remember { PidTable.load(context) }
+    val state by vm.state.collectAsStateWithLifecycle()
+    val logs by vm.log.collectAsStateWithLifecycle()
+    val logPath by vm.logFilePath.collectAsStateWithLifecycle()
+    val devices by vm.devices.collectAsStateWithLifecycle()
+    val message by vm.message.collectAsStateWithLifecycle()
+    var shareError by remember { mutableStateOf<String?>(null) }
+    var tab by remember { mutableIntStateOf(1) }
 
-    fun refresh() {
-        devices = try {
-            ctx.getSystemService(BluetoothManager::class.java)?.adapter?.bondedDevices?.toList().orEmpty()
-        } catch (e: SecurityException) {
-            emptyList()
-        }
+    val permissions = remember {
+        buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+            } else {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }.toTypedArray()
     }
 
-    val perms = remember {
-        if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_CONNECT)
-        else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-    }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { refresh() }
-    LaunchedEffect(Unit) { launcher.launch(perms) }
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { vm.refreshBonded() }
+    LaunchedEffect(vm) { launcher.launch(permissions) }
 
     Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = tab) {
@@ -72,7 +80,27 @@ private fun App(repo: ObdRepository) {
         }
         when (tab) {
             0 -> DashboardScreen(state, cfg.usableKwh)
-            else -> ObdTestScreen(repo, devices, onRefresh = ::refresh)
+            else -> ObdTestScreen(
+                state = state,
+                log = logs,
+                logFilePath = logPath,
+                devices = devices,
+                message = shareError ?: message,
+                onRefresh = vm::refreshBonded,
+                onConnect = vm::connect,
+                onDemo = vm::startDemo,
+                onStop = vm::stop,
+                onShareLog = {
+                    shareError = null
+                    try {
+                        if (!ObdLogShare.launch(context, logPath)) {
+                            shareError = "Paylaşılacak kayıt henüz oluşturulmadı."
+                        }
+                    } catch (error: Exception) {
+                        shareError = "Kayıt paylaşılamadı: ${error.message ?: "Bilinmeyen hata"}"
+                    }
+                },
+            )
         }
     }
 }
