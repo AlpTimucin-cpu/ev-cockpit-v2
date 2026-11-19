@@ -7,12 +7,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -25,30 +27,39 @@ data class VehicleState(
     val socPct: Double? = null,
     val hvVolt: Double? = null,
     val hvAmp: Double? = null,
+    val statusText: String = "Bağlı değil",
 ) {
-    /** Pozitif: çekiş, negatif: rejenerasyon/şarj. */
+    /** Positive: traction. Negative: regeneration/charging. Community PID scale unverified. */
     val powerKw: Double? get() = if (hvVolt != null && hvAmp != null) hvVolt * hvAmp / 1000.0 else null
 }
 
+/**
+ * Application-scoped OBD session, independent of Activity recreation.
+ * Connected-device foreground service owns when a real OBD session starts/stops.
+ */
 class ObdRepository(private val ctx: Context, private val scope: CoroutineScope) {
     val state = MutableStateFlow(VehicleState())
     val log = MutableStateFlow<List<String>>(emptyList())
     val logFilePath = MutableStateFlow<String?>(null)
 
     private var job: Job? = null
-    private var logFile: File? = null
+    @Volatile private var activeTransport: ObdTransport? = null
+    @Volatile private var logFile: File? = null
 
-    private fun addLine(s: String) {
+    private fun addLine(value: String) {
         val stamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
-        val line = "$stamp $s"
+        val line = "$stamp $value"
         log.update { (it + line).takeLast(400) }
+        // Caller is on Dispatchers.IO (including demo); no disk access on main thread.
         runCatching { logFile?.appendText(line + "\n") }
     }
 
     private fun newLogFile() {
         val name = "obd_log_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".txt"
-        logFile = File(ctx.getExternalFilesDir(null), name)
+        val directory = ctx.getExternalFilesDir(null) ?: ctx.filesDir
+        logFile = File(directory, name)
         logFilePath.value = logFile?.absolutePath
+        log.value = emptyList()
     }
 
     @SuppressLint("MissingPermission")
@@ -56,91 +67,116 @@ class ObdRepository(private val ctx: Context, private val scope: CoroutineScope)
         stop()
         newLogFile()
         job = scope.launch(Dispatchers.IO) {
-            var transport: ObdTransport? = null
-            try {
-                addLine("Bağlanılıyor: ${device.name ?: device.address}")
-                val cfg = PidTable.load(ctx)
-                val t = BluetoothSppTransport(device)
-                transport = t
-                t.open()
-                addLine("Bluetooth bağlandı")
-                val elm = Elm327(t, ::addLine)
-                val ok = elm.initialize(cfg)
-                state.update { it.copy(connected = ok) }
-                if (!ok) addLine("UYARI: ATI yanıtı yok, cihaz ELM327 değil olabilir")
+            var failureCount = 0
+            while (currentCoroutineContext().isActive) {
+                val transport = BluetoothSppTransport(device)
+                activeTransport = transport
+                try {
+                    state.value = VehicleState(statusText = "OBD cihazına bağlanılıyor")
+                    addLine("Bağlantı deneniyor: ${device.name ?: device.address}")
+                    val cfg = PidTable.load(ctx)
+                    transport.open()
+                    addLine("Bluetooth bağlantısı kuruldu")
+                    val elm = Elm327(transport, ::addLine)
+                    elm.initialize(cfg)
+                    failureCount = 0
+                    state.value = VehicleState(connected = true, statusText = "Bağlı")
+                    addLine("ELM327 hazır (PID ölçekleri doğrulanmadı)")
+                    val lastRun = HashMap<String, Long>()
 
-                val lastRun = HashMap<String, Long>()
-                while (isActive) {
-                    val now = System.currentTimeMillis()
-                    var didAny = false
-                    for (pid in cfg.pids) {
-                        if (now - (lastRun[pid.id] ?: 0L) < pid.everyMs) continue
-                        lastRun[pid.id] = now
-                        didAny = true
-                        elm.setHeader(pid.header ?: cfg.txHeader)
-                        val data = elm.query(pid.cmd)
-                        if (data == null) {
-                            addLine("! ${pid.id}: yanıt yok")
-                            continue
+                    while (currentCoroutineContext().isActive) {
+                        val now = System.currentTimeMillis()
+                        var queried = false
+                        for (pid in cfg.pids) {
+                            if (!currentCoroutineContext().isActive) break
+                            if (now - (lastRun[pid.id] ?: 0L) < pid.everyMs) continue
+                            lastRun[pid.id] = now
+                            queried = true
+                            elm.setHeader(pid.header ?: cfg.txHeader)
+                            val data = elm.query(pid.cmd)
+                            if (data == null) {
+                                addLine("! ${pid.id}: veri yok/yanıt reddedildi")
+                                continue
+                            }
+                            val hex = data.joinToString("") { "%02X".format(it) }
+                            val value = PidTable.decode(pid, data)
+                            addLine("= ${pid.id} raw=$hex value=${value?.let { "%.2f".format(it) }} ${pid.unit} (verified=${pid.verified})")
+                            if (value != null) applyValue(pid.role, value)
                         }
-                        val hexStr = data.joinToString("") { "%02X".format(it) }
-                        val v = PidTable.decode(pid, data)
-                        addLine("= ${pid.id} raw=$hexStr value=${v?.let { "%.2f".format(it) }} ${pid.unit}")
-                        if (v != null) applyValue(pid.role, v)
+                        if (!queried) delay(50)
                     }
-                    if (!didAny) delay(50)
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (error: Exception) {
+                    if (!currentCoroutineContext().isActive) break
+                    failureCount += 1
+                    val delayMs = ReconnectBackoff.delayMs(failureCount)
+                    val reason = when (error) {
+                        is SecurityException -> "Bluetooth izni eksik"
+                        is ObdTimeoutException -> "ELM327 yanıt vermiyor"
+                        is ObdProtocolException -> "ELM327 komut desteği yetersiz"
+                        is IOException -> "Bluetooth/OBD bağlantısı koptu"
+                        else -> "OBD bağlantısı kurulamadı"
+                    }
+                    addLine("HATA: $reason (${error.javaClass.simpleName}: ${error.message})")
+                    state.value = VehicleState(statusText = "$reason; ${delayMs / 1_000} sn sonra yeniden denenecek")
+                    // Missing permission cannot be repaired by automatic retries.
+                    if (error is SecurityException) break
+                    delay(delayMs)
+                } finally {
+                    transport.close()
+                    if (activeTransport === transport) activeTransport = null
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                addLine("HATA: ${e.javaClass.simpleName}: ${e.message}")
-            } finally {
-                transport?.close()
-                state.value = VehicleState()
-                addLine("Bağlantı kapandı")
+            }
+            if (job === currentCoroutineContext()[Job]) {
+                state.value = VehicleState(statusText = "Bağlı değil")
+                addLine("OBD oturumu sonlandırıldı")
             }
         }
     }
 
-    private fun applyValue(role: String, v: Double) {
+    private fun applyValue(role: String, value: Double) {
         state.update {
             when (role) {
-                "soc" -> it.copy(socPct = v)
-                "volt" -> it.copy(hvVolt = v)
-                "amp" -> it.copy(hvAmp = v)
-                "speed" -> it.copy(speedKmh = v)
+                "soc" -> it.copy(socPct = value)
+                "volt" -> it.copy(hvVolt = value)
+                "amp" -> it.copy(hvAmp = value)
+                "speed" -> it.copy(speedKmh = value)
                 else -> it
             }
         }
     }
 
-    /** Araç olmadan arayüzü denemek için sahte veri. */
     fun startDemo() {
         stop()
-        job = scope.launch {
-            var t = 0.0
+        job = scope.launch(Dispatchers.IO) {
+            var time = 0.0
             var soc = 72.0
             try {
-                while (isActive) {
-                    val speed = 60.0 + 55.0 * sin(t / 6.0)
-                    val amp = 80.0 * sin(t / 6.0 + 0.6)
+                while (currentCoroutineContext().isActive) {
+                    val speed = 60.0 + 55.0 * sin(time / 6.0)
+                    val amp = 80.0 * sin(time / 6.0 + 0.6)
                     soc = (soc - 0.01).coerceAtLeast(5.0)
                     state.value = VehicleState(
                         connected = true, demo = true,
                         speedKmh = speed.coerceAtLeast(0.0), socPct = soc,
                         hvVolt = 360.0 - amp * 0.05, hvAmp = amp,
+                        statusText = "Demo — gerçek araç verisi değil",
                     )
-                    t += 0.1
+                    time += 0.1
                     delay(100)
                 }
             } finally {
-                state.value = VehicleState()
+                if (job === currentCoroutineContext()[Job]) state.value = VehicleState()
             }
         }
     }
 
     fun stop() {
         job?.cancel()
+        activeTransport?.close() // interrupts blocked BluetoothSocket.connect()
+        activeTransport = null
         job = null
+        state.value = VehicleState(statusText = "Bağlantı kesildi")
     }
 }

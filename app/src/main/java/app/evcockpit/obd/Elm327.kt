@@ -1,11 +1,19 @@
 package app.evcockpit.obd
 
-/** Basit ELM327 istemcisi: AT başlatma, başlık (header) yönetimi ve UDS (servis 0x22) sorguları. */
+import java.io.IOException
+
+class ObdProtocolException(message: String) : IOException(message)
+
+/**
+ * ELM327 protocol client. Unsupported optional AT commands do not abort the session.
+ * Required protocol/header commands must be accepted to avoid misleading data.
+ */
 class Elm327(
     private val t: ObdTransport,
     private val onLine: (String) -> Unit = {},
 ) {
     private var currentHeader = ""
+    private val unsupportedOptional = mutableSetOf<String>()
 
     suspend fun send(cmd: String, timeoutMs: Long = 2500): String {
         onLine("> $cmd")
@@ -13,68 +21,106 @@ class Elm327(
         val raw = t.readUntilPrompt(timeoutMs)
         val clean = raw.replace("\r", "\n").lines()
             .map { it.trim() }
-            .filter { it.isNotEmpty() && !it.startsWith("SEARCHING") }
+            .filter { it.isNotEmpty() && !it.startsWith("SEARCHING", ignoreCase = true) }
             .joinToString("\n")
         onLine("< ${clean.replace("\n", " | ")}")
         return clean
     }
 
-    /** true: cihaz ATI'ye yanıt verdi. Hatalı AT komutları (ucuz klonlarda '?') yok sayılır. */
+    private fun rejected(answer: String): Boolean {
+        val normalized = answer.uppercase()
+        return normalized.isBlank() ||
+            normalized.lines().any { it.trim() == "?" } ||
+            listOf("ERROR", "UNABLE TO CONNECT", "BUFFER FULL", "BUS ERROR", "CAN ERROR", "STOPPED")
+                .any { normalized.contains(it) }
+    }
+
+    private suspend fun required(cmd: String) {
+        val answer = send(cmd)
+        if (rejected(answer)) {
+            throw ObdProtocolException("ELM327 gerekli komutu desteklemedi: $cmd")
+        }
+    }
+
+    private suspend fun optional(cmd: String, family: String = cmd) {
+        if (family in unsupportedOptional) return
+        val answer = send(cmd)
+        if (rejected(answer)) {
+            unsupportedOptional += family
+            onLine("! Opsiyonel komut desteklenmiyor: $cmd; bağlantı denenmeye devam edilecek")
+        }
+    }
+
     suspend fun initialize(cfg: ObdConfig): Boolean {
-        send("ATZ", 4000)
-        send("ATE0")
-        send("ATL0")
-        send("ATS0")
-        send("ATH0")
-        send("ATCAF1")
-        val ver = send("ATI")
-        send("ATSP${cfg.protocol}")
+        // ATI and timing features are not uniformly implemented by low-cost clones.
+        optional("ATZ", "ATZ")
+        optional("ATE0")
+        optional("ATL0")
+        optional("ATS0")
+        optional("ATH0")
+        optional("ATCAF1")
+        optional("ATAT1")
+        optional("ATST64")
+        optional("ATI")
+        required("ATSP${cfg.protocol}")
         currentHeader = ""
         setHeader(cfg.txHeader)
-        return ver.isNotEmpty()
+        return true
     }
 
     suspend fun setHeader(h: String) {
         if (h == currentHeader) return
-        send("ATSH$h")
-        send("ATCRA${rxFor(h)}")
-        // Çok çerçeveli yanıtlar için akış kontrolü; desteklemeyen klonlarda '?' döner, sorun değil.
-        send("ATFCSH$h")
-        send("ATFCSD300000")
-        send("ATFCSM1")
+        required("ATSH$h")
+        optional("ATCRA${rxFor(h)}", "ATCRA")
+        optional("ATFCSH$h", "ATFCSH")
+        optional("ATFCSD300000", "ATFCSD")
+        optional("ATFCSM1", "ATFCSM")
         currentHeader = h
     }
 
-    suspend fun query(cmd: String): ByteArray? = parseUds(cmd, send(cmd, 1500))
+    suspend fun query(cmd: String): ByteArray? = parseUds(cmd, send(cmd, 2500))
 
     companion object {
-        /** 17FC007B -> 17FE007B (MEB'de istek 17FC.., yanıt 17FE..) */
+        /** Community assumption for MEB; not proven on this vehicle. */
         fun rxFor(txHeader: String): String =
             if (txHeader.length == 8) txHeader.substring(0, 2) + "FE" + txHeader.substring(4) else txHeader
 
         /**
-         * Olumlu yanıtı (servis+0x40 + DID) bulup sonrasındaki veri baytlarını döndürür.
-         * "NO DATA", "?", "CAN ERROR" vb. için null.
+         * Reads the positive UDS service + DID response. Never returns a value for
+         * ELM errors, partial/garbled hexadecimal lines, or negative responses.
+         * Multi-frame ISO-TP aggregation on low-cost clones remains unverified.
          */
         fun parseUds(cmd: String, resp: String): ByteArray? {
-            if (cmd.length < 6) return null
+            if (cmd.length < 6 || cmd.length % 2 != 0) return null
             val service = cmd.substring(0, 2).toIntOrNull(16) ?: return null
-            val expected = "%02X".format(service + 0x40) + cmd.substring(2).uppercase()
-            val hex = StringBuilder()
-            for (line in resp.lines()) {
-                val l = line.replace(" ", "").uppercase()
-                if (l == "?" || l.contains("NODATA") || l.contains("ERROR") ||
-                    l.contains("UNABLE") || l.contains("STOPPED") || l.contains("BUSY")
-                ) return null
-                hex.append(if (l.contains(':')) l.substringAfter(':') else l)
+            val positiveService = service + 0x40
+            if (positiveService > 255) return null
+            val expected = "%02X".format(positiveService) + cmd.substring(2).uppercase()
+            val upper = resp.uppercase()
+            if (listOf(
+                    "NO DATA", "NODATA", "BUFFER FULL", "CAN ERROR", "BUS ERROR",
+                    "UNABLE", "ERROR", "STOPPED", "BUSY", "RX ERROR",
+                ).any { upper.contains(it) } ||
+                upper.lines().any { it.trim() == "?" }
+            ) return null
+
+            val lines = upper.replace("\r", "\n").lines()
+            val hex = buildString {
+                for (raw in lines) {
+                    val trimmed = raw.trim()
+                    if (trimmed.isEmpty() || trimmed.startsWith("SEARCHING")) continue
+                    val payload = trimmed.substringAfter(':', trimmed)
+                        .replace(" ", "").replace("\t", "").replace(">", "")
+                    if (payload.isNotEmpty() && payload.all { it in '0'..'9' || it in 'A'..'F' }) {
+                        append(payload)
+                    }
+                }
             }
-            val h = hex.toString()
-            val idx = h.indexOf(expected)
+            val idx = hex.indexOf(expected)
             if (idx < 0) return null
-            var data = h.substring(idx + expected.length)
-            if (data.length % 2 != 0) data = data.dropLast(1)
-            if (data.isEmpty()) return null
-            return data.chunked(2).mapNotNull { it.toIntOrNull(16)?.toByte() }.toByteArray()
+            val data = hex.substring(idx + expected.length)
+            if (data.isEmpty() || data.length % 2 != 0) return null
+            return data.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         }
     }
 }

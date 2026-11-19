@@ -6,67 +6,78 @@ import android.bluetooth.BluetoothSocket
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
+
+class ObdTimeoutException(message: String) : IOException(message)
 
 interface ObdTransport {
     suspend fun open()
     suspend fun write(text: String)
 
-    /** ELM327 '>' istemi gelene kadar okur. Zaman aşımında o ana kadar gelen metni döndürür. */
+    /** Return only after '>' prompt; otherwise throw a recoverable timeout. */
     suspend fun readUntilPrompt(timeoutMs: Long): String
     fun close()
 }
 
-/** Klasik Bluetooth (SPP/RFCOMM). Ucuz ELM327 cihazlarının büyük çoğunluğu böyle çalışır. */
+/** Classic Bluetooth SPP/RFCOMM. The socket can be closed from another thread to abort connect. */
 class BluetoothSppTransport(private val device: BluetoothDevice) : ObdTransport {
-    private var socket: BluetoothSocket? = null
-    private var input: InputStream? = null
-    private var output: OutputStream? = null
+    @Volatile private var socket: BluetoothSocket? = null
+    @Volatile private var input: InputStream? = null
+    @Volatile private var output: OutputStream? = null
 
     @SuppressLint("MissingPermission")
     override suspend fun open() {
         withContext(Dispatchers.IO) {
             val s = device.createRfcommSocketToServiceRecord(SPP_UUID)
-            s.connect()
-            socket = s
-            input = s.inputStream
-            output = s.outputStream
+            socket = s // make it closeable while connect() is blocked
+            try {
+                s.connect()
+                input = s.inputStream
+                output = s.outputStream
+            } catch (e: Exception) {
+                close()
+                throw e
+            }
         }
     }
 
-    override suspend fun write(text: String) {
-        withContext(Dispatchers.IO) {
-            val ins = input
-            // Eski artık verileri temizle
-            while (ins != null && ins.available() > 0) ins.read()
-            output?.write((text + "\r").toByteArray())
-            output?.flush()
-        }
+    override suspend fun write(text: String) = withContext(Dispatchers.IO) {
+        val ins = input ?: throw IOException("Bluetooth giriş akışı kapalı")
+        val out = output ?: throw IOException("Bluetooth çıkış akışı kapalı")
+        // Stale fragments must not be interpreted as the next command's response.
+        while (ins.available() > 0) ins.read()
+        out.write((text + "\r").toByteArray(Charsets.US_ASCII))
+        out.flush()
     }
 
     override suspend fun readUntilPrompt(timeoutMs: Long): String = withContext(Dispatchers.IO) {
-        val ins = input ?: return@withContext ""
-        val sb = StringBuilder()
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (System.currentTimeMillis() < deadline) {
+        val ins = input ?: throw IOException("Bluetooth giriş akışı kapalı")
+        val buffer = StringBuilder()
+        val deadline = System.nanoTime() + timeoutMs * 1_000_000L
+        while (System.nanoTime() < deadline) {
             if (ins.available() > 0) {
-                val b = ins.read()
-                if (b < 0) break
-                val c = b.toChar()
-                if (c == '>') break
-                sb.append(c)
+                val byte = ins.read()
+                if (byte < 0) throw IOException("Bluetooth bağlantısı kapandı")
+                val char = byte.toChar()
+                if (char == '>') return@withContext buffer.toString()
+                buffer.append(char)
+                if (buffer.length > 16_384) throw IOException("ELM327 yanıtı boyut sınırını aştı")
             } else {
-                delay(5)
+                delay(10)
             }
         }
-        sb.toString()
+        throw ObdTimeoutException("ELM327 istem işareti (>) zaman aşımına uğradı")
     }
 
     override fun close() {
+        // Closing an in-progress socket must interrupt connect() as well.
         runCatching { socket?.close() }
-        socket = null; input = null; output = null
+        socket = null
+        input = null
+        output = null
     }
 
     companion object {
