@@ -26,6 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.evcockpit.obd.VehicleState
+import app.evcockpit.location.GpsSnapshot
+import app.evcockpit.location.SpeedSelector
+import android.os.SystemClock
 import kotlin.math.abs
 
 private val Bg = Color(0xFF0B0D10)
@@ -35,7 +38,19 @@ private val Track = Color(0xFF22272E)
 
 /** Tesla tarzı: solda hız / güç / batarya, sağda harita alanı (Aşama 2). */
 @Composable
-fun DashboardScreen(s: VehicleState, usableKwh: Double, modifier: Modifier = Modifier) {
+fun DashboardScreen(
+    s: VehicleState,
+    usableKwh: Double,
+    gps: GpsSnapshot,
+    modifier: Modifier = Modifier,
+) {
+    val speed = SpeedSelector.select(
+        obdConnected = s.connected,
+        demo = s.demo,
+        obdKmh = s.speedKmh,
+        gpsKmh = gps.speedKmh,
+        gpsFresh = gps.isFresh(SystemClock.elapsedRealtime()),
+    )
     Row(
         modifier.fillMaxSize().background(Bg).padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -46,10 +61,11 @@ fun DashboardScreen(s: VehicleState, usableKwh: Double, modifier: Modifier = Mod
         ) {
             Column {
                 Text(
-                    s.speedKmh?.let { "%.0f".format(it) } ?: "--",
+                    speed.kmh?.let { "%.0f".format(it) } ?: "--",
                     color = Color.White, fontSize = 96.sp, fontWeight = FontWeight.Light,
                 )
                 Text("km/h", color = Dim, fontSize = 18.sp)
+                Text(speed.source, color = Dim, fontSize = 12.sp)
                 if (s.demo) Text("DEMO", color = Color(0xFFFFB300), fontSize = 14.sp)
             }
             PowerBar(s.powerKw)
