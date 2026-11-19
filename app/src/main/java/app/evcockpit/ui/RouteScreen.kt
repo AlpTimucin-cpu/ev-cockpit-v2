@@ -26,6 +26,7 @@ import app.evcockpit.location.GpsSnapshot
 import app.evcockpit.navigation.ArrivalEnergyEstimator
 import app.evcockpit.navigation.RouteProgress
 import app.evcockpit.navigation.RouteUiState
+import app.evcockpit.navigation.VoiceUiState
 
 @Composable
 fun RouteScreen(
@@ -33,6 +34,9 @@ fun RouteScreen(
     gps: GpsSnapshot,
     socPct: Double?,
     usableKwh: Double,
+    voice: VoiceUiState,
+    onToggleVoice: () -> Unit,
+    onSpeakNextManeuver: () -> Unit,
     onCalculate: (String, String) -> Unit,
     onClear: () -> Unit,
 ) {
@@ -62,6 +66,15 @@ fun RouteScreen(
         Text("Rota: openrouteservice • Türkçe manevralar • canlı trafik YOK")
         Text(state.message)
         Text("Konum: ${gps.status}")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onToggleVoice) {
+                Text(if (voice.enabled) "Sesli tarifi kapat" else "Türkçe sesli tarifi aç")
+            }
+            OutlinedButton(onClick = onSpeakNextManeuver, enabled = voice.enabled) {
+                Text("Sıradaki manevrayı oku")
+            }
+        }
+        Text("Ses: ${voice.status} • Ses odağı: geçici MAY_DUCK")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = latitude, onValueChange = { latitude = it },
@@ -109,7 +122,7 @@ fun RouteScreen(
                 "eğim, rüzgâr, sıcaklık ve batarya kayıpları hesaba katılmaz.")
             Text("© openrouteservice • OpenStreetMap katkıcıları")
         } else {
-            Text("Önce Rota Ayarları'ndan HeiGIT anahtarını ve GPS'i etkinleştir.")
+            Text("Önce Ayarlar sekmesinden HeiGIT anahtarını ve GPS'i etkinleştir.")
             Text("Gösterge sekmesindeki haritaya uzun basarak hedef seçebilir veya koordinatları kendin girebilirsin; adres araması yok.")
         }
     }

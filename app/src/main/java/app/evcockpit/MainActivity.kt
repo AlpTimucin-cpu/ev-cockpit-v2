@@ -63,6 +63,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
     val message by vm.message.collectAsStateWithLifecycle()
     val gps by vm.gps.collectAsStateWithLifecycle()
     val navState by navVm.state.collectAsStateWithLifecycle()
+    val voiceState by navVm.voice.collectAsStateWithLifecycle()
     var shareError by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableIntStateOf(1) }
 
@@ -138,6 +139,9 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
                 gps = gps,
                 socPct = state.socPct,
                 usableKwh = cfg.usableKwh,
+                voice = voiceState,
+                onToggleVoice = navVm::toggleVoice,
+                onSpeakNextManeuver = navVm::testNextManeuver,
                 onCalculate = navVm::calculate,
                 onClear = navVm::clear,
             )

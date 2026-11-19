@@ -55,6 +55,12 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Harita üzerindeki manevra kutusu yalnızca rota ve taze/rotaya yakın GPS ile görünür.
 - MapLibre legacy annotation API bu ilk iterasyonda kullanıldı; ileride GeoJSON source/layer'a geçiş değerlendirilir.
 
+## Aşama 2 / İterasyon 1 — Türkçe sesli tarif (PR-7)
+- `Rota` sekmesinden **kullanıcı tercihiyle** Türkçe TTS aç/kapat; varsayılan kapalı. Gerçek GPS rota üzerinde taze ise 200 m / 50 m yaklaşımlarında birer kez manevra seslendirme ve elle sıradaki manevrayı okutma.
+- Android `TextToSpeech` `tr-TR`, Türkçe dil paketi yoksa ses verilmez ve durum mesajı gösterilir. Geçici `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` alınır, sözcük bitince bırakılır.
+- AudioFocus/TTS ve navigasyon **telefon ve araç üzerinde henüz doğrulanmadı**. Uzun yol boyunca ekran kapalı GPS servisi ve ses motoru davranışları saha testine tabidir.
+- BRouter, PMTiles, Car App Library ve canlı trafik iterasyona dahil değildir.
+
 ## CI / telefondan APK indirme
 
 - [Android CI](../../actions/workflows/android.yml): Gradle **8.10.2**, Java 17, `:app:testDebugUnitTest`, `:app:assembleDebug`.
@@ -68,7 +74,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 1. [CI / gitignore](../../issues/1)
 2. [Nightly yayın](../../issues/2)
 3. [ELM327 dayanıklılığı / log paylaşımı](../../issues/3)
-4. [Aşama 2 harita/rota araştırması](../../issues/4) — kullanıcı onayı bekler
+4. [Aşama 2 harita/rota araştırması](../../issues/4) — İterasyon 1 onaylandı (harita/rota/TTS geliştirmesi), cihaz kabul testi henüz yapılmadı
 5. Media3 video penceresi / kullanıcı tarafından ayarlanan hız kilidi
 6. ID.4 ekranına yansıtma fizibilitesi — yalnızca araştırma
 7. Şarj, hava ve motor sesi
@@ -79,4 +85,4 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Topluluk kaynaklı `rx 17FE007B` varsayımı ve diğer UDS yanıtları gerçek araçta doğrulanmadı.
 - ELM327 cihazı başka uygulamayla aynı anda kullanılamaz.
 - `app.evcockpit`, `minSdk 28`, tek Android modülü (`app`).
-- Navigasyon foreground service ve GPS konum izinleri, Aşama 2 onayından sonra tasarlanacaktır.
+- Konum foreground service yalnızca kullanıcı başlatmasıyla çalışacak şekilde eklendi; telefon üzerinde doğrulama bekleniyor.
