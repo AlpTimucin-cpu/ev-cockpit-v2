@@ -55,12 +55,9 @@ fun DashboardScreen(s: VehicleState, usableKwh: Double, modifier: Modifier = Mod
             PowerBar(s.powerKw)
             BatteryBlock(s.socPct, usableKwh)
         }
-        Box(
-            Modifier.weight(0.62f).fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(Panel),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("Harita (Aşama 2)", color = Dim, fontSize = 18.sp)
-        }
+        OnlineMap(
+            modifier = Modifier.weight(0.62f).fillMaxHeight().clip(RoundedCornerShape(20.dp)),
+        )
     }
 }
 
