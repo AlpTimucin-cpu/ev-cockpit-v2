@@ -30,8 +30,30 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
+      - name: Load public test debug signing certificate
+        run: |
+          set -euo pipefail
+          base64 --decode ci/public-debug-ec.p12.b64 > "$RUNNER_TEMP/ev-cockpit-public-debug.p12"
+          echo "EV_COCKPIT_PUBLIC_DEBUG_P12=$RUNNER_TEMP/ev-cockpit-public-debug.p12" >> "$GITHUB_ENV"
+
       - name: Test and build debug APK
         run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
+
+      - name: Verify stable APK certificate with apksigner
+        run: |
+          set -euo pipefail
+          APK_SIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
+          test -n "$APK_SIGNER"
+          "$APK_SIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | tee apksigner-certs.txt
+          grep -qiF '829f81de4a87111e0b7b5052b87de77b033859fbd03d45cb38433cf57c7b89fb' apksigner-certs.txt
+          echo 'Public test debug certificate matched expected fingerprint.'
+
+      - name: Upload signing evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ev-cockpit-v2-public-debug-signing-evidence
+          path: apksigner-certs.txt
+          if-no-files-found: error
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
