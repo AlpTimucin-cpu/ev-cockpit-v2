@@ -21,6 +21,13 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Haritanın cihazda görüntülenmesi henüz test edilmedi. OSM/OpenFreeMap atıfları korunmalıdır.
 - OpenFreeMap TOS (2026-10-14): https://openfreemap.org/tos/
 
+## Aşama 2 / İterasyon 1 — API anahtarı (PR-2)
+- Kullanıcı kendi HeiGIT/openrouteservice API anahtarını **Rota Ayarları** ekranına girer.
+- Anahtar APK'ya/BuildConfig'e gömülmez. DataStore'da yalnızca AES-256-GCM ile şifreli metin+IV saklanır; Android Keystore'daki anahtar dışarı aktarılmaz.
+- Şifreleme/geri okuma fiziksel Android cihazda **doğrulanmadı**; cihazın ele geçirilmesine karşı mutlak gizlilik taahhüdü yoktur.
+- Yeni HeiGIT API host: `https://api.heigit.org/openrouteservice/`. Kullanıcı kendisi https://account.heigit.org/ hesabında anahtar oluşturur.
+- https://giscience.github.io/openrouteservice/frequently-asked-questions.html
+
 ## CI / telefondan APK indirme
 
 - [Android CI](../../actions/workflows/android.yml): Gradle **8.10.2**, Java 17, `:app:testDebugUnitTest`, `:app:assembleDebug`.
