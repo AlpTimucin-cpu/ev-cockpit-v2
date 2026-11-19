@@ -1,0 +1,16 @@
+# Local Android development / Gradle outputs
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+*.apk
+*.aab
+*.ap_
+*.jks
+*.keystore
+*.hprof
+captures/
+.externalNativeBuild/
+.cxx/
+.DS_Store

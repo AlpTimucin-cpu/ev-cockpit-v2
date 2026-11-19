@@ -2,21 +2,31 @@
 
 Sıfırdan yazılmış Kotlin + Jetpack Compose iskeleti. Mola APK'sına dokunmaz; bağımsız bir uygulamadır.
 
-## Şu an çalışan (Aşama 1)
-- ELM327 (klasik Bluetooth SPP) bağlantısı, MEB BMS sorguları (PID tablosu `assets/pids_meb.json`)
+## Mevcut Aşama 1 (telefonda ve araçta henüz doğrulanmadı)
+- ELM327 (klasik Bluetooth SPP) bağlantısı, MEB BMS sorguları (PID tablosu `app/src/main/assets/pids_meb.json`)
 - **OBD Test** sekmesi: ham komut/yanıtları gösterir, `Android/data/app.evcockpit/files/obd_log_*.txt` dosyasına kaydeder
-- **Gösterge** sekmesi: Tesla tarzı hız / güç çubuğu (rejenerasyon yeşil) / batarya %
+- **Gösterge** sekmesi: hız / güç çubuğu (rejenerasyon yeşil) / batarya %
 - Demo verisi (araçsız arayüz denemesi)
-- Trafik yok (istek üzerine kapsam dışı)
+- Trafik özelliği yoktur ve eklenmeyecektir.
 
-## Yol haritası
-2. Harita + rota (MapLibre veya osmdroid, çevrimdışı karolar), sesli tarif
-3. Video penceresi (Media3), haritanın üstünde küçültülebilir; hız kilidi ayarı
-4. Araç ekranına yansıtma (Mola'nın projeksiyon yöntemi denenecek)
-5. Şarj durağı planlama, hava durumu, motor sesi
+## CI / derleme
+- GitHub Actions: [Android CI](../../actions/workflows/android.yml)
+- Gradle Wrapper henüz yoktur; iş akışı `gradle/actions/setup-gradle@v4` aracılığıyla Gradle **8.10.2** kullanır.
+- Her PR için `:app:testDebugUnitTest` ve `:app:assembleDebug` çalışır. Yalnızca **başarılı** çalışmalarda debug APK artifact olarak yüklenir.
+- Artifacts debug imzalı test APK'sıdır; mağaza dağıtımı veya sahada doğrulanmış sürüm değildir.
+- CI geçmesi, ELM327 ve araç üstündeki PID uyumluluğunun kanıtı değildir.
+
+## Yol haritası (GitHub Issues)
+1. [CI ve .gitignore](../../issues/1) — PR-1
+2. [Nightly pre-release APK](../../issues/2) — PR-2, CI yeşil olduktan sonra
+3. [ELM327 dayanıklılığı ve log paylaşımı](../../issues/3) — PR-3
+4. [Harita + rota ön araştırması](../../issues/4) — kullanıcı onayı olmadan kod yazılmaz
+5. Video penceresi (Media3), kullanıcı tarafından ayarlanan hız kilidi
+6. ID.4 ekranına yansıtma — sadece fizibilite araştırması, onaya bağlı
+7. Şarj durağı, hava durumu, motor sesi
 
 ## Önemli
-- Bu kod burada **derlenmedi**; Android Studio'da açıp Gradle sync yap, sürümleri güncelle.
-- PID'lerin tamamı `verified=false`. İlk bağlantıdaki ham log ile doğrula; scale/offset'i JSON'dan düzelt.
+- `pids_meb.json` içinde PID'lerin tamamı `verified=false`. Gerçek araçtan ham log alınmadan değiştirilmemelidir.
 - OBD cihazını aynı anda başka uygulama (CarScanner, ABRP) kullanamaz.
-- Birim testleri: `./gradlew test` (ayrıştırma + ölçek mantığı).
+- Cihaz/araç testleri ve Bluetooth kopma/yeniden bağlanma davranışı **henüz doğrulanmadı**.
+- Android projesi tek modül (`app`), `minSdk 28`, paket `app.evcockpit`.
