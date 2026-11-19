@@ -1,0 +1,14 @@
+{
+  "_not": "Topluluk kaynaklı MEB PID'leri (evDash, EVNotify). verified=false olanlar KENDİ ARACINDA doğrulanmadı; test ekranındaki ham logla teyit et, sonra scale/offset düzelt.",
+  "protocol": "7",
+  "txHeader": "17FC007B",
+  "usableKwh": 52.0,
+  "pids": [
+    { "id": "soc_bms",  "role": "soc",   "cmd": "22028C", "length": 1, "scale": 0.4,  "offset": 0,     "unit": "%",  "everyMs": 2000, "verified": false, "note": "BMS SoC, ham/2.5. Kokpit SoC'sinden birkaç % sapabilir." },
+    { "id": "hv_volt",  "role": "volt",  "cmd": "221E3B", "length": 2, "scale": 0.25, "offset": 0,     "unit": "V",  "everyMs": 1000, "verified": false, "note": "Voltaj ölçeği (ham/4) teyit edilmedi." },
+    { "id": "hv_amp",   "role": "amp",   "cmd": "221E3D", "length": 4, "scale": 0.01, "offset": -1500, "unit": "A",  "everyMs": 500,  "verified": false, "note": "(ham-150000)/100. Pozitif=çekiş, negatif=rejenerasyon/şarj." },
+    { "id": "speed",    "role": "speed", "cmd": "22F40D", "length": 1, "scale": 1.0,  "offset": 0,     "unit": "km/h", "everyMs": 500, "verified": false, "note": "Hız PID'i bazı araçlarda yanıt vermeyebilir; GPS hızı yedek olacak." },
+    { "id": "batt_temp","role": "log",   "cmd": "222A0B", "length": 2, "scale": 1.0,  "offset": 0,     "unit": "raw", "everyMs": 5000, "verified": false, "note": "Sadece ham log. Ölçek bilinmiyor." },
+    { "id": "gear_raw", "role": "log",   "cmd": "22210E", "header": "17FC0076", "length": 1, "scale": 1.0, "offset": 0, "unit": "raw", "everyMs": 3000, "verified": false, "note": "Gateway'den vites, sadece ham log." }
+  ]
+}
