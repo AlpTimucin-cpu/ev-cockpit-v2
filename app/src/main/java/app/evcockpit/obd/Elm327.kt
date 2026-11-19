@@ -51,7 +51,7 @@ class Elm327(
         }
     }
 
-    suspend fun initialize(cfg: ObdConfig): Boolean {
+    suspend fun initialize(cfg: ObdConfig, profile: DiagnosticProfile = DiagnosticProfile.NONE): Boolean {
         // ATI and timing features are not uniformly implemented by low-cost clones.
         optional("ATZ", "ATZ")
         optional("ATE0")
@@ -62,15 +62,28 @@ class Elm327(
         optional("ATAT1")
         optional("ATST64")
         optional("ATI")
+        if (profile == DiagnosticProfile.STANDARD_SPEED) {
+            required("ATSP0")
+            return true
+        }
         required("ATSP${cfg.protocol}")
+        if (profile == DiagnosticProfile.MEB_SHORT_PADDED) {
+            optional("ATCAF0", "ATCAF")
+        }
         currentHeader = ""
-        setHeader(cfg.txHeader)
+        setHeader(cfg.txHeader, profile)
         return true
     }
 
-    suspend fun setHeader(h: String) {
+    suspend fun setHeader(h: String, profile: DiagnosticProfile = DiagnosticProfile.NONE) {
         if (h == currentHeader) return
-        required("ATSH$h")
+        if ((profile == DiagnosticProfile.MEB_SHORT_HEADER ||
+                profile == DiagnosticProfile.MEB_SHORT_PADDED) && h.length == 8) {
+            required("ATCP" + h.substring(0, 2))
+            required("ATSH" + h.substring(2))
+        } else {
+            required("ATSH$h")
+        }
         optional("ATCRA${rxFor(h)}", "ATCRA")
         optional("ATFCSH$h", "ATFCSH")
         optional("ATFCSD300000", "ATFCSD")
@@ -78,9 +91,25 @@ class Elm327(
         currentHeader = h
     }
 
-    suspend fun query(cmd: String): ByteArray? = parseUds(cmd, send(cmd, 2500))
+    suspend fun query(cmd: String, profile: DiagnosticProfile = DiagnosticProfile.NONE): ByteArray? {
+        val request = if (profile == DiagnosticProfile.MEB_SHORT_PADDED && cmd.length == 6) {
+            "03" + cmd + "55555555"
+        } else cmd
+        return parseUds(cmd, send(request, 2500))
+    }
+
+    suspend fun queryStandardSpeed(): Double? =
+        parseStandardSpeed(send("010D", 3_500))
 
     companion object {
+        /** Standard SAE J1979 Mode 01 PID 0D, 1-byte speed in km/h; no BMS data. */
+        fun parseStandardSpeed(raw: String): Double? {
+            if (raw.uppercase().contains("NO DATA")) return null
+            val match = Regex("(?i)41\\s*0D\\s*([0-9A-F]{2})(?![0-9A-F])").find(raw)
+                ?: return null
+            return match.groupValues[1].toIntOrNull(16)?.toDouble()
+        }
+
         /** Community assumption for MEB; not proven on this vehicle. */
         fun rxFor(txHeader: String): String =
             if (txHeader.length == 8) txHeader.substring(0, 2) + "FE" + txHeader.substring(4) else txHeader

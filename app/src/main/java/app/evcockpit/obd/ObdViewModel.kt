@@ -22,6 +22,9 @@ class ObdViewModel(application: Application) : AndroidViewModel(application) {
     val state = repo.state.asStateFlow()
     val log = repo.log.asStateFlow()
     val logFilePath = repo.logFilePath.asStateFlow()
+    val diagnosisSummary = repo.diagnosisSummary.asStateFlow()
+    val diagnosisFilePath = repo.diagnosisFilePath.asStateFlow()
+    private var selectedDeviceAddress: String? = null
     val gps = app.locationRepository.state.asStateFlow()
 
     private val _devices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
@@ -57,6 +60,7 @@ class ObdViewModel(application: Application) : AndroidViewModel(application) {
 
     @SuppressLint("MissingPermission")
     fun connect(device: BluetoothDevice) {
+        selectedDeviceAddress = device.address
         if (!bluetoothAllowed()) {
             _message.value = "Bağlanmak için Bluetooth izni verin."
             return
@@ -101,6 +105,31 @@ class ObdViewModel(application: Application) : AndroidViewModel(application) {
     fun stopGps() {
         app.stopService(Intent(app, LocationTrackingService::class.java))
         app.locationRepository.stop()
+    }
+
+    /** One tap: selected bonded device, or the first paired device if none selected. */
+    @SuppressLint("MissingPermission")
+    fun diagnose() {
+        if (!bluetoothAllowed()) {
+            _message.value = "Tanı için Bluetooth izni verin."
+            return
+        }
+        val device = _devices.value.firstOrNull { it.address == selectedDeviceAddress }
+            ?: _devices.value.firstOrNull()
+        if (device == null) {
+            _message.value = "Tanı için önce Bluetooth cihazını eşleştirin."
+            return
+        }
+        try {
+            val intent = Intent(app, ObdConnectionService::class.java).apply {
+                action = ObdConnectionService.ACTION_DIAGNOSE
+                putExtra(ObdConnectionService.EXTRA_DEVICE_ADDRESS, device.address)
+            }
+            ContextCompat.startForegroundService(app, intent)
+            _message.value = "Tanı modu başlatıldı; Ready/kontak açık olmalı."
+        } catch (error: Exception) {
+            _message.value = "Tanı başlatılamadı: " + error.javaClass.simpleName
+        }
     }
 
     fun stop() {

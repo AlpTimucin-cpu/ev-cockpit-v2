@@ -27,7 +27,7 @@ class ObdConnectionService : Service() {
 
     @SuppressLint("MissingPermission")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action != ACTION_CONNECT) {
+        if (intent?.action != ACTION_CONNECT && intent?.action != ACTION_DIAGNOSE) {
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -39,7 +39,8 @@ class ObdConnectionService : Service() {
             val device = getSystemService(BluetoothManager::class.java)
                 ?.adapter?.getRemoteDevice(address)
                 ?: throw IllegalStateException("Bluetooth adaptörü bulunamadı")
-            repo.connect(device)
+            if (intent.action == ACTION_DIAGNOSE) repo.diagnose(device)
+            else repo.connect(device)
             ownsConnection = true
         } catch (error: Exception) {
             ownsConnection = false
@@ -83,6 +84,7 @@ class ObdConnectionService : Service() {
 
     companion object {
         const val ACTION_CONNECT = "app.evcockpit.obd.CONNECT"
+        const val ACTION_DIAGNOSE = "app.evcockpit.obd.DIAGNOSE"
         const val EXTRA_DEVICE_ADDRESS = "device_address"
         private const val NOTIFICATION_ID = 1042
     }

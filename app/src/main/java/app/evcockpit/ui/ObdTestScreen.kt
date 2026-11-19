@@ -32,10 +32,14 @@ fun ObdTestScreen(
     state: VehicleState,
     log: List<String>,
     logFilePath: String?,
+    diagnosisFilePath: String?,
+    diagnosisSummary: String,
     devices: List<BluetoothDevice>,
     message: String?,
     onRefresh: () -> Unit,
     onConnect: (BluetoothDevice) -> Unit,
+    onDiagnose: () -> Unit,
+    onShareDiagnosis: () -> Unit,
     onDemo: () -> Unit,
     onStop: () -> Unit,
     onShareLog: () -> Unit,
@@ -69,6 +73,20 @@ fun ObdTestScreen(
                     }
                 }
             }
+            Button(onClick = onDiagnose, enabled = devices.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth()) {
+                Text("Tanı modunu çalıştır")
+            }
+            Text("Araç park halinde Ready/kontak açıkken dene. Tanı, normal sorgulamayı durdurur.",
+                fontSize = 12.sp)
+            Text("Tanı özeti (ham ECU sonucu): " + diagnosisSummary,
+                fontSize = 12.sp)
+            OutlinedButton(onClick = onShareDiagnosis,
+                enabled = diagnosisFilePath != null,
+                modifier = Modifier.fillMaxWidth()) {
+                Text("Ayrı tanı logunu paylaş")
+            }
+            diagnosisFilePath?.let { Text("Tanı kaydı: " + it, fontSize = 10.sp) }
             OutlinedButton(onClick = onDemo, modifier = Modifier.fillMaxWidth()) { Text("Demo verisi") }
             OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Bağlantıyı kes") }
             OutlinedButton(onClick = onShareLog, modifier = Modifier.fillMaxWidth()) {

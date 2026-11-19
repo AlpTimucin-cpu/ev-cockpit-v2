@@ -86,3 +86,17 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - ELM327 cihazı başka uygulamayla aynı anda kullanılamaz.
 - `app.evcockpit`, `minSdk 28`, tek Android modülü (`app`).
 - Konum foreground service yalnızca kullanıcı başlatmasıyla çalışacak şekilde eklendi; telefon üzerinde doğrulama bekleniyor.
+
+## M1 — Kontrollü OBD tanı modu (saha DOĞRULANMADI)
+- OBD Test > Tanı modunu çalıştır: eşleşmiş adaptörle normal sorgulamayı kesip ayrı obd_diagnosis_*.txt dosyası oluşturur. Her komut ham yanıt ve yaklaşık süreyle kaydedilir; bir ekranlık özet ve paylaşım bulunur.
+- ELM bilgileri: ATZ, ATI, ATRV, ATDP, ATDPN. Standart SAE OBD-II: ATSP0 + 0100/0120/0140/0902/010D; 11-bit ATSP6 + 0100; ATSP7/ATH1 + 3 sn ATMA/CR; 29-bit MEB başlık varyantları ve 11-bit ECU örnekleri.
+- ATMA istem (>) dönmezse soket kapatılıp en fazla bir defa yeniden bağlanma denenir. Kırpılmış/eksik tanı sonucu başarı sayılmaz. ATMA çerçevesi yoksa Ready bilinmiyorsa donanım arızası kanıtlanmış değildir.
+- 5 art arda tam PID turunda hiçbir yanıt alınmazsa sürekli sorgu durur; Bluetooth soketi açık bekler ve kullanıcıya Tanı modu önerilir.
+- NO DATA satırları PID başına sayılarak 22028C NO DATA x5 biçiminde özetlenir. Normal ve tanı logları 1 MB üst sınıra sahiptir (sınır aşıldığında yeni veri eklenmez).
+- Tanıda pozitif 41 0D varsa ve MEB yoksa yalnız SAE 010D hız okuyan Standart mod iletişim profili kaydedilir. 29-bit ECU pozitifse başlık profili kaydedilir. Bu profiller PID verified durumunu değiştirmez.
+- UYARI: Tanıdaki 0902 yanıtı VIN içerebilir. Ham tanı dosyasını paylaşmadan önce kontrol edin; M3 güvenli test raporunda VIN ve koordinat bulunmayacak.
+- 29-bit 8 hane kaynak: https://github.com/nickn17/evDash/blob/master/src/CarVWID3.cpp
+- 29-bit ATCP17 / 6 hane / CAF0 kaynak: https://github.com/Iternio-Planning-AB/ev-obd-pids/blob/main/volkswagen/MEB.json
+- 11-bit 710 kaynak: https://cellpulse.app/blog/meb-soh-atsp6
+- ELM AT komut söz dizimi: https://docs.meatpi.com/wican-obd/reference/elm327-commands/
+- Fiziksel ID.4 ve Temu ELM327 üzerinde sonuç DOĞRULANMADI.
