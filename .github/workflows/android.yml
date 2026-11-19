@@ -40,3 +40,42 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+  nightly:
+    name: Publish nightly pre-release
+    needs: build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: ev-cockpit-v2-nightly
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified CI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ev-cockpit-v2-debug
+          path: nightly
+
+      - name: Update single nightly pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK='nightly/app-debug.apk'
+          test -s "$APK"
+          cat > nightly-notes.md <<EOF
+          Debug test APK; not a stable or vehicle-validated release.
+          Commit: $GITHUB_SHA
+          Successful CI run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          MEB PID scales and ELM327 compatibility remain unverified on vehicle.
+          EOF
+          if gh release view nightly --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload nightly "$APK" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit nightly --repo "$GITHUB_REPOSITORY" --title 'Nightly - ID.4 Yol Arkadaşı' --prerelease --latest=false --notes-file nightly-notes.md
+          else
+            gh release create nightly "$APK" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'Nightly - ID.4 Yol Arkadaşı' --prerelease --latest=false --notes-file nightly-notes.md
+          fi
+          gh release view nightly --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | select(.name == "app-debug.apk") | .url' | grep -q .

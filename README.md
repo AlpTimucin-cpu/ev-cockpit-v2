@@ -12,13 +12,15 @@ Sıfırdan yazılmış Kotlin + Jetpack Compose iskeleti. Mola APK'sına dokunma
 ## CI / derleme
 - GitHub Actions: [Android CI](../../actions/workflows/android.yml)
 - Gradle Wrapper henüz yoktur; iş akışı `gradle/actions/setup-gradle@v4` aracılığıyla Gradle **8.10.2** kullanır.
-- Her PR için `:app:testDebugUnitTest` ve `:app:assembleDebug` çalışır. Yalnızca **başarılı** çalışmalarda debug APK artifact olarak yüklenir.
-- Artifacts debug imzalı test APK'sıdır; mağaza dağıtımı veya sahada doğrulanmış sürüm değildir.
+- PR ve main derlemelerinde `:app:testDebugUnitTest` ile `:app:assembleDebug` çalışır.
+- Yalnızca **başarılı main CI** sonrasında aynı `nightly` pre-release üzerindeki `app-debug.apk` dosyası yenilenir. Başarısız derleme var olan APK'yı değiştirmez.
+- [Nightly debug APK (sabit bağlantı)](../../releases/download/nightly/app-debug.apk) — ilk başarılı main çalışmasından sonra kullanılabilir.
+- APK debug imzalıdır; mağaza dağıtımı veya sahada doğrulanmış sürüm değildir. Debug imzası farklı buildlerde değişebilir, gerektiğinde eski sürümü kaldırmak gerekebilir.
 - CI geçmesi, ELM327 ve araç üstündeki PID uyumluluğunun kanıtı değildir.
 
 ## Yol haritası (GitHub Issues)
 1. [CI ve .gitignore](../../issues/1) — PR-1
-2. [Nightly pre-release APK](../../issues/2) — PR-2, CI yeşil olduktan sonra
+2. [Nightly pre-release APK](../../issues/2) — PR-2
 3. [ELM327 dayanıklılığı ve log paylaşımı](../../issues/3) — PR-3
 4. [Harita + rota ön araştırması](../../issues/4) — kullanıcı onayı olmadan kod yazılmaz
 5. Video penceresi (Media3), kullanıcı tarafından ayarlanan hız kilidi
