@@ -33,6 +33,7 @@ fun RouteScreen(
     state: RouteUiState,
     gps: GpsSnapshot,
     socPct: Double?,
+    socSource: String,
     usableKwh: Double,
     voice: VoiceUiState,
     onToggleVoice: () -> Unit,
@@ -115,6 +116,7 @@ fun RouteScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
             )
+            Text("SoC kaynağı: " + socSource)
             Text("Varış enerjisi (TAHMİN): " +
                 (expectedKwh?.let { "%.1f kWh".format(it) } ?: "-- kWh — veri eksik"))
             Text("Formül: ${usableKwh.toInt()} × SoC%/100 − kalan_km × ort_tüketim/100")

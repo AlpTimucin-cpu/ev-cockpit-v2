@@ -107,3 +107,10 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Sabit sertifika SHA-256: 82:9F:81:DE:4A:87:11:1E:0B:7B:50:52:B8:7D:E7:7B:03:38:59:FB:D0:3D:45:CB:38:43:3C:F5:7C:7B:89:FB.
 - Önceki rastgele debug imzası ile imzalanmış APK'dan ilk kez geçerken Android 'Uygulama yüklenmedi' diyebilir; önce veri yedeği al, gerekirse eski uygulamayı kaldır ve yeni APK'yı kur. Bundan sonraki aynı paket+imza derlemeleri üzerine kurulabilir (Android sürüm kodu artmalı).
 - Aynı parmak izinin iki ayrı GitHub CI çalışmasında doğrulanması zorunludur; fiziksel Android yüklemesi ayrı saha testidir.
+
+## M3 / PR1 — Manuel SoC ve veri kaynağı
+- Rota Ayarları ekranında kullanıcı araç göstergesinden 0-100 % SoC girebilir veya kaydı silebilir. Preferences DataStore içinde kalıcı saklanır, API anahtarı gibi bir sır değildir.
+- SoC kaynağı: OBD pozitif ve geçerli ise OBD (PID DOĞRULANMADI), aksi halde manuel, ikisi yoksa veri yok. Demo açıkça DEMO olarak kalır.
+- Gösterge ekranı ve varış kWh TAHMİN aynı SoC kaynak seçimini kullanır; kullanıcı ortalama tüketimini girmeden kWh uydurulmaz. Formül değişmedi.
+- GPS hız yedeği ve mevcut hız kaynağı etiketi korunur. SoC kaynak tercihi ile MEB PID verified işaretleri ilişkisizdir; verified=false kalır.
+- Manuel girişin fiziksel Android DataStore kalıcılığı ve araç ekranı karşılaştırması DOĞRULANMADI.

@@ -26,22 +26,57 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.evcockpit.navigation.EncryptedRouteKeyStore
+import app.evcockpit.obd.ManualSocInput
 import app.evcockpit.location.GpsSnapshot
 import kotlinx.coroutines.launch
 
 @Composable
-fun RouteSettingsScreen(gps: GpsSnapshot, onStartGps: () -> Unit, onStopGps: () -> Unit) {
+fun RouteSettingsScreen(
+    gps: GpsSnapshot,
+    manualSocPct: Double?,
+    onSaveManualSoc: (Double) -> Unit,
+    onClearManualSoc: () -> Unit,
+    onStartGps: () -> Unit,
+    onStopGps: () -> Unit,
+) {
     val context = LocalContext.current
     val store = remember(context) { EncryptedRouteKeyStore(context) }
     val configured by store.isConfigured.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
     var input by remember { mutableStateOf("") }
+    var manualInput by remember { mutableStateOf("") }
+    var manualError by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
 
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        Text("Manuel batarya SoC (OBD yanıt vermezse)")
+        Text("Kayıtlı manuel SoC: " +
+            (manualSocPct?.let { "%.1f %%".format(it) } ?: "yok"))
+        OutlinedTextField(
+            value = manualInput, onValueChange = { manualInput = it },
+            label = { Text("Gösterge SoC (%) — 0-100") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(onClick = {
+            val soc = ManualSocInput.parse(manualInput)
+            if (soc == null) {
+                manualError = "0 ile 100 arasında geçerli SoC girin."
+            } else {
+                onSaveManualSoc(soc)
+                manualError = null
+                manualInput = ""
+            }
+        }) { Text("Manuel SoC kaydet") }
+        OutlinedButton(onClick = onClearManualSoc, enabled = manualSocPct != null) {
+            Text("Manuel SoC sil")
+        }
+        manualError?.let { Text(it) }
+        Text("OBD SoC yanıt verirse öncelik OBD'dedir; PID ölçeği doğrulanmadı etiketi korunur.")
         Text("Konum: ${gps.status}")
         Text("Hassasiyet: ${gps.accuracyMeters?.toInt()?.toString() ?: "--"} m • "
             + (gps.provider ?: "Konum sağlayıcı yok"))
