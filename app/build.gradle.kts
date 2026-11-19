@@ -11,8 +11,8 @@ android {
         applicationId = "app.evcockpit"
         minSdk = 28
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.2.1-m1"
+        versionCode = 12
+        versionName = "0.2.2-m2"
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -20,6 +20,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    // Public TEST certificate only. Never use it for production/release signing.
+    System.getenv("EV_COCKPIT_PUBLIC_DEBUG_P12")?.takeIf { it.isNotBlank() }?.let { keyPath ->
+        val shared = signingConfigs.create("persistentDebug") {
+            storeFile = file(keyPath)
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+        buildTypes.getByName("debug").signingConfig = shared
+    }
 }
 
 dependencies {

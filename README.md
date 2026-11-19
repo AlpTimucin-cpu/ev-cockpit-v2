@@ -100,3 +100,10 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - 11-bit 710 kaynak: https://cellpulse.app/blog/meb-soh-atsp6
 - ELM AT komut söz dizimi: https://docs.meatpi.com/wican-obd/reference/elm327-commands/
 - Fiziksel ID.4 ve Temu ELM327 üzerinde sonuç DOĞRULANMADI.
+
+## M2 — Kalıcı debug imzası (yalnızca test APK)
+- CI, depodaki **kamusal EC P-256 TEST sertifikasını** (ci/public-debug-ec.p12.b64) kullanır. Bu anahtar gizli değildir; herkes APK'yı aynı sertifikayla yeniden imzalayabilir. **Üretim/Play Store için kullanılmaz.**
+- GitHub Actions base64 dosyasını geçici konuma çözer, Gradle debug signingConfig ile imzalar, Android SDK apksigner verify --print-certs çalıştırır ve bilinen SHA-256 sertifika parmak izini kontrol eder.
+- Sabit sertifika SHA-256: 82:9F:81:DE:4A:87:11:1E:0B:7B:50:52:B8:7D:E7:7B:03:38:59:FB:D0:3D:45:CB:38:43:3C:F5:7C:7B:89:FB.
+- Önceki rastgele debug imzası ile imzalanmış APK'dan ilk kez geçerken Android 'Uygulama yüklenmedi' diyebilir; önce veri yedeği al, gerekirse eski uygulamayı kaldır ve yeni APK'yı kur. Bundan sonraki aynı paket+imza derlemeleri üzerine kurulabilir (Android sürüm kodu artmalı).
+- Aynı parmak izinin iki ayrı GitHub CI çalışmasında doğrulanması zorunludur; fiziksel Android yüklemesi ayrı saha testidir.
