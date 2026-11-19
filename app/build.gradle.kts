@@ -11,8 +11,8 @@ android {
         applicationId = "app.evcockpit"
         minSdk = 28
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.2.0-dev5"
+        versionCode = 9
+        versionName = "0.2.0-dev6"
     }
     buildFeatures { compose = true }
     compileOptions {

@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import app.evcockpit.obd.VehicleState
 import app.evcockpit.location.GpsSnapshot
 import app.evcockpit.location.SpeedSelector
+import app.evcockpit.navigation.GeoPoint
+import app.evcockpit.navigation.RouteUiState
 import android.os.SystemClock
 import kotlin.math.abs
 
@@ -42,6 +44,8 @@ fun DashboardScreen(
     s: VehicleState,
     usableKwh: Double,
     gps: GpsSnapshot,
+    navigation: RouteUiState,
+    onSelectDestination: (GeoPoint) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val speed = SpeedSelector.select(
@@ -73,6 +77,10 @@ fun DashboardScreen(
         }
         OnlineMap(
             modifier = Modifier.weight(0.62f).fillMaxHeight().clip(RoundedCornerShape(20.dp)),
+            route = navigation.route,
+            destination = navigation.destination,
+            gps = gps,
+            onSelectDestination = onSelectDestination,
         )
     }
 }

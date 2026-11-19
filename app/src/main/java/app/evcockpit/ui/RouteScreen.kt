@@ -14,6 +14,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,13 @@ fun RouteScreen(
     var latitude by remember { mutableStateOf("") }
     var longitude by remember { mutableStateOf("") }
     var averageText by remember { mutableStateOf("") }
+
+    LaunchedEffect(state.destination) {
+        state.destination?.let {
+            latitude = it.latitude.toString()
+            longitude = it.longitude.toString()
+        }
+    }
 
     val route = state.route
     val position = if (route != null && gps.isFresh(SystemClock.elapsedRealtime()) &&
@@ -102,7 +110,7 @@ fun RouteScreen(
             Text("© openrouteservice • OpenStreetMap katkıcıları")
         } else {
             Text("Önce Rota Ayarları'ndan HeiGIT anahtarını ve GPS'i etkinleştir.")
-            Text("Hedef koordinatlarını haritadan veya bir kaynaktan gir; otomatik adres araması yok.")
+            Text("Gösterge sekmesindeki haritaya uzun basarak hedef seçebilir veya koordinatları kendin girebilirsin; adres araması yok.")
         }
     }
 }

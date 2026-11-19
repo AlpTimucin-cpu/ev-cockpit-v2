@@ -7,7 +7,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.awaitCancellation
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,9 +23,19 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.maplibre.android.MapLibre
+import org.maplibre.android.annotations.Marker
+import org.maplibre.android.annotations.MarkerOptions
+import org.maplibre.android.annotations.Polyline
+import org.maplibre.android.annotations.PolylineOptions
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.MapLibreMap
+import app.evcockpit.navigation.GeoPoint
+import app.evcockpit.navigation.NavigationRoute
+import app.evcockpit.location.GpsSnapshot
+import app.evcockpit.navigation.RouteProgress
+import android.os.SystemClock
 
 /**
  * MapLibre Native + OpenFreeMap public online tiles. No offline tile download.
@@ -29,15 +43,29 @@ import org.maplibre.android.maps.MapView
  * Provider availability / phone rendering have not yet been device-verified.
  */
 @Composable
-fun OnlineMap(modifier: Modifier = Modifier) {
+fun OnlineMap(
+    modifier: Modifier = Modifier,
+    route: NavigationRoute?,
+    destination: GeoPoint?,
+    gps: GpsSnapshot,
+    onSelectDestination: (GeoPoint) -> Unit,
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val mapReady = remember { mutableStateOf<MapLibreMap?>(null) }
+    val chosenDestination = rememberUpdatedState(onSelectDestination)
     val mapView = remember(context) {
         MapLibre.getInstance(context)
         MapView(context).apply {
             onCreate(null)
             getMapAsync { map ->
-                map.setStyle("https://tiles.openfreemap.org/styles/liberty")
+                map.addOnMapLongClickListener { location ->
+                    chosenDestination.value(GeoPoint(location.latitude, location.longitude))
+                    true
+                }
+                map.setStyle("https://tiles.openfreemap.org/styles/liberty") {
+                    mapReady.value = map
+                }
                 map.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(39.0, 35.0), 5.2))
             }
         }
@@ -67,6 +95,7 @@ fun OnlineMap(modifier: Modifier = Modifier) {
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) mapView.onResume()
         onDispose {
             lifecycle.removeObserver(observer)
+            mapReady.value = null
             if (!destroyed) {
                 if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) mapView.onPause()
                 if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) mapView.onStop()
@@ -75,14 +104,59 @@ fun OnlineMap(modifier: Modifier = Modifier) {
         }
     }
 
+    val loadedMap = mapReady.value
+    LaunchedEffect(loadedMap, route, destination) {
+        val currentMap = loadedMap ?: return@LaunchedEffect
+        var currentLine: Polyline? = null
+        var currentMarker: Marker? = null
+        try {
+            if (route != null) {
+                currentLine = currentMap.addPolyline(
+                    PolylineOptions()
+                        .addAll(route.geometry.map { LatLng(it.latitude, it.longitude) })
+                        .color(android.graphics.Color.rgb(42, 160, 255))
+                        .width(5f),
+                )
+            }
+            if (destination != null) {
+                currentMarker = currentMap.addMarker(
+                    MarkerOptions()
+                        .position(LatLng(destination.latitude, destination.longitude))
+                        .title("Seçilen hedef"),
+                )
+            }
+            awaitCancellation()
+        } finally {
+            currentLine?.let { currentMap.removePolyline(it) }
+            currentMarker?.let { currentMap.removeMarker(it) }
+        }
+    }
+
+    val position = if (route != null && gps.isFresh(SystemClock.elapsedRealtime()) &&
+        gps.point != null
+    ) RouteProgress.locate(route, gps.point) else null
+    val maneuver = position?.nextManeuverIndex?.let { route?.maneuvers?.getOrNull(it) }
     Box(modifier) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
         Text(
-            "OpenFreeMap • çevrimiçi • rota henüz yok",
+            when {
+                route != null -> "OpenFreeMap • rota çizgisi (sahada doğrulanmadı)"
+                destination != null -> "Hedef seçildi • Rota sekmesinde hesapla"
+                else -> "OpenFreeMap • hedef seçmek için haritaya uzun bas"
+            },
             color = Color.White,
             fontSize = 11.sp,
             modifier = Modifier.align(Alignment.TopStart)
                 .background(Color(0xC9000000)).padding(8.dp),
         )
+        if (maneuver != null) {
+            Text(
+                "SONRAKİ MANEVRA • ${maneuver.instructionTr}\n" +
+                    "Yaklaşık: ${position.distanceToManeuverMeters?.toInt() ?: "--"} m",
+                color = Color.White, fontSize = 12.sp,
+                modifier = Modifier.align(Alignment.BottomStart)
+                    .background(Color(0xD9000000)).padding(10.dp),
+            )
+        }
     }
 }
