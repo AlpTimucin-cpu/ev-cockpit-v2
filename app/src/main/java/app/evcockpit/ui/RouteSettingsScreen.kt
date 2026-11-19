@@ -1,6 +1,7 @@
 package app.evcockpit.ui
 
 import android.content.Intent
+import android.os.Build
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -83,6 +84,20 @@ fun RouteSettingsScreen(
         Button(onClick = onStartGps) { Text("GPS takibini başlat") }
         OutlinedButton(onClick = onStopGps) { Text("GPS takibini durdur") }
         Text("GPS izni bu düğmeyle istenir. Konum işlenmesi için görünür bildirimli konum servisi kullanılır.")
+        Text("Arka plan servisleri için pil / otomatik başlatma ayarları")
+        Text(BackgroundSettingsGuide.explanation(Build.MANUFACTURER))
+        OutlinedButton(onClick = {
+            status = if (BackgroundSettingsGuide.openBatteryOptimizationSettings(context)) {
+                "Pil optimizasyonu sistem sayfası istendi; ayarı kendiniz kontrol edin."
+            } else "Pil optimizasyonu ayarı açılamadı; telefon Ayarlar'dan açın."
+        }) { Text("Pil optimizasyonu ayarlarını aç") }
+        OutlinedButton(onClick = {
+            status = if (BackgroundSettingsGuide.openAutostartOrAppDetails(context)) {
+                "Otomatik başlatma / uygulama bilgileri sayfası istendi."
+            } else "Otomatik başlatma ayarı açılamadı; telefon Ayarlar'dan açın."
+        }) { Text("Otomatik başlatma / uygulama ayarları") }
+        Text("Bu düğmeler izni değiştirmez, yalnızca sistem sayfasını açar. " +
+            "Arka planda sorunsuz çalışma DOĞRULANMADI.")
         Text("Rota servisi: openrouteservice (HeiGIT)")
         Text("API anahtarı: " + if (configured) "kayıtlı (doğrulanmadı)" else "kayıtlı değil")
         Text("Anahtarını kendi HeiGIT hesabından oluştur. Bu uygulama anahtar üretmez.")

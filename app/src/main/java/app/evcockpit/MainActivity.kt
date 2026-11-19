@@ -25,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -32,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.evcockpit.obd.ObdLogShare
+import app.evcockpit.obd.SafeTestReportExporter
 import app.evcockpit.obd.ObdViewModel
 import app.evcockpit.obd.ManualSocStore
 import app.evcockpit.obd.SocSelector
@@ -126,6 +129,22 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
                 onRefresh = vm::refreshBonded,
                 onConnect = vm::connect,
                 onDiagnose = vm::diagnose,
+                onExportTestReport = {
+                    shareError = null
+                    val lastLogs = logs.takeLast(200)
+                    val lastSummary = diagnosisSummary
+                    saveScope.launch {
+                        try {
+                            val path = withContext(Dispatchers.IO) {
+                                SafeTestReportExporter.create(context, lastSummary, lastLogs)
+                            }
+                            ObdLogShare.launch(context, path)
+                        } catch (error: Exception) {
+                            shareError = "Test raporu dışa aktarılamadı: " +
+                                error.javaClass.simpleName
+                        }
+                    }
+                },
                 onShareDiagnosis = {
                     shareError = null
                     try {

@@ -40,6 +40,7 @@ fun ObdTestScreen(
     onConnect: (BluetoothDevice) -> Unit,
     onDiagnose: () -> Unit,
     onShareDiagnosis: () -> Unit,
+    onExportTestReport: () -> Unit,
     onDemo: () -> Unit,
     onStop: () -> Unit,
     onShareLog: () -> Unit,
@@ -92,6 +93,10 @@ fun ObdTestScreen(
             OutlinedButton(onClick = onShareLog, modifier = Modifier.fillMaxWidth()) {
                 Text("OBD logunu paylaş")
             }
+            Button(onClick = onExportTestReport, modifier = Modifier.fillMaxWidth()) {
+                Text("Güvenli test raporunu dışa aktar")
+            }
+            Text("Test raporunda API anahtarı, koordinat ve VIN gizlenir.", fontSize = 12.sp)
             logFilePath?.let { Text("Kayıt: $it", fontSize = 10.sp) }
         }
         LazyColumn(Modifier.weight(0.6f).fillMaxSize(), state = listState) {
