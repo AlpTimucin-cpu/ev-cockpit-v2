@@ -54,7 +54,7 @@ object OverpassParser {
             val auth=tags.keys().asSequence().filter { it.startsWith("authentication:") }
                 .map { it+"="+tags.optString(it) }.take(5).joinToString(", ")
             val capacity=tags.optInt("capacity",-1).takeIf { it>=0 }
-            ChargerCandidate(o.optString("type")+":"+o.optLong("id"),tags.optString("name").ifBlank {
+            return ChargerCandidate(o.optString("type")+":"+o.optLong("id"),tags.optString("name").ifBlank {
                 operator+" şarj noktası"
             }.take(100),operator.take(100),lat,lon,power,confidence,
                 access=tags.optString("access","bilinmiyor"),fee=tags.optString("fee","bilinmiyor"),
