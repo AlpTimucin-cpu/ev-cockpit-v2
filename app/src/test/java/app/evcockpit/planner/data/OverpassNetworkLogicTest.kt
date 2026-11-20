@@ -29,6 +29,7 @@ class OverpassNetworkLogicTest {
         assertTrue(c.read("queryA")!!.stale)
         assertNull(c.read("queryB"))
         dir.deleteRecursively()
+        Unit
     }
     @Test fun fakeNetworkDoesNotRequestIfFreshCache() = runBlocking {
         val dir=Files.createTempDirectory("m8-cache").toFile()
@@ -45,6 +46,7 @@ class OverpassNetworkLogicTest {
         val result=OverpassRepository(network,ChargerCache(dir),sleep={}).search(route)
         assertEquals(0,calls);assertFalse(result.incomplete)
         dir.deleteRecursively()
+        Unit
     }
     @Test fun rateLimitRetriesAreBoundedAndObservable() = runBlocking {
         val dir=Files.createTempDirectory("m8-retry").toFile()
@@ -60,6 +62,7 @@ class OverpassNetworkLogicTest {
         assertEquals(CorridorChunker().chunks(route).size*3,calls)
         assertTrue(wait.contains(1000L))
         dir.deleteRecursively()
+        Unit
     }
     @Test fun customCandidateIsProjectedWithoutNetwork() = runBlocking {
         val dir=Files.createTempDirectory("m8-custom").toFile()
@@ -75,5 +78,6 @@ class OverpassNetworkLogicTest {
         assertTrue(result.chargers[0].distanceAlongMeters>0)
         assertTrue(result.chargers[0].detourMinutes>=0)
         dir.deleteRecursively()
+        Unit
     }
 }
