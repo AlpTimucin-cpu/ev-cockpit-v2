@@ -133,3 +133,8 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## Araç bağımsız İterasyon 3 — Photon adres arama, son hedef ve Ev/İş
 - Photon (komoot) kamusal demo API, sadece kullanıcının Arama düğmesine basmasıyla HTTPS talebi; 10 saniyelik asgari istek aralığı ve en fazla 5 sonuç, User-Agent ile uygulama kimliği. Kota garantisi yok, yüksek trafikli/ücretli üründe farklı anlaşma veya kendi sunucusu gerekir.
 - Kaynak: https://github.com/komoot/photon/blob/master/README.md ; https://github.com/komoot/photon/blob/master/docs/usage.md . Son hedefler (en fazla 10) ve Ev/İş kayıtları sadece uygulama DataStore içinde; koordinatlar debug/güvenli test raporlarına eklenmez. Gerçek API ve Android testi DOĞRULANMADI.
+
+## Araç bağımsız İterasyon 4 — Nightly uygulama içi bildirim
+- Ayarlar ekranına girilince ve kullanıcı düğmeye basınca halka açık GitHub Releases nightly sürümü kontrol edilir. API anahtarı kullanılmaz; 15 dakikalık otomatik oturum önbelleği vardır.
+- Yalnız beklenen repo/tag/app-debug.apk yolu ve 40 haneli commit doğrulanır; yeni Nightly farklı ise indirme bağlantısı açılır. APK otomatik indirilmez veya kurulmaz.
+- Kaynak: https://docs.github.com/en/rest/releases/releases#get-a-release-by-tag-name . Android uygulama içi bildirim ve gerçek ağ sonucu **DOĞRULANMADI**.

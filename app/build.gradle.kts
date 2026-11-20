@@ -11,10 +11,13 @@ android {
         applicationId = "app.evcockpit"
         minSdk = 28
         targetSdk = 35
-        versionCode = 17
-        versionName = "0.2.7-destinations"
+        versionCode = 18
+        versionName = "0.2.8-nightly"
+        val ciSha = (System.getenv("GITHUB_SHA") ?: "unknown")
+            .take(40).replace(Regex("[^0-9a-f]"), "")
+        buildConfigField("String", "CI_COMMIT", "\"$ciSha\"")
     }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
