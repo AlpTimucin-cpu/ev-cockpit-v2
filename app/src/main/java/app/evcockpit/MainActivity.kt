@@ -44,6 +44,9 @@ import app.evcockpit.obd.ManualSocStore
 import app.evcockpit.obd.SocSelector
 import app.evcockpit.obd.PidTable
 import app.evcockpit.navigation.NavigationViewModel
+import app.evcockpit.passenger.PassengerPlayerModel
+import app.evcockpit.location.SpeedSelector
+import app.evcockpit.ui.PassengerVideoScreen
 import app.evcockpit.ui.RouteScreen
 import app.evcockpit.ui.DashboardScreen
 import app.evcockpit.ui.ObdTestScreen
@@ -70,7 +73,9 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
                 val obdViewModel: ObdViewModel = viewModel()
                 val navViewModel: NavigationViewModel = viewModel()
-                App(obdViewModel, navViewModel, displayPreferences, darkTheme, keepScreenOn)
+                val passengerModel: PassengerPlayerModel = viewModel()
+                App(obdViewModel, navViewModel, passengerModel,
+                    displayPreferences, darkTheme, keepScreenOn)
             }
         }
     }
@@ -78,7 +83,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
-    displayPreferences: DisplayPreferences, darkTheme: Boolean, keepScreenOn: Boolean) {
+    passengerModel: PassengerPlayerModel, displayPreferences: DisplayPreferences,
+    darkTheme: Boolean, keepScreenOn: Boolean) {
     val context = LocalContext.current
     val cfg = remember { PidTable.load(context) }
     val manualStore = remember(context) { ManualSocStore(context.applicationContext) }
@@ -129,7 +135,8 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Gösterge") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("OBD Test") })
             Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Rota") })
-            Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text("Ayarlar") })
+            Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text("Yolcu video") })
+            Tab(selected = tab == 4, onClick = { tab = 4 }, text = { Text("Ayarlar") })
         }
         when (tab) {
             0 -> DashboardScreen(
@@ -207,6 +214,17 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 onCalculate = navVm::calculate,
                 onSelectDestination = navVm::selectDestination,
                 onClear = navVm::clear,
+            )
+            3 -> PassengerVideoScreen(
+                vm = passengerModel,
+                gps = gps,
+                route = navState.route,
+                destination = navState.destination,
+                speedKmh = SpeedSelector.select(
+                    obdConnected = state.connected, demo = state.demo,
+                    obdKmh = state.speedKmh, gpsKmh = gps.speedKmh,
+                    gpsFresh = gps.isFresh(android.os.SystemClock.elapsedRealtime())).kmh,
+                onSelectDestination = navVm::selectDestination,
             )
             else -> RouteSettingsScreen(
                 gps = gps,
