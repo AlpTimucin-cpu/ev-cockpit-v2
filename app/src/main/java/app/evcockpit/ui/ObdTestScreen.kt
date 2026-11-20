@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.evcockpit.obd.VehicleState
+import app.evcockpit.planui.ObdEvidence
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -57,6 +58,11 @@ fun ObdTestScreen(
         ) {
             Text("OBD bağlantı testi", fontSize = 18.sp)
             Text(state.statusText, fontSize = 14.sp)
+            Text("ELM327 / ECU veri güveni", fontSize = 14.sp)
+            ObdEvidence.describe(state.connected,state.demo,state.socPct,state.speedKmh)
+                .forEach { text ->
+                    Text(text, fontSize = 11.sp)
+                }
             message?.let { Text(it, color = Color(0xFFFFB300), fontSize = 12.sp) }
             Text("Cihazı telefonun Bluetooth ayarlarında eşleştirin (PIN genellikle 1234 veya 0000).", fontSize = 12.sp)
             OutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
