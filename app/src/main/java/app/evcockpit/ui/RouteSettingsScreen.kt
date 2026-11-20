@@ -1,6 +1,8 @@
 package app.evcockpit.ui
 
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
 import app.evcockpit.ui.NightlyUpdatePanel
 import android.os.Build
 import android.net.Uri
@@ -62,6 +64,7 @@ fun RouteSettingsScreen(
     var manualInput by remember { mutableStateOf("") }
     var manualError by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
+    var compatibility by remember { mutableStateOf(DeviceCompatibilityDiagnostics.capture(context)) }
 
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
@@ -137,7 +140,27 @@ fun RouteSettingsScreen(
         OutlinedButton(onClick = onStopGps) { Text("GPS takibini durdur") }
         Text("GPS izni bu düğmeyle istenir. Konum işlenmesi için görünür bildirimli konum servisi kullanılır.")
         Text("Arka plan servisleri için pil / otomatik başlatma ayarları")
-        Text(BackgroundSettingsGuide.explanation(Build.MANUFACTURER))
+        Text(BackgroundSettingsGuide.explanation(
+            Build.MANUFACTURER, Build.DISPLAY, Build.FINGERPRINT))
+        Text("Telefon / ROM uyumluluk durumu (yerel; hassas kimlik verisi yok)")
+        Text(compatibility.safeReport())
+        OutlinedButton(onClick = {
+            compatibility = DeviceCompatibilityDiagnostics.capture(context)
+        }) { Text("İzin ve sistem durumunu yenile") }
+        OutlinedButton(onClick = {
+            val clipboard = context.getSystemService(ClipboardManager::class.java)
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(ClipData.newPlainText(
+                    "ID.4 uyumluluk özeti", compatibility.safeReport()))
+                status = "Kimlik ve konum içermeyen uyumluluk özeti panoya kopyalandı."
+            } else {
+                status = "Pano kullanılamıyor; rapor ekranda görüntüleniyor."
+            }
+        }) { Text("Güvenli uyumluluk özetini kopyala") }
+        if (!compatibility.preciseLocationGranted) {
+            Text("Hassas konum izni yok: GPS başlangıçlı rota ve yeniden planlama " +
+                "kullanılamayabilir. Sistem konum izninde 'Kesin' seçimini kontrol edin.")
+        }
         OutlinedButton(onClick = {
             status = if (BackgroundSettingsGuide.openBatteryOptimizationSettings(context)) {
                 "Pil optimizasyonu sistem sayfası istendi; ayarı kendiniz kontrol edin."

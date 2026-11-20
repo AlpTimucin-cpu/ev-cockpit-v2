@@ -13,6 +13,16 @@ import java.util.UUID
 
 class ObdTimeoutException(message: String) : IOException(message)
 
+/**
+ * RFCOMM InputStream.read() can return -1 on Android 17/API 37 disconnect.
+ * Apply EOF handling consistently, including the stale-byte drain.
+ */
+internal fun readConnectedByte(stream: InputStream): Int {
+    val value = stream.read()
+    if (value == -1) throw IOException("Bluetooth bağlantısı kapandı (EOF)")
+    return value
+}
+
 interface ObdTransport {
     suspend fun open()
     suspend fun write(text: String)
@@ -55,7 +65,7 @@ class BluetoothSppTransport(private val device: BluetoothDevice) : ObdTransport 
         val ins = input ?: throw IOException("Bluetooth giriş akışı kapalı")
         val out = output ?: throw IOException("Bluetooth çıkış akışı kapalı")
         // Stale fragments must not be interpreted as the next command's response.
-        while (ins.available() > 0) ins.read()
+        while (ins.available() > 0) readConnectedByte(ins)
         out.write((text + "\r").toByteArray(Charsets.US_ASCII))
         out.flush()
     }
@@ -66,8 +76,7 @@ class BluetoothSppTransport(private val device: BluetoothDevice) : ObdTransport 
         val deadline = System.nanoTime() + timeoutMs * 1_000_000L
         while (System.nanoTime() < deadline) {
             if (ins.available() > 0) {
-                val byte = ins.read()
-                if (byte < 0) throw IOException("Bluetooth bağlantısı kapandı")
+                val byte = readConnectedByte(ins)
                 val char = byte.toChar()
                 if (char == '>') return@withContext buffer.toString()
                 buffer.append(char)
@@ -93,8 +102,7 @@ class BluetoothSppTransport(private val device: BluetoothDevice) : ObdTransport 
         var endedEarly = false
         while (System.nanoTime() < deadline) {
             if (ins.available() > 0) {
-                val byte = ins.read()
-                if (byte < 0) throw IOException("CAN izlemede Bluetooth kapandı")
+                val byte = readConnectedByte(ins)
                 if (byte == '>'.code) {
                     endedEarly = true
                     break
