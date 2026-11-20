@@ -238,3 +238,13 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - APK: `0.3.18-m8.7e-poco`, `versionCode=41`; Android `targetSdk=35` ve eski cihaz desteği korunur. Android 17 hedef SDK'sına kontrolsüz geçiş yapılmaz.
 - **Telefon test sırası:** uygulamayı aç → Ayarlar > durum yenile → raporun gizlilik durumunu incele → GPS hassas konumu iste → manuel SoC → harita/plan; OBD'yi yalnız araç park hâlinde ayrıca dene. LineageOS ve mobil API davranışları **gerçek POCO F5 üzerinde henüz DOĞRULANMADI**.
 - [Durma Noktası B kabul listesi](../../issues/62) açık kalır. Bu PR **M8.8, M4 veya M5 geçiş onayı değildir**.
+
+
+## Cockpit UI Faz 1 — Tesla esintili görsel düzen (M8.7 / POCO F5)
+
+- Yeni `CockpitTheme`: yüksek kontrastlı koyu arka plan, yumuşak yüzeyler, mavimsi vurgu, isteğe bağlı açık tema korunur. Tesla'nın marka/logosu/özel varlıkları kullanılmaz.
+- Yatay telefonda `Gösterge`: solda hız, güç/rejenerasyon, SoC ve doğrulama durumu; sağda mevcut canlı MapLibre/ORS haritası. Dar pencerelerde kaydırılabilir dikey yerleşime geçer. Veri yoksa `--` gösterilir, DEMO ve doğrulanmamış PID etiketi korunur.
+- 6 sekmenin eski indeksleri korunarak en az 48dp dokunma alanlı, yatay kaydırılabilir kapsül menü eklendi. Açılış sekmesi Gösterge'dir.
+- `Plan`: 3 özet kutusu (mesafe, durak, varış SoC), belirsizlik/TAHMİN ve çözücü süresi; gerçek plan oluştuğunda şarj haritası varsayılan görünür. Rota/plan/OBD işlemleri değiştirilmez.
+- Android `versionCode=42`, `versionName=0.3.19-cockpit-ui1`. Java 17, Android API min/target, LineageOS ve MEB PID verified=false ilkeleri aynıdır.
+- Ölçüm ve sınırlar: CI birim testleri, fiziksel POCO F5 ekran taşması/font ölçeği, GPS, harita görüntüleme ve sürüş/araç bağlantısı testi **ayrı ve henüz DOĞRULANMADI**. Durma Noktası B [#62](../../issues/62) devam eder. M8.8/M4/M5 başlatılmaz.
