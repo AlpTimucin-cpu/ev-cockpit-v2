@@ -44,6 +44,8 @@ import app.evcockpit.obd.ManualSocStore
 import app.evcockpit.obd.SocSelector
 import app.evcockpit.obd.PidTable
 import app.evcockpit.navigation.NavigationViewModel
+import app.evcockpit.weather.OpenMeteoRouteWeather
+import app.evcockpit.weather.OpenMeteoWeatherLogic
 import app.evcockpit.passenger.PassengerPlayerModel
 import app.evcockpit.location.SpeedSelector
 import app.evcockpit.ui.PassengerVideoScreen
@@ -100,6 +102,16 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     val message by vm.message.collectAsStateWithLifecycle()
     val gps by vm.gps.collectAsStateWithLifecycle()
     val navState by navVm.state.collectAsStateWithLifecycle()
+    val weatherProvider = remember { OpenMeteoRouteWeather() }
+    var weatherSummary by remember { mutableStateOf("Hava: rota hesaplanmadı") }
+    LaunchedEffect(navState.route) {
+        val route = navState.route
+        weatherSummary = if (route == null) "Hava: rota hesaplanmadı" else try {
+            OpenMeteoWeatherLogic.summary(weatherProvider.forecast(route))
+        } catch (_: Exception) {
+            "Hava: servis erişimi yok — DOĞRULANMADI"
+        }
+    }
     val voiceState by navVm.voice.collectAsStateWithLifecycle()
     var shareError by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableIntStateOf(1) }
@@ -141,7 +153,8 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
         when (tab) {
             0 -> DashboardScreen(
                 s = state, soc = socReading, usableKwh = cfg.usableKwh, gps = gps,
-                navigation = navState, onSelectDestination = navVm::selectDestination,
+                navigation = navState, weatherSummary = weatherSummary,
+                onSelectDestination = navVm::selectDestination,
             )
             1 -> ObdTestScreen(
                 state = state,

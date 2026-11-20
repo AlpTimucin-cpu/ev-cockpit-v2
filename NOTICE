@@ -36,3 +36,5 @@ dependencies were fully audited, or that proprietary source code can be copied.
 * Photon by komoot: OSM tabanlı kamusal demo geocoding, fair-use limits, explicit search only. https://github.com/komoot/photon
 
 * Jetpack Media3 (Apache License 2.0): https://developer.android.com/jetpack/androidx/releases/media3 ; https://github.com/androidx/media/blob/release/LICENSE
+
+* Open-Meteo forecast data: © Open-Meteo; data CC BY 4.0 attribution, free hosted API subject to non-commercial use and rate limits: https://open-meteo.com/en/terms

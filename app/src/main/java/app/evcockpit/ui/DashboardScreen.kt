@@ -47,6 +47,7 @@ fun DashboardScreen(
     usableKwh: Double,
     gps: GpsSnapshot,
     navigation: RouteUiState,
+    weatherSummary: String,
     onSelectDestination: (GeoPoint) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -82,6 +83,7 @@ fun DashboardScreen(
             route = navigation.route,
             destination = navigation.destination,
             gps = gps,
+            weatherSummary = weatherSummary,
             onSelectDestination = onSelectDestination,
         )
     }
