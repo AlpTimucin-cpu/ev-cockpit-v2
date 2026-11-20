@@ -121,3 +121,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Test raporu kaynağı yalnız OBD logudur; GPS/Route/Keystore API anahtarları okunmaz. VIN 0902, koordinat dizileri, token/Authorization/API key şüpheli satırlar tamamen gizlenir. **Ayrı orijinal ham tanı logu gizlilik filtresi uygulanmaz**; paylaşmadan önce kontrol edin.
 - Rapor Android FileProvider ve sistem paylaşım seçicisiyle açılır; fiziksel telefonda dışa aktarma ve OEM ayarları DOĞRULANMADI.
 - M1, M2, M3 ardından Durma Noktası 1: araç park halindeyken Ready, adaptör tam oturmuş şekilde tanı çalıştırılıp güvenli test raporu ve gerekiyorsa kontrollü ham tanı dosyası paylaşılacak. M4-M7 için saha sonucu / ayrıca onay beklenir.
+
+## Araç bağımsız İterasyon 1 — yerel hata günlüğü
+- Yakalanmamış istisna sınıfı, zaman ve sadece sınırlı/temizlenmiş uygulama stack frame'leri yerel crash.log dosyasına yazılır. İstisna mesajı, URL, anahtar, VIN ve koordinat dahil edilmez. 64 KiB sınırı.
+- Güvenli test raporuna son hata kaydı mevcut gizleme filtresinden geçirilerek eklenir. Fiziksel Android üzerinde istisna yakalama **DOĞRULANMADI**.

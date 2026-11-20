@@ -1,6 +1,7 @@
 package app.evcockpit.obd
 
 import android.Manifest
+import app.evcockpit.diagnostics.CrashLog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -36,12 +37,16 @@ object SafeTestReportText {
         permissionStatuses: List<String>,
         diagnosisSummary: String,
         lastObdLogLines: List<String>,
+        lastCrashRecord: String? = null,
     ): String = buildString {
         appendLine("ID.4 YOL ARKADAŞI — GÜVENLİ TEST RAPORU")
         appendLine("Saha doğrulaması kullanıcı ham kanıtına bağlıdır; rapor bir başarı sertifikası değildir.")
         appendLine("Uygulama: " + sanitizeLine(appVersion))
         appendLine("Android: " + sanitizeLine(androidVersion))
         appendLine("Cihaz modeli: " + sanitizeLine(deviceModel))
+        appendLine("Son yakalanmamış hata (DOĞRULANMADI / cihaz kanıtı):")
+        if (lastCrashRecord == null) appendLine("Kayıt yok")
+        else lastCrashRecord.lines().take(12).forEach { appendLine(sanitizeLine(it)) }
         appendLine("İzinler:")
         permissionStatuses.forEach { appendLine("- " + sanitizeLine(it)) }
         appendLine("Son Tanı özeti:")
@@ -81,6 +86,7 @@ object SafeTestReportExporter {
             permissionStatuses = permissions,
             diagnosisSummary = diagnosisSummary,
             lastObdLogLines = obdLogLines,
+            lastCrashRecord = CrashLog.lastRecord(context),
         )
         val directory = context.getExternalFilesDir(null) ?: context.filesDir
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
