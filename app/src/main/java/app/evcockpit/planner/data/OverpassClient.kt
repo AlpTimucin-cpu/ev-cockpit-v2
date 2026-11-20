@@ -2,6 +2,7 @@ package app.evcockpit.planner.data
 
 import app.evcockpit.planner.route.RoutePoint
 import app.evcockpit.planner.charging.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -82,7 +83,9 @@ class OverpassRepository(
                 if(index>0) sleep(1500)
                 var obtained=false
                 for(attempt in 0..2) {
-                    val response=runCatching { transport.post(q) }.getOrNull()
+                    val response=try { transport.post(q) }
+                    catch (cancel:CancellationException) { throw cancel }
+                    catch (_:Exception) { null }
                     if(response!=null && response.status==200) {
                         raw=response.body
                         cache.write(q,raw)

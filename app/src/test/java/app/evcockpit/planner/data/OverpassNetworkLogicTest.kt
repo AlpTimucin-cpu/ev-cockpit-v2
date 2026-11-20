@@ -4,6 +4,7 @@ import app.evcockpit.planner.route.RoutePoint
 import app.evcockpit.planner.charging.*
 import app.evcockpit.planner.model.SourcedValue
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.*
 import org.junit.Test
 import java.nio.file.Files
@@ -62,6 +63,20 @@ class OverpassNetworkLogicTest {
         assertEquals(CorridorChunker().chunks(route).size*3,calls)
         assertTrue(wait.contains(1000L))
         dir.deleteRecursively()
+        Unit
+    }
+    @Test fun cancellationIsNeverSwallowed() = runBlocking {
+        val dir=Files.createTempDirectory("m8-cancel").toFile()
+        val network=object:OverpassTransport {
+            override suspend fun post(query:String):OverpassResponse {
+                throw CancellationException("user cancelled")
+            }
+        }
+        try {
+            OverpassRepository(network,ChargerCache(dir),sleep={}).search(route)
+            fail("CancellationException must propagate")
+        } catch (_:CancellationException) { /* success */ }
+        finally { dir.deleteRecursively() }
         Unit
     }
     @Test fun customCandidateIsProjectedWithoutNetwork() = runBlocking {
