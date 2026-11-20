@@ -38,3 +38,9 @@ dependencies were fully audited, or that proprietary source code can be copied.
 * Jetpack Media3 (Apache License 2.0): https://developer.android.com/jetpack/androidx/releases/media3 ; https://github.com/androidx/media/blob/release/LICENSE
 
 * Open-Meteo forecast data: © Open-Meteo; data CC BY 4.0 attribution, free hosted API subject to non-commercial use and rate limits: https://open-meteo.com/en/terms
+
+## M8 çekirdek veri kaynakları (kopyalanmış ABRP kodu yok)
+- ORS resmi hosted API: https://giscience.github.io/openrouteservice/hosted-api-restrictions ; kullanıcı-anahtarlı rota/waypoint.
+- Open-Meteo Elevation: https://open-meteo.com/en/docs/elevation-api ; Copernicus/Open-Meteo atıf.
+- OSM/Overpass: https://dev.overpass-api.de/overpass-doc/en/preface/commons.html ; OSM katkıcıları, ODbL veri atfı.
+- Araç profilindeki tüm tahmini parametreler verified=false, sayısal kanıt: docs/M8_DOGRULAMA.md.
