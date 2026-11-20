@@ -27,3 +27,8 @@ Hava yoğunluğu ISA, CdA, yuvarlanma, eğim, rejen sınırı ve yardımcı yük
 ## M8.5A
 - Şarj süresi, parçalı doğrusal güç eğrisinin kapalı-form 1/P(soc) integralidir; batarya soğuk çarpanı uygulanır. Soğuk güç tablosu/şarj eğrisi sadece TAHMİN.
 - Büyük aday kümesinde 40 km başına 3 aday budama kararı hesaplama bütçesi varsayımıdır; gerçek dünya optimumu garantilenmez; küçük ≤8 adayda eksiksiz alan kullanılır.
+
+## M8.5C algoritma testleri
+- Kesikli SoC ızgarasında (kaba kuvvet DFS) en iyi toplam süre küçük sentetik aday kümeleriyle kontrol edilir; **sürekli SoC optimumu veya gerçek yol optimumu iddiası YOK**.
+- 510 sabit tohumlu güvenlik senaryosu, 1000 km / 300 aday JUnit performans ölçümü ve şehirler arası isimli **sahte 700/450 km** senaryoları Actions JUnit XML kanıtından raporlanır.
+- En hızlı plana ek olarak daha az durak ve yalnız OSM CCS2 etiketli +5 yüzde SoC güvenlik alternatifi aranır. Yedekler yalnız yakın adaylardır, gerçek erişim/doluluk/sapma DOĞRULANMADI.

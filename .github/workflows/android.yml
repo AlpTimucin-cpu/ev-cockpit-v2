@@ -51,6 +51,12 @@ jobs:
           skipped=sum(int(x.get("skipped",0)) for x in suites)
           print(f"M8_JUNIT_TOTAL={total} PASSED={total-bad-skipped} FAILED={bad} SKIPPED={skipped}")
           assert total>0 and bad==0
+          for suite in suites:
+            for output in suite.findall(".//system-out"):
+              if output.text:
+                for line in output.text.splitlines():
+                  if line.startswith(("M8_PERF_", "M8_SAFETY_", "M8_SCENARIO ")):
+                    print(line)
           PY
 
       - name: Verify stable APK certificate with apksigner
