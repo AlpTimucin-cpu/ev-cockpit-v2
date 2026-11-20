@@ -58,7 +58,7 @@ fun PlannerScreen(
     val profile by profileStore.profile.collectAsState(initial=VehicleProfile.defaults())
     val state by vm.state.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
-    var showPlanMap by remember{mutableStateOf(false)}
+    var showPlanMap by remember{mutableStateOf(true)}
     var highlightedStation by remember{mutableStateOf<ChargerCandidate?>(null)}
     var selectedSaved by remember{mutableStateOf<StoredPlan?>(null)}
     var saveStatus by remember{mutableStateOf("")}
@@ -78,22 +78,49 @@ fun PlannerScreen(
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         .padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-        Text("EV Rota Planlayıcı",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
-        Text("TAHMİN • DOĞRULANMADI",color=MaterialTheme.colorScheme.error,
-            style=MaterialTheme.typography.titleMedium)
         val success=state.plan as? PlanResult.Success
-        Text(if(success==null)"Belirsizlik: henüz hesaplanmadı — TAHMİN"
-            else PlannerDisplay.uncertainty(success))
-        Text("SoC kaynağı: "+soc.source+" • "+
-            (soc.pct?.let{"%"+("%.1f".format(it))} ?:"değer yok"))
-        Text("Kaynak rota: "+(navigation?.provider ?: "yok")+
-            " • trafik dahil değil, sahada DOĞRULANMADI")
-        Text(state.message)
-        Text(state.warning,style=MaterialTheme.typography.bodySmall)
-        Text("İstasyonlar: "+state.stationStatus,style=MaterialTheme.typography.bodySmall)
-        Text("Çözücü hesap süresi: "+
-            (state.solverElapsedMs?.let{it.toString()+" ms"} ?:"ölçülmedi")+
-            " • POCO F5 değeri için ekranı test edin")
+        Surface(
+            modifier=Modifier.fillMaxWidth(),
+            shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            color=MaterialTheme.colorScheme.surface,
+        ) {
+            Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(9.dp)) {
+                Text("EV Rota Planlayıcı",
+                    style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+                Text("TAHMİN • DOĞRULANMADI",
+                    color=MaterialTheme.colorScheme.error,
+                    style=MaterialTheme.typography.labelMedium)
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    CockpitMetric("MESAFE",
+                        success?.let{ "%.0f km".format(it.distanceKm) } ?: "--",
+                        Modifier.weight(1f))
+                    CockpitMetric("DURAK",
+                        success?.stops?.size?.toString() ?: "--",
+                        Modifier.weight(1f))
+                    CockpitMetric("VARIŞ SoC",
+                        success?.let{ "~%" + it.arrivalSocPct } ?: "--",
+                        Modifier.weight(1f))
+                }
+                Text(if(success==null)"Belirsizlik: henüz hesaplanmadı — TAHMİN"
+                    else PlannerDisplay.uncertainty(success),
+                    style=MaterialTheme.typography.bodySmall)
+                Text("SoC kaynağı: "+soc.source+" • "+
+                    (soc.pct?.let{"%"+("%.1f".format(it))} ?:"değer yok"),
+                    style=MaterialTheme.typography.bodySmall)
+                Text("Rota: "+(navigation?.provider ?: "yok")+
+                    " • trafik dahil değil / sahada DOĞRULANMADI",
+                    style=MaterialTheme.typography.bodySmall)
+                if(state.message.isNotBlank()) Text(state.message)
+                if(state.warning.isNotBlank()) Text(state.warning,
+                    style=MaterialTheme.typography.bodySmall)
+                Text("İstasyonlar: "+state.stationStatus,
+                    style=MaterialTheme.typography.bodySmall)
+                Text("Çözücü hesap süresi: "+
+                    (state.solverElapsedMs?.let{it.toString()+" ms"} ?:"ölçülmedi")+
+                    " • POCO F5 ölçümü bekleniyor",
+                    style=MaterialTheme.typography.bodySmall)
+            }
+        }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             Button(onClick={vm.plan(navigation,soc,options,profile)},enabled=!busy,
                 modifier=Modifier.weight(1f).heightIn(min=48.dp)) {
@@ -310,7 +337,8 @@ fun PlannerScreen(
                 Text("Güvenli CCS2/+%5 SoC alternatifi: "+it.stops.size+" durak (TAHMİN)")
             }
             success.warnings.forEach { Text(it,style=MaterialTheme.typography.bodySmall) }
-            Text("Harita işaretleri, navigasyona aktarma ve kayıt: M8.7 ile bağlanacak.")
+            Text("Harita, kayıt ve navigasyon özellikleri telefon üzerinde DOĞRULANMADI.",
+                style=MaterialTheme.typography.bodySmall)
         }
         Text("Kaydedilmiş planlar (en çok 10, cihaz içinde)")
         if(savedPlans.isEmpty())Text("Henüz plan kaydı yok")

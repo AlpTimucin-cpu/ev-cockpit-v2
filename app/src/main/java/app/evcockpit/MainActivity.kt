@@ -12,17 +12,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,6 +53,8 @@ import app.evcockpit.planui.PlannerViewModel
 import app.evcockpit.ui.DashboardScreen
 import app.evcockpit.ui.ObdTestScreen
 import app.evcockpit.ui.RouteSettingsScreen
+import app.evcockpit.ui.CockpitTheme
+import app.evcockpit.ui.CockpitTabs
 import app.evcockpit.ui.DisplayPreferences
 import kotlinx.coroutines.launch
 
@@ -75,7 +74,7 @@ class MainActivity : ComponentActivity() {
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 onDispose { /* next effect handles updates; Activity teardown clears the flag */ }
             }
-            MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
+            CockpitTheme(dark = darkTheme) {
                 val obdViewModel: ObdViewModel = viewModel()
                 val navViewModel: NavigationViewModel = viewModel()
                 val passengerModel: PassengerPlayerModel = viewModel()
@@ -119,7 +118,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     }
     val voiceState by navVm.voice.collectAsStateWithLifecycle()
     var shareError by remember { mutableStateOf<String?>(null) }
-    var tab by remember { mutableIntStateOf(1) }
+    var tab by remember { mutableIntStateOf(0) }
 
     val permissions = remember {
         buildList {
@@ -147,15 +146,9 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
         ) vm.startGps() else vm.denyGps()
     }
 
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        ScrollableTabRow(selectedTabIndex = tab, edgePadding = 6.dp) {
-            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Gösterge") })
-            Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("OBD Test") })
-            Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Rota") })
-            Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text("Plan") })
-            Tab(selected = tab == 4, onClick = { tab = 4 }, text = { Text("Yolcu video") })
-            Tab(selected = tab == 5, onClick = { tab = 5 }, text = { Text("Ayarlar") })
-        }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        .windowInsetsPadding(WindowInsets.safeDrawing)) {
+        CockpitTabs(selected = tab, onSelect = { tab = it })
         when (tab) {
             0 -> DashboardScreen(
                 s = state, soc = socReading, usableKwh = cfg.usableKwh, gps = gps,
