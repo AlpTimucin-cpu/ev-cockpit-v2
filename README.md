@@ -150,3 +150,9 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Resmî kaynak: https://developer.android.com/jetpack/androidx/releases/media3 ; https://developers.google.com/youtube/iframe_api_reference
 
 - CI düzeltmesi: Actions AAR metadata 9 hatada Media3 1.10.0 için compileSdk≥36 gerektiğini kanıtladı. Resmî AGP 8.10.1 + Gradle 8.11.1 ve compileSdk36 kullanılır; targetSdk35/minSdk28 korunur. Kanıt: https://github.com/AlpTimucin-cpu/ev-cockpit-v2/actions/runs/44709546273 ; https://developer.android.com/build/releases/agp-8-10-0-release-notes
+
+## Yolcu modu M6 / PR-arayüz (yalnız telefon)
+- Yolcu video sekmesinde SAF yerel dosya, doğrudan HTTPS ve YouTube resmî IFrame (WebView) girişi; DRM/Netflix/Disney+/Prime yönlendirmesi/çözmesi yok.
+- Tam ekran (varsayılan), bölünmüş (video üstte, harita altta), yüzen (sürüklenebilir) düzenler DataStore ile kalıcı. Media3 player ViewModel'da tutulur, böylece Compose düzen değişiminde oynatma pozisyonunu korumak hedeflenir (sahada DOĞRULANMADI).
+- Video hız kilidi kullanıcı ayarıdır, varsayılan kapalı; kullanıcı açmadıkça hıza göre video durdurulmaz. Kulaklık ipucu mevcut. AudioFocus/MAY_DUCK ses kısma, YouTube WebView ve arka plan hizmetlerinin fiziksel davranışı DOĞRULANMADI.
+- Araç ekranı Android Auto video yok, planlanmıyor. Kaynak: https://developers.google.com/youtube/iframe_api_reference
