@@ -39,6 +39,20 @@ jobs:
       - name: Test and build debug APK
         run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
+      - name: JUnit test count (XML evidence)
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          paths=glob.glob("app/build/test-results/testDebugUnitTest/TEST-*.xml")
+          assert paths, "JUnit results missing"
+          suites=[ET.parse(p).getroot() for p in paths]
+          total=sum(int(x.get("tests",0)) for x in suites)
+          bad=sum(int(x.get("failures",0))+int(x.get("errors",0)) for x in suites)
+          skipped=sum(int(x.get("skipped",0)) for x in suites)
+          print(f"M8_JUNIT_TOTAL={total} PASSED={total-bad-skipped} FAILED={bad} SKIPPED={skipped}")
+          assert total>0 and bad==0
+          PY
+
       - name: Verify stable APK certificate with apksigner
         run: |
           set -euo pipefail
