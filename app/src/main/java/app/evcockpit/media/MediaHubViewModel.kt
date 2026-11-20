@@ -52,6 +52,7 @@ class MediaHubViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 val stations = client.getTurkishStations()
+                RadioCatalogStore.save(getApplication(), stations)
                 mutable.value = mutable.value.copy(
                     loading = false, radio = stations,
                     message = if (stations.isEmpty()) "HTTPS radyo yayını bulunamadı."
