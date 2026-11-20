@@ -48,7 +48,10 @@ object ElevationSmoother {
         return values.indices.map { i ->
             val a=(i-windowRadius).coerceAtLeast(0)
             val b=(i+windowRadius).coerceAtMost(values.lastIndex)
-            values.subList(a,b+1).average()
+            // Center-weighted moving average preserves genuine peaks while reducing DEM spikes.
+            val weights=(a..b).map { index -> if (index == i) 2.0 else 1.0 }
+            val total=weights.sum()
+            (a..b).sumOf { index -> values[index] * weights[index-a] } / total
         }
     }
     fun climb(values:List<Double>):Double = values.zipWithNext()
