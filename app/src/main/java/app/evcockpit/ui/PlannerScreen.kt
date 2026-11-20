@@ -32,6 +32,8 @@ import app.evcockpit.storage.SavedPlanBuilder
 import app.evcockpit.storage.StoredPlan
 import app.evcockpit.planner.integration.PlanToNavigation
 import app.evcockpit.navigation.GeoPoint
+import app.evcockpit.location.GpsSnapshot
+import app.evcockpit.planner.charging.ChargerCandidate
 import android.content.Intent
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -44,6 +46,8 @@ fun PlannerScreen(
     onOpenRoute:()->Unit,
     onOpenSettings:()->Unit,
     onNavigate:(List<GeoPoint>,GeoPoint)->Unit,
+    gps:GpsSnapshot,
+    onSelectDestination:(GeoPoint)->Unit,
 ) {
     val context=LocalContext.current
     val optionsStore=remember(context){PlannerOptionsStore(context.applicationContext)}
@@ -54,6 +58,8 @@ fun PlannerScreen(
     val profile by profileStore.profile.collectAsState(initial=VehicleProfile.defaults())
     val state by vm.state.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
+    var showPlanMap by remember{mutableStateOf(false)}
+    var highlightedStation by remember{mutableStateOf<ChargerCandidate?>(null)}
     var selectedSaved by remember{mutableStateOf<StoredPlan?>(null)}
     var saveStatus by remember{mutableStateOf("")}
     var parameters by remember{mutableStateOf(false)}
@@ -186,6 +192,25 @@ fun PlannerScreen(
                 ("%.1f km".format(failed.nearestReachableKm)))
         }
         if(success!=null) {
+            OutlinedButton(onClick={showPlanMap=!showPlanMap}) {
+                Text(if(showPlanMap)"Şarj haritasını gizle" else "Şarj duraklarını haritada göster")
+            }
+            if(showPlanMap) {
+                OnlineMap(modifier=Modifier.fillMaxWidth().height(275.dp),
+                    route=state.route,
+                    destination=state.route?.geometry?.lastOrNull(),
+                    gps=gps,onSelectDestination=onSelectDestination,
+                    weatherSummary="İstasyon verisi TAHMİN • güncellik DOĞRULANMADI",
+                    stopMarkers=success.stops.map{it.charger},
+                    onStopSelected={highlightedStation=it},
+                    focusedStop=highlightedStation)
+                Text("Harita: yeşil OSM CCS2 etiketli / sarı olası / gri bilinmiyor. " +
+                    "Renk, şarj cihazının çalıştığını veya doluluğunu doğrulamaz.")
+                highlightedStation?.let {
+                    Text("Seçilen istasyon: "+PlannerMarkerPolicy.label(it)+
+                        " • "+it.powerKw.value.toInt()+" kW (TAHMİN) • doluluk bilinmiyor")
+                }
+            }
             val computedRoute=state.route
             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 Button(onClick={
@@ -234,6 +259,10 @@ fun PlannerScreen(
                         Text("Kaynak: "+stop.charger.powerKw.source)
                         Text("Güven: "+stop.charger.confidence.name+
                             " • doluluk bilinmiyor • TAHMİN")
+                        OutlinedButton(onClick={
+                            highlightedStation=stop.charger
+                            showPlanMap=true
+                        }) {Text("Haritada gör")}
                         Text("Sapma ~"+("%.1f km".format(stop.charger.detourKm))+
                             " • "+("%.0f dk".format(stop.extraMinutes))+
                             " (gerçek yol DOĞRULANMADI)")

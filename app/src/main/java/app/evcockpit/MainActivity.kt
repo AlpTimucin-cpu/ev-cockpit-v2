@@ -241,6 +241,8 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                     navVm.navigateVia(stops,destination)
                     tab = 2
                 },
+                gps = gps,
+                onSelectDestination = navVm::selectDestination,
             )
             4 -> PassengerVideoScreen(
                 vm = passengerModel,

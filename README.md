@@ -219,3 +219,6 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8.7A — plan kaydet, paylaş, ara durakla navigasyon
 - Son 10 plan DataStore JSON içinde varış/durak koordinatlarıyla yerel saklanır (cihaz dışına otomatik gönderilmez). Planı aç, sil, kullanıcının açık komutuyla ORS üzerinden GPS+duraklar+hedef navigasyon rotası iste. Anahtar mevcut Keystore'da, yalnız Authorization başlığında. Kaynak rota ve istasyonlar sahada DOĞRULANMADI.
 - Android paylaşım penceresi yalnız güvenli özet (süre, mesafe, SoC, durak sayısı) taşır; koordinat/VIN/API anahtarı yok. Gizlilik sınırı: DataStore uygulama özel alanındadır ancak depolama şifreli olduğu iddia edilmez.
+
+## M8.7B — Plan durakları MapLibre katmanı
+- EV Rota Planlayıcı'da OpenFreeMap + mevcut ORS rota çizgisi ve şarj durakları gösterilir. Marker renkleri **OSM etiket güveni** içindir: yeşil CCS2 etiketli, sarı olası, gri bilinmiyor. Renkler şarj cihazı çalışması/doluluk garantisi değildir. Durak kartındaki Haritada gör tıklanınca harita odağı taşınır; marker tıklanınca istasyon ayrıntısı görünür. OSM/OpenFreeMap ve diğer sağlayıcı atıfları korunur; gerçek cihaz çizimi DOĞRULANMADI.
