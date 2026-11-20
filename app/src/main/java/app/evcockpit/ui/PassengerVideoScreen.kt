@@ -55,6 +55,7 @@ fun PassengerVideoScreen(
     var videoUrl by remember { mutableStateOf("") }
     var youtubeUrl by remember { mutableStateOf("") }
     var dragOffset by remember { mutableStateOf(IntOffset(24, 24)) }
+    var molaStatus by remember { mutableStateOf<String?>(null) }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()) { uri ->
@@ -94,6 +95,16 @@ fun PassengerVideoScreen(
     Column(Modifier.fillMaxSize().padding(6.dp)) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedButton(onClick = {
+                molaStatus = when (MolaCompanionLauncher.open(ctx)) {
+                    MolaCompanionLauncher.Result.OPENED ->
+                        "Mola ayrı bir uygulama olarak açıldı."
+                    MolaCompanionLauncher.Result.NOT_INSTALLED ->
+                        "Mola bu telefonda kurulu değil. EV Cockpit oynatıcısı bağımsızdır."
+                    MolaCompanionLauncher.Result.UNAVAILABLE ->
+                        "Mola açılamadı. Uygulamanın kurulumunu kontrol et."
+                }
+            }) { Text("Mola'yı aç (harici)") }
             Button(onClick = { picker.launch(arrayOf("video/*")) }) { Text("Yerel dosya seç") }
             OutlinedTextField(value = videoUrl, onValueChange = { videoUrl = it },
                 singleLine = true, label = { Text("Doğrudan HTTPS video URL") },
@@ -104,6 +115,8 @@ fun PassengerVideoScreen(
                 modifier = Modifier.width(240.dp))
             Button(onClick = { vm.playYouTube(youtubeUrl) }) { Text("YouTube IFrame") }
         }
+        molaStatus?.let { Text(it) }
+        Text("Mola ayrı uygulamadır; Android Auto video entegrasyonu sağlamaz.")
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
