@@ -225,3 +225,6 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 
 ## M8.7C — ORS ikinci geçiş UI (sahada DOĞRULANMADI)
 - Plan ekranında isteğe bağlı **ORS ile duraklı rotayı kontrol et** düğmesi; en çok 2 kullanıcı-anahtarlı ara durak rota isteği ve enerji farkı >%2 ise bir yeniden planlama. İlk/ikinci fark, başarısız kota/ağ/anahtar ve açık TAHMİN uyarısı. İptal `CancellationException` ile yayılır; başarı olarak gösterilmez. Üçüncü taraf veri akışı docs/M8_VERI_AKISI.md. Durma Noktası B telefon kabul testi bekler; M8.8/M4/M5 yok.
+
+## M8.7D — Güncel GPS/SoC ile elle yeniden planlama
+- Plan ekranında ayrı **Güncel GPS ve SoC ile yeniden planla** düğmesi, taze hassas GPS ve önceki hedef ile yeni ORS sürüş rotası ister. Şifreli kişisel HeiGIT anahtarı kullanılır; aynı hesap mevcut SoC (MANUEL ya da PID DOĞRULANMADI etiketli OBD) ve yeni rotayla yeniden çalışır. DEMO SoC reddedilir. Otomatik OBD/GPS tetikli planlama YOK. 3 yeni guard birim testi. Gerçek POCO F5/GPS/ORS saha sonucu DOĞRULANMADI.

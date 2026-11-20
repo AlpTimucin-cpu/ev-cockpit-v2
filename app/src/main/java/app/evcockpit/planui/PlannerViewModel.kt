@@ -1,9 +1,12 @@
 package app.evcockpit.planui
 
 import android.app.Application
+import android.os.SystemClock
+import app.evcockpit.CockpitApplication
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.evcockpit.navigation.NavigationRoute
+import app.evcockpit.navigation.GeoPoint
 import app.evcockpit.navigation.OrsRouteProvider
 import app.evcockpit.navigation.EncryptedRouteKeyStore
 import app.evcockpit.planner.integration.OrsViaRouteAdapter
@@ -99,6 +102,49 @@ class PlannerViewModel(application:Application):AndroidViewModel(application) {
             } catch(_:Exception) {
                 mutable.value=mutable.value.copy(stage=PlannerStage.FAILURE,
                     message="ORS ikinci geçişi başarısız. İnternet, anahtar veya kotayı kontrol et. DOĞRULANMADI")
+            }
+        }
+    }
+
+    /**
+     * Explicit tap-only: obtains a new driving route from FRESH GPS to the saved
+     * destination, then recomputes the plan with the current SoC. No telemetry
+     * polling or automatic reroute; no coords/key in user-facing error text.
+     */
+    fun replanFromCurrentGps(soc:SocReading,options:PlannerOptions,car:VehicleProfile) {
+        if(job?.isActive==true)return
+        val gps=(getApplication<Application>() as CockpitApplication).locationRepository.state.value
+        val destination=mutable.value.route?.geometry?.lastOrNull()
+        val reason=ManualReplanGuard.reason(gps.point,destination,
+            gps.isFresh(SystemClock.elapsedRealtime()),gps.accuracyMeters,soc,options)
+        if(reason!=null) {
+            mutable.value=mutable.value.copy(stage=PlannerStage.FAILURE,message=reason)
+            return
+        }
+        val from=gps.point ?: return
+        val to=destination ?: return
+        job=viewModelScope.launch {
+            try {
+                val key=keys.read()
+                if(key.isNullOrBlank()) {
+                    mutable.value=mutable.value.copy(stage=PlannerStage.FAILURE,
+                        message="HeiGIT API anahtarı yok. Ayarlar > Anahtar bölümünü aç.")
+                    return@launch
+                }
+                mutable.value=mutable.value.copy(stage=PlannerStage.ELEVATION,
+                    message="Güncel GPS konumundan rota yeniden isteniyor — TAHMİN / DOĞRULANMADI")
+                val current=OrsRouteProvider().calculate(from,to,key)
+                // Previous request has completed; launch the normal planner
+                // against the NEW origin and latest manually supplied SoC.
+                job=null
+                plan(current,soc,options,car)
+            } catch(cancel:CancellationException) {
+                mutable.value=mutable.value.copy(stage=PlannerStage.CANCELLED,
+                    message=PlannerGuard.label(PlannerStage.CANCELLED))
+                throw cancel
+            } catch(_:Exception) {
+                mutable.value=mutable.value.copy(stage=PlannerStage.FAILURE,
+                    message="Güncel GPS rotası alınamadı. Ağ/kota/anahtarı kontrol et. DOĞRULANMADI")
             }
         }
     }

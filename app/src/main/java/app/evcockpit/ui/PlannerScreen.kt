@@ -241,6 +241,14 @@ fun PlannerScreen(
                 if(dest!=null)onNavigate(PlanToNavigation.intermediateStops(success),dest)
             },enabled=computedRoute!=null){Text("Şarj duraklarıyla navigasyona ekle")}
 
+            OutlinedButton(onClick={
+                vm.replanFromCurrentGps(soc,options,profile)
+            },enabled=!busy) {
+                Text("Güncel GPS ve SoC ile yeniden planla")
+            }
+            Text("Yalnız açık dokunuşla yeni ORS rota isteği yapılır; güncel konum ve " +
+                "manuel/OBD etiketli SoC kullanılır. Otomatik yeniden planlama YOK.",
+                style=MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick=vm::verifySelectedStops,enabled=!busy) {
                 Text("ORS ile duraklı rotayı kontrol et")
             }
