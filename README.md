@@ -148,3 +148,5 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - AudioFocus Media3 otomatik yönetim, navigasyon Türkçe TTS'nin MAY_DUCK odağı ile bir arada. Gerçek telefon ses kısma davranışı DOĞRULANMADI.
 - Hız kilidi tercihi default false, kullanıcı açıkça seçmeden video hıza göre kapatılmaz.
 - Resmî kaynak: https://developer.android.com/jetpack/androidx/releases/media3 ; https://developers.google.com/youtube/iframe_api_reference
+
+- CI düzeltmesi: Actions AAR metadata 9 hatada Media3 1.10.0 için compileSdk≥36 gerektiğini kanıtladı. Resmî AGP 8.10.1 + Gradle 8.11.1 ve compileSdk36 kullanılır; targetSdk35/minSdk28 korunur. Kanıt: https://github.com/AlpTimucin-cpu/ev-cockpit-v2/actions/runs/44709546273 ; https://developer.android.com/build/releases/agp-8-10-0-release-notes
