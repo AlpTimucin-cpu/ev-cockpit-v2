@@ -46,6 +46,8 @@ import app.evcockpit.weather.OpenMeteoRouteWeather
 import app.evcockpit.weather.OpenMeteoWeatherLogic
 import app.evcockpit.passenger.PassengerPlayerModel
 import app.evcockpit.location.SpeedSelector
+import app.evcockpit.integration.MolaOpenContract
+import kotlinx.coroutines.flow.MutableStateFlow
 import app.evcockpit.ui.PassengerVideoScreen
 import app.evcockpit.ui.RouteScreen
 import app.evcockpit.ui.PlannerScreen
@@ -59,10 +61,29 @@ import app.evcockpit.ui.DisplayPreferences
 import app.evcockpit.ui.rememberGpsFreshness
 import kotlinx.coroutines.launch
 
+private data class ExternalOpenRequest(val generation: Int = 0, val tab: Int? = null)
+
 class MainActivity : ComponentActivity() {
+    private val externalOpenRequest = MutableStateFlow(ExternalOpenRequest())
+
+    private fun acceptOpenIntent(value: Intent?) {
+        if (value?.action != Intent.ACTION_VIEW) return
+        val target = MolaOpenContract.tabFor(value.dataString) ?: return
+        val previous = externalOpenRequest.value
+        externalOpenRequest.value = ExternalOpenRequest(previous.generation + 1, target)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        acceptOpenIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        acceptOpenIntent(intent)
         setContent {
+            val openRequest by externalOpenRequest.collectAsState()
             val displayPreferences = remember { DisplayPreferences(applicationContext) }
             val darkTheme by displayPreferences.darkTheme.collectAsState(
                 initial = true,
@@ -81,7 +102,7 @@ class MainActivity : ComponentActivity() {
                 val passengerModel: PassengerPlayerModel = viewModel()
                 val plannerModel: PlannerViewModel = viewModel()
                 App(obdViewModel, navViewModel, passengerModel, plannerModel,
-                    displayPreferences, darkTheme, keepScreenOn)
+                    displayPreferences, darkTheme, keepScreenOn, openRequest)
             }
         }
     }
@@ -91,7 +112,8 @@ class MainActivity : ComponentActivity() {
 private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     passengerModel: PassengerPlayerModel, plannerModel: PlannerViewModel,
     displayPreferences: DisplayPreferences,
-    darkTheme: Boolean, keepScreenOn: Boolean) {
+    darkTheme: Boolean, keepScreenOn: Boolean,
+    openRequest: ExternalOpenRequest) {
     val context = LocalContext.current
     val cfg = remember { PidTable.load(context) }
     val manualStore = remember(context) { ManualSocStore(context.applicationContext) }
@@ -121,6 +143,9 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     val voiceState by navVm.voice.collectAsStateWithLifecycle()
     var shareError by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableIntStateOf(0) }
+    LaunchedEffect(openRequest.generation) {
+        openRequest.tab?.let { tab = it }
+    }
 
     val permissions = remember {
         buildList {
