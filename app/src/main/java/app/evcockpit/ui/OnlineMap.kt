@@ -48,6 +48,7 @@ fun OnlineMap(
     route: NavigationRoute?,
     destination: GeoPoint?,
     gps: GpsSnapshot,
+    weatherSummary: String = "",
     onSelectDestination: (GeoPoint) -> Unit,
 ) {
     val context = LocalContext.current
@@ -149,6 +150,11 @@ fun OnlineMap(
             modifier = Modifier.align(Alignment.TopStart)
                 .background(Color(0xC9000000)).padding(8.dp),
         )
+        if (weatherSummary.isNotBlank()) {
+            Text(weatherSummary, color = Color.White, fontSize = 10.sp,
+                modifier = Modifier.align(Alignment.TopEnd)
+                    .background(Color(0xD9000000)).padding(6.dp))
+        }
         Text(MapAttribution.LABEL, color = Color.White, fontSize = 10.sp,
             modifier = Modifier.align(Alignment.BottomEnd)
                 .background(Color(0xDD000000)).padding(horizontal = 7.dp, vertical = 4.dp))

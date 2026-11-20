@@ -156,3 +156,9 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Tam ekran (varsayılan), bölünmüş (video üstte, harita altta), yüzen (sürüklenebilir) düzenler DataStore ile kalıcı. Media3 player ViewModel'da tutulur, böylece Compose düzen değişiminde oynatma pozisyonunu korumak hedeflenir (sahada DOĞRULANMADI).
 - Video hız kilidi kullanıcı ayarıdır, varsayılan kapalı; kullanıcı açmadıkça hıza göre video durdurulmaz. Kulaklık ipucu mevcut. AudioFocus/MAY_DUCK ses kısma, YouTube WebView ve arka plan hizmetlerinin fiziksel davranışı DOĞRULANMADI.
 - Araç ekranı Android Auto video yok, planlanmıyor. Kaynak: https://developers.google.com/youtube/iframe_api_reference
+
+## Araç bağımsız İterasyon 7 — rota üzeri hava tahmini (Open-Meteo)
+- Yalnız kullanıcı rota hesapladığında en fazla üç örnek nokta (başlangıç/orta/hedef) Open-Meteo Forecast API'ye gönderilir. GPS veya rota arka planda sürekli sorgulanmaz. Kullanıcı rota koordinatlarının üçüncü taraf tahmin servisine iletildiğini bilir; API anahtarı gerekmez.
+- Ana ekrandaki harita üstünde kısa Open-Meteo (TAHMİN) sıcaklık ve hava özeti; veri yoksa DOĞRULANMADI. Meteoroloji, GPS ve cihaz gerçek API yanıtı DOĞRULANMADI.
+- Ücretsiz API yalnız ticari olmayan kullanım içindir, günlük 10.000 çağrı sınırı ve SLA garantisi yok; ticari kullanım lisansı ayrı. Veri CC BY 4.0 atıf gerekir. Kaynak: https://open-meteo.com/en/terms ; https://open-meteo.com/en/pricing ; https://open-meteo.com/
+- Durma Noktası 1 sürer; M4/M5, motor sesi ve şarj durağı katmanı eklenmedi.
