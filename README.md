@@ -166,3 +166,6 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8.0 — GPS başlangıç, kullanıcı seçimiyle hedef
 - Rota ekranında adres arama, Ev/İş ve son hedefler ile haritada uzun basarak hedef seçme korunur. Koordinat girişi sadece Gelişmiş bölümündedir; alanlar −90..90 / −180..180 doğrulanır. Rota hesapla seçilmiş hedef olmadan etkin olmaz.
 - CI JUnit XML test sayısını gösterir. Fiziksel telefon: DOĞRULANMADI. M4/M5 Durma Noktası 1 devam eder.
+
+## M8.1 — kaynaklı araç profili
+- Saf Kotlin VehicleProfile, ModelParameters; her değer source, verified ve note taşır; tüm araç varsayımları false. Profil DataStore JSON kaydı/reset API'si hazır, düzenleme paneli M8.6. Doğrulama defteri: [docs/M8_DOGRULAMA.md](docs/M8_DOGRULAMA.md). Cihaz ve araç DOĞRULANMADI.
