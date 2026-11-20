@@ -34,6 +34,9 @@ import app.evcockpit.planner.integration.PlanToNavigation
 import app.evcockpit.navigation.GeoPoint
 import app.evcockpit.location.GpsSnapshot
 import app.evcockpit.planner.charging.ChargerCandidate
+import app.evcockpit.planner.charging.ChargerEvidence
+import app.evcockpit.planner.charging.ChargerConfidence
+import android.os.SystemClock
 import android.content.Intent
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -64,6 +67,7 @@ fun PlannerScreen(
     var saveStatus by remember{mutableStateOf("")}
     var parameters by remember{mutableStateOf(false)}
     var dataFlow by remember{mutableStateOf(false)}
+    var evidenceOpen by remember{mutableStateOf(false)}
     var optionsError by remember{mutableStateOf<String?>(null)}
     val busy=state.stage in setOf(PlannerStage.ELEVATION,PlannerStage.STATIONS,
         PlannerStage.OPTIMIZING,PlannerStage.VERIFYING)
@@ -136,6 +140,44 @@ fun PlannerScreen(
         }
         if(soc.pct==null || soc.source.startsWith("DEMO")) {
             OutlinedButton(onClick=onOpenSettings){Text("Manuel SoC gir / kontrol et")}
+        }
+        OutlinedButton(onClick={evidenceOpen=!evidenceOpen}) {
+            Text(if(evidenceOpen)"Veri güveni panelini kapat" else "Veri güveni • OBD / rota / şarj")
+        }
+        if(evidenceOpen) {
+            val audit=TripDataEvidence.evaluate(
+                soc=soc,routeAvailable=navigation!=null,routeProvider=navigation?.provider,
+                gpsPresent=gps.point!=null,gpsFresh=gps.isFresh(SystemClock.elapsedRealtime()),
+                gpsAccuracyMeters=gps.accuracyMeters,
+                stationSearchComplete=state.stationStatus!="Şarj verisi henüz aranmadı",
+                stationCount=state.candidates.size,
+                taggedCcs2Count=state.candidates.count{
+                    it.confidence==ChargerConfidence.OSM_TAGGED_CCS2
+                },planAvailable=success!=null,
+            )
+            Surface(
+                modifier=Modifier.fillMaxWidth(),
+                color=MaterialTheme.colorScheme.surfaceVariant,
+                shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            ) {
+                Column(Modifier.padding(12.dp),
+                    verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                    Text("Kaynak ve güven incelemesi",
+                        style=MaterialTheme.typography.titleSmall)
+                    Text("Bu panel rota hesaplamasını değiştirmez; gerçek araç/istasyon " +
+                        "doğruluğunu garanti etmez.",
+                        style=MaterialTheme.typography.bodySmall)
+                    audit.items.forEach { item->
+                        val prefix=when(item.level) {
+                            EvidenceLevel.INPUT_AVAILABLE -> "GİRDİ VAR"
+                            EvidenceLevel.CAUTION -> "DİKKAT"
+                            EvidenceLevel.MISSING -> "VERİ YOK"
+                        }
+                        Text(item.label+" · "+prefix+" — "+item.explanation,
+                            style=MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
         }
         OutlinedButton(onClick={dataFlow=true}) {Text("Veri akışı • hangi hizmete ne gönderiliyor?")}
         OutlinedButton(onClick={parameters=!parameters}) {
@@ -313,6 +355,18 @@ fun PlannerScreen(
                         Text("Kaynak: "+stop.charger.powerKw.source)
                         Text("Güven: "+stop.charger.confidence.name+
                             " • doluluk bilinmiyor • TAHMİN")
+                        var stationEvidenceOpen by remember(stop.charger.id){
+                            mutableStateOf(false)
+                        }
+                        OutlinedButton(onClick={stationEvidenceOpen=!stationEvidenceOpen}) {
+                            Text(if(stationEvidenceOpen)"İstasyon veri ayrıntısını gizle"
+                                else "İstasyon veri kaynağı / soket / erişim")
+                        }
+                        if(stationEvidenceOpen) {
+                            ChargerEvidence.details(stop.charger).forEach {
+                                Text(it,style=MaterialTheme.typography.bodySmall)
+                            }
+                        }
                         OutlinedButton(onClick={
                             highlightedStation=stop.charger
                             showPlanMap=true
