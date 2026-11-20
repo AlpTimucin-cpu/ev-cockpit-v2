@@ -15,6 +15,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,6 +37,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun RouteSettingsScreen(
     gps: GpsSnapshot,
+    darkTheme: Boolean,
+    keepScreenOn: Boolean,
+    onDarkTheme: (Boolean) -> Unit,
+    onKeepScreenOn: (Boolean) -> Unit,
     manualSocPct: Double?,
     onSaveManualSoc: (Double) -> Unit,
     onClearManualSoc: () -> Unit,
@@ -79,6 +85,9 @@ fun RouteSettingsScreen(
         }
         manualError?.let { Text(it) }
         Text("OBD SoC yanıt verirse öncelik OBD'dedir; PID ölçeği doğrulanmadı etiketi korunur.")
+        Row { Text("Gece teması"); Switch(checked = darkTheme, onCheckedChange = onDarkTheme) }
+        Row { Text("Ekranı açık tut"); Switch(checked = keepScreenOn, onCheckedChange = onKeepScreenOn) }
+        Text("Ekranı açık tut seçimi yalnız uygulama açıkken geçerlidir; telefon üzerinde DOĞRULANMADI.")
         NightlyUpdatePanel()
         Text("Konum: ${gps.status}")
         Text("Hassasiyet: ${gps.accuracyMeters?.toInt()?.toString() ?: "--"} m • "

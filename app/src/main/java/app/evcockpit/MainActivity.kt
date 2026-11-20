@@ -5,6 +5,9 @@ import android.content.Intent
 import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -19,6 +22,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,23 +48,37 @@ import app.evcockpit.ui.RouteScreen
 import app.evcockpit.ui.DashboardScreen
 import app.evcockpit.ui.ObdTestScreen
 import app.evcockpit.ui.RouteSettingsScreen
+import app.evcockpit.ui.DisplayPreferences
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            val displayPreferences = remember { DisplayPreferences(applicationContext) }
+            val darkTheme by displayPreferences.darkTheme.collectAsState(
+                initial = true,
+            )
+            val keepScreenOn by displayPreferences.keepScreenOn.collectAsState(
+                initial = false,
+            )
+            DisposableEffect(keepScreenOn) {
+                if (keepScreenOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                onDispose { /* next effect handles updates; Activity teardown clears the flag */ }
+            }
+            MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
                 val obdViewModel: ObdViewModel = viewModel()
                 val navViewModel: NavigationViewModel = viewModel()
-                App(obdViewModel, navViewModel)
+                App(obdViewModel, navViewModel, displayPreferences, darkTheme, keepScreenOn)
             }
         }
     }
 }
 
 @Composable
-private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
+private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
+    displayPreferences: DisplayPreferences, darkTheme: Boolean, keepScreenOn: Boolean) {
     val context = LocalContext.current
     val cfg = remember { PidTable.load(context) }
     val manualStore = remember(context) { ManualSocStore(context.applicationContext) }
@@ -192,6 +210,10 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
             )
             else -> RouteSettingsScreen(
                 gps = gps,
+                darkTheme = darkTheme,
+                keepScreenOn = keepScreenOn,
+                onDarkTheme = { value -> saveScope.launch { displayPreferences.setDarkTheme(value) } },
+                onKeepScreenOn = { value -> saveScope.launch { displayPreferences.setKeepScreenOn(value) } },
                 manualSocPct = manualSoc,
                 onSaveManualSoc = { value -> saveScope.launch { manualStore.save(value) } },
                 onClearManualSoc = { saveScope.launch { manualStore.clear() } },
