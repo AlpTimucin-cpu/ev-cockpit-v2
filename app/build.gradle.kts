@@ -6,13 +6,13 @@ plugins {
 
 android {
     namespace = "app.evcockpit"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "app.evcockpit"
         minSdk = 28
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.2.9-display"
+        versionCode = 20
+        versionName = "0.2.10-video-core"
         val ciSha = (System.getenv("GITHUB_SHA") ?: "unknown")
             .take(40).replace(Regex("[^0-9a-f]"), "")
         buildConfigField("String", "CI_COMMIT", "\"$ciSha\"")
@@ -46,6 +46,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("org.maplibre.gl:android-sdk:11.13.0")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
+    implementation("androidx.media3:media3-exoplayer:1.10.0")
+    implementation("androidx.media3:media3-ui:1.10.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.10.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
