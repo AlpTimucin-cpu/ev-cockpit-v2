@@ -41,7 +41,6 @@ import app.evcockpit.navigation.GeoPoint
 import app.evcockpit.navigation.NavigationRoute
 import app.evcockpit.location.GpsSnapshot
 import app.evcockpit.navigation.RouteProgress
-import android.os.SystemClock
 
 /**
  * MapLibre Native + OpenFreeMap public online tiles. No offline tile download.
@@ -174,7 +173,8 @@ fun OnlineMap(
         }
     }
 
-    val position = if (route != null && gps.isFresh(SystemClock.elapsedRealtime()) &&
+    val gpsFresh = rememberGpsFreshness(gps)
+    val position = if (route != null && gpsFresh &&
         gps.point != null
     ) RouteProgress.locate(route, gps.point) else null
     val maneuver = position?.nextManeuverIndex?.let { route?.maneuvers?.getOrNull(it) }
