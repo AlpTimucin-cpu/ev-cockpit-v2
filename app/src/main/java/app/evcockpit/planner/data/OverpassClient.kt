@@ -29,7 +29,7 @@ class PublicOverpassTransport:OverpassTransport {
             val status=connection.responseCode
             val retry=connection.getHeaderField("Retry-After")?.toIntOrNull()
             val body=if(status==200)connection.inputStream.bufferedReader().use {
-                it.readText().take(2_000_000)
+                BoundedResponseReader.read(it)
             } else ""
             OverpassResponse(status,body,retry)
         }finally{connection.disconnect()}
@@ -78,7 +78,9 @@ class OverpassRepository(
         for((index,chunk) in chunks.withIndex()) {
             val q=chunker.query(chunk,radiusMeters)
             val cached=cache.read(q)
-            var raw=cached?.takeIf { !it.stale }?.body
+            var raw=cached?.takeIf {
+                !it.stale && runCatching { OverpassParser.parse(it.body) }.isSuccess
+            }?.body
             if(raw==null) {
                 if(index>0) sleep(1500)
                 var obtained=false
@@ -87,10 +89,18 @@ class OverpassRepository(
                     catch (cancel:CancellationException) { throw cancel }
                     catch (_:Exception) { null }
                     if(response!=null && response.status==200) {
-                        raw=response.body
-                        cache.write(q,raw)
-                        obtained=true
-                        break
+                        // A 200 response may contain HTML or partial data during API errors.
+                        // Never cache invalid JSON for seven days; fall back to stale cache.
+                        val valid = response.body.length<=BoundedResponseReader.MAX_OVERPASS_CHARS &&
+                            runCatching { OverpassParser.parse(response.body) }.isSuccess
+                        if(valid) {
+                            raw=response.body
+                            // A full/unwritable cache must not discard a valid network reply.
+                            runCatching { cache.write(q,response.body) }
+                            obtained=true
+                            break
+                        }
+                        missing=true
                     }
                     if(response?.status in listOf(429,504) && attempt<2) {
                         val secs=response?.retryAfterSeconds?.coerceIn(1,60)
