@@ -228,3 +228,13 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 
 ## M8.7D — Güncel GPS/SoC ile elle yeniden planlama
 - Plan ekranında ayrı **Güncel GPS ve SoC ile yeniden planla** düğmesi, taze hassas GPS ve önceki hedef ile yeni ORS sürüş rotası ister. Şifreli kişisel HeiGIT anahtarı kullanılır; aynı hesap mevcut SoC (MANUEL ya da PID DOĞRULANMADI etiketli OBD) ve yeni rotayla yeniden çalışır. DEMO SoC reddedilir. Otomatik OBD/GPS tetikli planlama YOK. 3 yeni guard birim testi. Gerçek POCO F5/GPS/ORS saha sonucu DOĞRULANMADI.
+
+
+## POCO F5 / LineageOS 24 (Android 17) — ROM uyumluluk sertleştirmesi (M8.7e)
+
+- POCO/Xiaomi cihaz markası artık HyperOS kanıtı sayılmaz. LineageOS tespit edilirse uygulama **normal Android uygulama ayrıntıları** sayfasını açar; MIUI/HyperOS otomatik başlatma etkinliği ancak ROM'a dair işaret bulunursa denenir.
+- Ayarlar ekranında **Telefon / ROM uyumluluk durumu**: Android/API/ROM işareti, hassas ve yaklaşık konum izinleri, GPS/ağ sağlayıcı, Bluetooth ve bildirim izinleri, pil optimizasyonu durumu. **Yenile** ve kimlik bilgisi içermeyen **Güvenli uyumluluk özetini kopyala** eylemleri vardır; koordinat, MAC, VIN, anahtar, build fingerprint rapora eklenmez.
+- Android 17'de RFCOMM InputStream -1 (EOF) döndürdüğünde OBD okuma/ATMA ve kalan tampon temizleme yolları bağlantı kopması sayar. Mevcut güvenli yeniden bağlanma mantığı ve gerçek veri etiketleri değiştirilmedi.
+- APK: `0.3.18-m8.7e-poco`, `versionCode=41`; Android `targetSdk=35` ve eski cihaz desteği korunur. Android 17 hedef SDK'sına kontrolsüz geçiş yapılmaz.
+- **Telefon test sırası:** uygulamayı aç → Ayarlar > durum yenile → raporun gizlilik durumunu incele → GPS hassas konumu iste → manuel SoC → harita/plan; OBD'yi yalnız araç park hâlinde ayrıca dene. LineageOS ve mobil API davranışları **gerçek POCO F5 üzerinde henüz DOĞRULANMADI**.
+- [Durma Noktası B kabul listesi](../../issues/62) açık kalır. Bu PR **M8.8, M4 veya M5 geçiş onayı değildir**.
