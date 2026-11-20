@@ -28,12 +28,13 @@ class CockpitLayoutPolicyTest {
     }
 
     @Test fun existingTabIndicesStayStable() {
-        assertEquals(6, CockpitLayoutPolicy.tabLabels.size)
+        assertEquals(7, CockpitLayoutPolicy.tabLabels.size)
         assertEquals("Gösterge", CockpitLayoutPolicy.tabLabels[0])
         assertEquals("OBD Test", CockpitLayoutPolicy.tabLabels[1])
         assertEquals("Rota", CockpitLayoutPolicy.tabLabels[2])
         assertEquals("Plan", CockpitLayoutPolicy.tabLabels[3])
         assertEquals("Yolcu video", CockpitLayoutPolicy.tabLabels[4])
         assertEquals("Ayarlar", CockpitLayoutPolicy.tabLabels[5])
+        assertEquals("Radyo / IPTV", CockpitLayoutPolicy.tabLabels[6])
     }
 }
