@@ -27,6 +27,12 @@ import app.evcockpit.planner.energy.HvacMode
 import app.evcockpit.planner.model.*
 import app.evcockpit.storage.PlannerOptionsStore
 import app.evcockpit.storage.VehicleProfileStore
+import app.evcockpit.storage.SavedPlansStore
+import app.evcockpit.storage.SavedPlanBuilder
+import app.evcockpit.storage.StoredPlan
+import app.evcockpit.planner.integration.PlanToNavigation
+import app.evcockpit.navigation.GeoPoint
+import android.content.Intent
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -37,14 +43,19 @@ fun PlannerScreen(
     soc:SocReading,
     onOpenRoute:()->Unit,
     onOpenSettings:()->Unit,
+    onNavigate:(List<GeoPoint>,GeoPoint)->Unit,
 ) {
     val context=LocalContext.current
     val optionsStore=remember(context){PlannerOptionsStore(context.applicationContext)}
     val profileStore=remember(context){VehicleProfileStore(context.applicationContext)}
+    val savedStore=remember(context){SavedPlansStore(context.applicationContext)}
+    val savedPlans by savedStore.plans.collectAsState(initial=emptyList())
     val options by optionsStore.options.collectAsState(initial=PlannerOptions())
     val profile by profileStore.profile.collectAsState(initial=VehicleProfile.defaults())
     val state by vm.state.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
+    var selectedSaved by remember{mutableStateOf<StoredPlan?>(null)}
+    var saveStatus by remember{mutableStateOf("")}
     var parameters by remember{mutableStateOf(false)}
     var dataFlow by remember{mutableStateOf(false)}
     var optionsError by remember{mutableStateOf<String?>(null)}
@@ -175,6 +186,33 @@ fun PlannerScreen(
                 ("%.1f km".format(failed.nearestReachableKm)))
         }
         if(success!=null) {
+            val computedRoute=state.route
+            Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                Button(onClick={
+                    if(computedRoute!=null)scope.launch {
+                        savedStore.save(SavedPlanBuilder.from(
+                            success,computedRoute,System.currentTimeMillis()))
+                        saveStatus="Plan uygulama içinde kaydedildi (koordinatlar paylaşılmaz)."
+                    }
+                },enabled=computedRoute!=null){Text("Planı kaydet")}
+                OutlinedButton(onClick={
+                    if(computedRoute!=null) {
+                        val plan=SavedPlanBuilder.from(success,computedRoute,0L)
+                        val send=Intent(Intent.ACTION_SEND).apply {
+                            type="text/plain"
+                            putExtra(Intent.EXTRA_TEXT,SavedPlanBuilder.shareText(plan))
+                        }
+                        try {
+                            context.startActivity(Intent.createChooser(send,"Plan özeti paylaş"))
+                        } catch(_:Exception) {saveStatus="Paylaşım uygulaması açılamadı."}
+                    }
+                },enabled=computedRoute!=null){Text("Özeti paylaş")}
+            }
+            OutlinedButton(onClick={
+                val dest=computedRoute?.geometry?.lastOrNull()
+                if(dest!=null)onNavigate(PlanToNavigation.intermediateStops(success),dest)
+            },enabled=computedRoute!=null){Text("Şarj duraklarıyla navigasyona ekle")}
+            if(saveStatus.isNotBlank())Text(saveStatus)
             Text(PlannerDisplay.overview(success),style=MaterialTheme.typography.titleMedium)
             Text("Tahmini varış enerji: "+
                 ("%.1f kWh".format(success.arrivalSocPct/100.0*
@@ -218,6 +256,29 @@ fun PlannerScreen(
             success.warnings.forEach { Text(it,style=MaterialTheme.typography.bodySmall) }
             Text("Harita işaretleri, navigasyona aktarma ve kayıt: M8.7 ile bağlanacak.")
         }
+        Text("Kaydedilmiş planlar (en çok 10, cihaz içinde)")
+        if(savedPlans.isEmpty())Text("Henüz plan kaydı yok")
+        savedPlans.forEach { saved->
+            ElevatedCard(modifier=Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(10.dp)) {
+                    Text(saved.title+" • "+saved.stops.size+" durak • varış ~%"+
+                        saved.arrivalSoc+" (TAHMİN)")
+                    Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(onClick={selectedSaved=saved}){Text("Kaydı aç")}
+                        OutlinedButton(onClick={
+                            onNavigate(saved.stops.map{it.point},saved.destination)
+                        }){Text("Navigasyona ekle")}
+                        OutlinedButton(onClick={scope.launch{
+                            savedStore.delete(saved.id)
+                            if(selectedSaved?.id==saved.id)selectedSaved=null
+                        }}){Text("Sil")}
+                    }
+                }
+            }
+        }
+        selectedSaved?.let { Text(SavedPlanBuilder.shareText(it)) }
+        Text("Kaydedilen varış/durak koordinatları yalnız uygulama özel DataStore alanındadır. " +
+            "Paylaşım metni koordinat içermez.")
         Text("© OpenStreetMap katkıcıları / OpenFreeMap • © openrouteservice • Open-Meteo")
         Text("Sürüş öncesi kullanım. Sürüşte ekrana yoğun dokunmayın.",
             style=MaterialTheme.typography.bodySmall)

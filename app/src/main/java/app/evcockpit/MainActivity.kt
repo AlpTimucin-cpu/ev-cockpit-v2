@@ -237,6 +237,10 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
             3 -> PlannerScreen(
                 vm = plannerModel, navigation = navState.route, soc = socReading,
                 onOpenRoute = { tab = 2 }, onOpenSettings = { tab = 5 },
+                onNavigate = { stops, destination ->
+                    navVm.navigateVia(stops,destination)
+                    tab = 2
+                },
             )
             4 -> PassengerVideoScreen(
                 vm = passengerModel,

@@ -157,6 +157,45 @@ class NavigationViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    /** Explicit user action: fetch actual waypoint route; no auto-OBD recalculation. */
+    fun navigateVia(stops:List<GeoPoint>,destination:GeoPoint) {
+        if(mutable.value.busy)return
+        if(stops.size>48) {
+            mutable.value=RouteUiState(destination=destination,
+                message="En çok 48 şarj ara noktası kullanılabilir.")
+            return
+        }
+        val gps=app.locationRepository.state.value
+        if(gps.point==null || !gps.isFresh(SystemClock.elapsedRealtime()) ||
+            (gps.accuracyMeters?:999f)>100f) {
+            mutable.value=RouteUiState(destination=destination,
+                message="Önce Ayarlar'dan GPS'i başlat; taze konum olmadan navigasyon yok.")
+            return
+        }
+        deliveredCues.clear()
+        speaker?.stop()
+        mutable.value=RouteUiState(destination=destination,busy=true,
+            message="Duraklı rota açık kullanıcı isteğiyle hesaplanıyor...")
+        viewModelScope.launch {
+            try {
+                val key=keys.read()?:throw RouteServiceException(
+                    "HeiGIT anahtarı yok. Ayarlar > API anahtarı bölümüne git.")
+                val origin=app.locationRepository.state.value.point
+                    ?:throw RouteServiceException("GPS konumu kayboldu; yeniden dene.")
+                val via=listOf(origin)+stops+listOf(destination)
+                val calculated=provider.calculateVia(via,key)
+                mutable.value=RouteUiState(route=calculated,destination=destination,
+                    message="Şarj ara duraklı ORS rota yüklendi — TAHMİN, sahada DOĞRULANMADI.")
+            } catch(error:RouteServiceException) {
+                mutable.value=RouteUiState(destination=destination,
+                    message=error.message?:"Rota sağlayıcı hatası.")
+            } catch(_:Exception) {
+                mutable.value=RouteUiState(destination=destination,
+                    message="Duraklı rota alınamadı; internet, GPS, kota ve anahtarı kontrol et.")
+            }
+        }
+    }
+
     fun selectDestination(point: GeoPoint) {
         if (mutable.value.busy) return
         deliveredCues.clear()
