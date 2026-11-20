@@ -1,6 +1,5 @@
 package app.evcockpit.ui
 
-import android.os.SystemClock
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -73,8 +72,9 @@ fun RouteScreen(
         }
     }
 
+    val gpsFresh = rememberGpsFreshness(gps)
     val route = state.route
-    val position = if (route != null && gps.isFresh(SystemClock.elapsedRealtime()) &&
+    val position = if (route != null && gpsFresh &&
         gps.point != null
     ) RouteProgress.locate(route, gps.point) else null
     val remainingKm = position?.remainingMeters?.div(1000.0)
