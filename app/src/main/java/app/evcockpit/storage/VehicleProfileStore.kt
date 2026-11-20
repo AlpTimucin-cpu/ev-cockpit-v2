@@ -36,6 +36,7 @@ object ProfileCodec {
         ).forEach { (k,x)->o.put(k,v(x)) }
         o.put("chargingCurve",curve(p.chargingCurve))
         o.put("coldDerateTable",curve(p.coldDerateTable))
+        p.observedDcKw?.let { o.put("observedDcKw",v(it)) }
     }.toString()
     fun decode(raw:String?):VehicleProfile=runCatching {
         if(raw.isNullOrBlank()) return@runCatching VehicleProfile.defaults()
@@ -48,7 +49,8 @@ object ProfileCodec {
             read(o.getJSONObject("maxAcKw")),read(o.getJSONObject("auxBaseKw")),
             read(o.getJSONObject("hvacAutoKw")),read(o.getJSONObject("hvacHeatingKw")),
             read(o.getJSONObject("consumptionAdjust")),readCurve(o.getJSONObject("chargingCurve")),
-            readCurve(o.getJSONObject("coldDerateTable")))
+            readCurve(o.getJSONObject("coldDerateTable")),
+            o.optJSONObject("observedDcKw")?.let { read(it).copy(verified=false) })
         require(p.validate().isEmpty());p
     }.getOrElse { VehicleProfile.defaults() }
 }

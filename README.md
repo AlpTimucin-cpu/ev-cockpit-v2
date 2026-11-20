@@ -203,3 +203,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8 Durma Noktası A — M8.0–M8.5 kanıt raporu
 - [Türkçe 10 satır özet, PR/CI test sayıları, 510 SoC senaryosu, 1000km/300 aday performans, sentetik şehirlerarası tablosu, model kaynakları ve riskler](docs/M8_DURMA_NOKTASI_A.md).
 - M8.6/7/8 **henüz başlamadı**; kullanıcı M8.6 için açık onay vermeden ilerlenmeyecek. Gerçek telefon/araç/API **DOĞRULANMADI**. Önceki M4/M5 Durma Noktası 1 de sürer.
+
+## M8.5e — ihtiyatlı DC varsayılanı ve POCO F5 süre ölçümü
+- 52 kWh Pure için önceki 145 kW varsayımı, model yılı teyit edilemediğinden **100 kW / DOĞRULANMADI** yapıldı. Ayarlar > Araç profili: araç ekranında gözlenen tepe kW girilebilir ve tahmini SoC→kW eğrisi oransal ölçeklenir; gözlem teknik azami güç değildir.
+- Budama 40 km dilimde varsayılan 6, kaynaklı konfigüre edilebilir. Çözücüde ölçüm için `TimedPlanSolver` saf Kotlin katmanı; ekran üzerinden POCO F5 ms değeri M8.6 ile gösterilir. Gerçek cihaz DOĞRULANMADI.

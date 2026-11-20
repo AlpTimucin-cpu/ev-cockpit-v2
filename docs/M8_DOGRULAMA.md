@@ -36,3 +36,10 @@ Hava yoğunluğu ISA, CdA, yuvarlanma, eğim, rejen sınırı ve yardımcı yük
 ## M8.5D rota ikinci geçiş
 - Sağlayıcı seçilen ara duraklar için yeni güzergâh üretebilir. %2 enerji farkı aşıldığında aday izdüşümleri güncellenip çözücü en fazla bir kez yeniden çağrılır. İkinci >%2 fark açık uyarıdır; sessizce 'gerçek plan' kabul edilmez.
 - Testler fake route servislerle; gerçek HeiGIT, harita sunucusu veya ID.4 sonucu DOĞRULANMADI. UI/anahtarlı gerçek hesaplama M8.6–M8.7'de bağlanır, Durma Noktası A onayı gerekir.
+
+## M8.5e — Pure 52 kWh DC güç yeniden doğrulama (20.11.2026)
+- VW'nin [ID.Software 3.0 şarj tablosu](https://www.volkswagen.co.uk/en/owners-and-services/my-car/software-update/software-update-3-0.html/__layer/layers/owners/after_sales_3_0/software_updates/software-update-3-0/content-optimised-charging-and-energy-management/improved-charging-performance/master.layer) 45/52 kWh için 100→110 kW olasılığını bildirir.
+- [Volkswagen 2023 resmî duyuru](https://www.volkswagen-newsroom.com/en/press-releases/upgrade-for-the-id4-and-id5-new-infotainment-system-with-intuitive-operation-new-electric-drive-with-more-power-and-efficiency-17728) ID.4 Pure 52 kWh için 110→115 kW der.
+- [VW UK 2025 modeli](https://www.volkswagen.co.uk/en/life/news/your-ev-questions-answered.html) bazı Pure 52 kWh için 145 kW gösterir. Türkiye 2024/2025 Pure birebir güç teyidi yok. Varsayılan 100 kW ihtiyatlıdır; verified=false.
+- Gözlenen tepe güç sadece kullanıcı gözlemidir; değişen batarya sıcaklığı, SoC, şarj ünitesi koşullarında teknik azami güç sayılamaz. Girilirse modelin tahmini şarj eğrisi ölçeklenir. **Eğri yine TAHMİN**.
+- Her 40 km dilimde 6 aday; 1000 km/300 aday performans ve 510 SoC testleri her Actions çalışmasında tekrarlanır. Testte 10 sn sınırı aşılırsa ancak o zaman adaptif budamaya geçilebilir.

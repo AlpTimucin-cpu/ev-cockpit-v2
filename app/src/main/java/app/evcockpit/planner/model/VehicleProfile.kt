@@ -29,13 +29,27 @@ data class VehicleProfile(
     val auxBaseKw: SourcedValue, val hvacAutoKw: SourcedValue,
     val hvacHeatingKw: SourcedValue, val consumptionAdjust: SourcedValue,
     val chargingCurve: SourcedCurve, val coldDerateTable: SourcedCurve,
+    val observedDcKw: SourcedValue? = null,
 ) {
+    /** Observed charger display is a single-session observation, NOT vehicle type approval. */
+    val effectiveMaxDcKw: Double get() = observedDcKw?.value ?: maxDcKw.value
+    val effectiveChargingCurve: SourcedCurve get() {
+        val observed = observedDcKw ?: return chargingCurve
+        val originalPeak = chargingCurve.points.maxOf { it.y }
+        return chargingCurve.copy(
+            points = chargingCurve.points.map { it.copy(y = it.y * observed.value / originalPeak) },
+            verified = false,
+            note = "Kullanıcı gözlemiyle ölçekli TAHMİN EĞRİ; gerçek azami güç DOĞRULANMADI"
+        )
+    }
     val capacityAtSohKwh get() = usableKwh.value * sohPercent.value / 100.0
     fun validate(): List<String> = buildList {
         if (usableKwh.value <= 0 || sohPercent.value !in 1.0..100.0) add("Batarya kapasitesi/SoH geçersiz")
         if (massKg.value <= 0 || extraLoadKg.value < 0 || cdA.value <= 0 || crr.value < 0) add("Fizik parametresi geçersiz")
         if (drivetrainEfficiency.value !in 0.01..1.0 || regenEfficiency.value !in 0.0..1.0) add("Verim geçersiz")
         if (maxRegenKw.value < 0 || maxDcKw.value <= 0 || maxAcKw.value <= 0) add("Güç geçersiz")
+        if (observedDcKw != null && (observedDcKw.value !in 1.0..350.0 || observedDcKw.verified))
+            add("Araç ekranı gözlemi 1–350 kW olmalı ve verified=false kalmalı")
         if (auxBaseKw.value < 0 || hvacAutoKw.value < 0 || hvacHeatingKw.value < 0) add("Yük geçersiz")
         if (consumptionAdjust.value !in -0.3..0.3) add("Ayarlama ±%30 ile sınırlı")
         if (chargingCurve.points.first().x != 0.0 || chargingCurve.points.last().x != 100.0 ||
@@ -44,13 +58,14 @@ data class VehicleProfile(
     }
     companion object {
         const val VW = "https://binekarac.vw.com.tr/tr/modeller-fiyatlar/arac-modelleri/id4.html"
-        const val VW_TR = "https://autocatalogarchive.com/wp-content/uploads/2024/12/VW-ID.4-2024-TR.pdf"
+        const val VW_TR = "https://www.volkswagen-newsroom.com/en/press-releases/upgrade-for-the-id4-and-id5-new-infotainment-system-with-intuitive-operation-new-electric-drive-with-more-power-and-efficiency-17728"
+        const val VW_ID30 = "https://www.volkswagen.co.uk/en/owners-and-services/my-car/software-update/software-update-3-0.html/__layer/layers/owners/after_sales_3_0/software_updates/software-update-3-0/content-optimised-charging-and-energy-management/improved-charging-performance/master.layer"
         const val MODEL = "M8 master örnek varsayımları; sahada DOĞRULANMADI"
         fun defaults(): VehicleProfile {
             fun v(x: Double, source: String = MODEL) = SourcedValue(x, source)
             return VehicleProfile(
                 v(52.0,VW),v(100.0),v(2000.0),v(0.0),v(0.28*2.7),v(0.009),
-                v(0.90),v(0.65),v(65.0),v(145.0,VW_TR),v(11.0,VW_TR),
+                v(0.90),v(0.65),v(65.0),v(100.0,VW_ID30),v(11.0,VW_TR),
                 v(0.5),v(0.5),v(2.0),v(0.0),
                 SourcedCurve(listOf(CurvePoint(0.0,95.0),CurvePoint(10.0,100.0),
                     CurvePoint(50.0,90.0),CurvePoint(70.0,60.0),

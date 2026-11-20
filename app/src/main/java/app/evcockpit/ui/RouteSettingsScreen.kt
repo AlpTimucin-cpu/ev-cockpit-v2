@@ -31,6 +31,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.evcockpit.navigation.EncryptedRouteKeyStore
 import app.evcockpit.obd.ManualSocInput
+import app.evcockpit.storage.VehicleProfileStore
+import app.evcockpit.planner.model.VehicleProfile
+import app.evcockpit.planner.model.SourcedValue
 import app.evcockpit.location.GpsSnapshot
 import kotlinx.coroutines.launch
 
@@ -50,7 +53,11 @@ fun RouteSettingsScreen(
     val context = LocalContext.current
     val store = remember(context) { EncryptedRouteKeyStore(context) }
     val configured by store.isConfigured.collectAsState(initial = false)
+    val profileStore = remember(context) { VehicleProfileStore(context.applicationContext) }
+    val vehicleProfile by profileStore.profile.collectAsState(initial = VehicleProfile.defaults())
     val scope = rememberCoroutineScope()
+    var observedDcText by remember { mutableStateOf("") }
+    var observedDcError by remember { mutableStateOf<String?>(null) }
     var input by remember { mutableStateOf("") }
     var manualInput by remember { mutableStateOf("") }
     var manualError by remember { mutableStateOf<String?>(null) }
@@ -60,6 +67,40 @@ fun RouteSettingsScreen(
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        Text("Araç profili — VW ID.4 Pure 52 kWh (TAHMİN / DOĞRULANMADI)")
+        Text("İhtiyatlı varsayılan DC: " + vehicleProfile.maxDcKw.value.toInt() +
+            " kW • model yılı, batarya sıcaklığı ve SoC sonucu değiştirir.")
+        Text("Kayıtlı ekran gözlemi: " +
+            (vehicleProfile.observedDcKw?.value?.let { "%.1f kW".format(it) } ?: "yok"))
+        OutlinedTextField(value = observedDcText,
+            onValueChange = { observedDcText = it },
+            label = { Text("Araç ekranında gördüğüm gerçek azami şarj gücü (kW)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth())
+        Button(onClick = {
+            val v = observedDcText.trim().replace(',', '.').toDoubleOrNull()
+            if (v == null || !v.isFinite() || v !in 1.0..350.0) {
+                observedDcError = "1–350 kW arası bir araç ekranı gözlemi girin."
+            } else {
+                observedDcError = null
+                scope.launch {
+                    profileStore.save(vehicleProfile.copy(observedDcKw =
+                        SourcedValue(v, "KULLANICI ARAÇ EKRANI GÖZLEMİ", false,
+                            "Tek oturum değeri; gerçek fiziksel azami DC DOĞRULANMADI")))
+                }
+                observedDcText = ""
+            }
+        }) { Text("Gözlemi kaydet (tahmini eğriyi ölçekle)") }
+        OutlinedButton(onClick = {
+            scope.launch { profileStore.save(vehicleProfile.copy(observedDcKw = null)) }
+        }, enabled = vehicleProfile.observedDcKw != null) { Text("Gözlemi sil") }
+        OutlinedButton(onClick = {
+            scope.launch { profileStore.reset() }
+        }) { Text("Araç profili varsayılanına dön") }
+        observedDcError?.let { Text(it) }
+        Text("Gözlem şarj eğrisini oransal ölçekler; sürekli/garanti edilen güç değildir. " +
+            "Model ve telefon üzerinde şarj tahmini DOĞRULANMADI.")
         Text("Manuel batarya SoC (OBD yanıt vermezse)")
         Text("Kayıtlı manuel SoC: " +
             (manualSocPct?.let { "%.1f %%".format(it) } ?: "yok"))
