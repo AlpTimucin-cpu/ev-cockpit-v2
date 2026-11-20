@@ -184,3 +184,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8.4B — nazik Overpass/OSM koridor araması
 - Douglas-Peucker ~400m, en çok 90km/30 noktalı koridor sorguları (varsayılan yarıçap 3km, 1–10km), sıralı POST, User-Agent, 429/504 Retry-After/üstel geri çekilme ve sınırlı tekrar. 7 gün JSON önbellek, 2MB yanıt sınırı. Eski önbellekte UYARI; eksik veri başarı gibi gösterilmez.
 - İstasyon rota izdüşümü/sapması sadece TAHMİN, doğrulama için istasyon ara noktalı ORS gerekiyor (M8.5 ikinci geçiş). Özel istasyon girişi için DataStore API, UI M8.6. Gerçek ağ/istasyon DOĞRULANMADI.
+
+## M8.5A — şarj matematiği ve budama
+- Şarj süresi parçalı doğrusal SoC→kW eğrisinin analitik integralinden; istasyon ve araç güç tavanı ile soğuk çarpanı uygulanır. Sonuç TAHMİN, gerçek şarj eğrisi DOĞRULANMADI.
+- 8 veya daha az aday budanmaz. Büyük kümeler 40km dilimde en iyi 3 seçenek; güven/power/sapma önceliği, bütün adayların optimum olduğu iddia edilmez. M8.5B çözücü bunu kullanacak.
