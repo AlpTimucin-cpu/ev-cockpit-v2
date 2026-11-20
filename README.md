@@ -248,3 +248,13 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - `Plan`: 3 özet kutusu (mesafe, durak, varış SoC), belirsizlik/TAHMİN ve çözücü süresi; gerçek plan oluştuğunda şarj haritası varsayılan görünür. Rota/plan/OBD işlemleri değiştirilmez.
 - Android `versionCode=42`, `versionName=0.3.19-cockpit-ui1`. Java 17, Android API min/target, LineageOS ve MEB PID verified=false ilkeleri aynıdır.
 - Ölçüm ve sınırlar: CI birim testleri, fiziksel POCO F5 ekran taşması/font ölçeği, GPS, harita görüntüleme ve sürüş/araç bağlantısı testi **ayrı ve henüz DOĞRULANMADI**. Durma Noktası B [#62](../../issues/62) devam eder. M8.8/M4/M5 başlatılmaz.
+
+
+## Üç referans uygulama analizi — bağımsız veri güveni entegrasyonu (0.3.20)
+
+- Kullanıcının sağladığı **Car Scanner 2.2.52**, **ABRP 8.0.0** ve **Kilovati 2.3.0** APK/XAPK paketlerinin manifest, izin, split, kaynak-adı incelemesi; üretici açıklamalarından **ayrı** değerlendirilmiştir: [ayrıntılı Türkçe rapor](docs/UC_REFERANS_APK_TEKNiK_INCELEME_20261120.md).
+- **OBD Test** ekranı artık Bluetooth iletişim oturumunu, gerçek ECU sinyalini, DEMO verisini ve doğrulanmamış MEB PID ölçeklerini ayrı açıklar.
+- **Plan** ekranında kullanıcı açınca mevcut GPS/SoC/rota/istasyon/enerji tahmini kaynak güveni gösterilir; rota seçimini/şarj optimizasyonunu **değiştirmez**.
+- Şarj durakları genişletilebilir kaynak kartları: mevcut OSM bilgilerinden soket güveni, güç, erişim, `fee` işareti, saat, kimlik doğrulama, Type2/CHAdeMO, kapasite; *canlı fiyat/doluluk/çalışırlık yok*.
+- Üçüncü taraf APK kodu, imzalı araç profili, görsel, şifre/anahtar, abonelik, harita stili veya özel rota algoritması kopyalanmadı; Car Scanner/ABRP/Kilovati ile otomatik bağlanma iddiası yok.
+- `versionCode=43`, `0.3.20-source-evidence`. CI/sentetik test, gerçek POCO F5 veya ID.4 saha kanıtı değildir. M8 Durma Noktası B açık kalır.
