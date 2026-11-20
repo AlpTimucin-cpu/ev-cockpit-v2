@@ -18,7 +18,7 @@ class RouteEnergyPrefix(route:RouteProfile,car:VehicleProfile,
     private val mx:Array<DoubleArray>
     init {
         require(route.points.size>=2 && distances.first()==0.0)
-        require(distances.zipWithNext().all {it.first<it.second})
+        require(distances.asIterable().zipWithNext().all {it.first<it.second})
         val physics=PhysicsConsumptionModel()
         for(i in 1 until distances.size) {
             val a=route.points[i-1];val b=route.points[i]
