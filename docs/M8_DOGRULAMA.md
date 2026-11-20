@@ -20,3 +20,6 @@ Model parametreleri tek kaynak: app.evcockpit.planner.model.VehicleProfile ve Mo
 | rho | 1.225 kg/m3 | ISA yakınsaması | TAHMİN |
 
 Hava, rüzgâr, SoH/şarj eğrisi ve DC güç doğruluğu araçta ölçülmedi. M8.1 model testleri cihaz/araç doğrulaması değildir.
+
+## M8.2 tüketim modeli belirsizliği
+Hava yoğunluğu ISA, CdA, yuvarlanma, eğim, rejen sınırı ve yardımcı yük M8 formülleriyle hesaplanır; hız değişimi/ivmelenme ve rüzgâr dahil değildir. Soğuk sürüş çarpanı (−20°C 1.25, −5°C 1.15, 20°C 1.0) kaynaklı saha doğrulaması olmayan varsayımdır. ±10% iyimser, +15% kötümser bandı istatistiksel güven aralığı değildir. Sanity birim testleri model kalibrasyon kanıtı DEĞİLDİR.
