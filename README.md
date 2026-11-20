@@ -199,3 +199,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8.5D — Ara noktalı rota karşılaştırması
 - ORS Directions çoklu nokta (en fazla 50) POST gövdesi, gizli kullanıcı anahtarı mevcut Keystore sağlayıcısından çağrı sırasında alınabilir. Planner'ın saf Kotlin PlanRevalidator sınıfı ilk plana gerçek ara durak rotası ister; toplam enerji farkı >%2 ise adayları projekte edip yalnız bir kez yeniden planlar ve ikinci rota farkını açıkça bildirir. En fazla iki rota isteği; kota kullanıcıya aittir. Ağ bağlantısı şu anda UI'dan tetiklenmez; cihaz ve gerçek servis DOĞRULANMADI. M8.7 bağlama işidir.
 - Kaynak https://giscience.github.io/openrouteservice/hosted-api-restrictions ; 50 ara nokta ve driving sınırı 6000km.
+
+## M8 Durma Noktası A — M8.0–M8.5 kanıt raporu
+- [Türkçe 10 satır özet, PR/CI test sayıları, 510 SoC senaryosu, 1000km/300 aday performans, sentetik şehirlerarası tablosu, model kaynakları ve riskler](docs/M8_DURMA_NOKTASI_A.md).
+- M8.6/7/8 **henüz başlamadı**; kullanıcı M8.6 için açık onay vermeden ilerlenmeyecek. Gerçek telefon/araç/API **DOĞRULANMADI**. Önceki M4/M5 Durma Noktası 1 de sürer.
