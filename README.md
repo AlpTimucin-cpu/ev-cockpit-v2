@@ -258,3 +258,13 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Şarj durakları genişletilebilir kaynak kartları: mevcut OSM bilgilerinden soket güveni, güç, erişim, `fee` işareti, saat, kimlik doğrulama, Type2/CHAdeMO, kapasite; *canlı fiyat/doluluk/çalışırlık yok*.
 - Üçüncü taraf APK kodu, imzalı araç profili, görsel, şifre/anahtar, abonelik, harita stili veya özel rota algoritması kopyalanmadı; Car Scanner/ABRP/Kilovati ile otomatik bağlanma iddiası yok.
 - `versionCode=43`, `0.3.20-source-evidence`. CI/sentetik test, gerçek POCO F5 veya ID.4 saha kanıtı değildir. M8 Durma Noktası B açık kalır.
+
+
+## Güvenilirlik sertleştirmesi — 0.3.21-stability
+
+- **Gecikmiş GPS önlemi:** `LocationManager`'ın gönderdiği konum, callback teslim zamanıyla değil `Location.elapsedRealtimeNanos` monoton ölçüm zamanıyla değerlendirilir. 15 saniyeden eski, zaman damgası olmayan veya 2 saniyeden fazla geleceğe işaret eden kayıtlar reddedilir. Küçük geleceğe kaymalar şimdiki zamana kırpılır. Bu kural GPS önceliğini, manuel SoC'yi, OBD verified=false durumunu değiştirmez.
+- **Ek görüntü güncelliği:** Telefon ekranında yeni GPS olayı olmasa bile 15 saniyelik süre bittiğinde hız/rota kalan mesafe/manevra bilgisi otomatik olarak **veri yok** durumuna düşer. Sık zamanlayıcı veya yeni arka plan izni kullanılmaz; yalnız mevcut Compose ekranda tek seferlik süre dolumu yapılır.
+- **Overpass cevabı:** HTTP cevabı en fazla 2 milyon karakter olacak şekilde akıştan okunur; büyük cevap **kesilmez**, hata/eksik veri statüsüyle reddedilir. Geçersiz HTTP 200 JSON 7 günlük önbelleği zehirlemez. Önbellek dolu/yazılamıyor olsa da valid ağ cevabı kullanılır. Hatalı tek OSM kaydı geçerli istasyon adaylarını yok etmez.
+- **Testler:** Monoton GPS yaş/süre sınırı, ertelenmiş güncelleme, gelecek timestamp, sınırlı JSON, bozuk kayıt, aşırı büyük cevap, geçersiz 200 ve yazılamayan cache. Uygulama yeni API, anahtar, ücretli trafik, sahte koordinat ya da arka plan otomatik rota isteği eklemez.
+- **Sürüm:** `0.3.21-stability`, `versionCode=44`. Android/POCO F5 fiziksel cihaz testi, gerçek ORS/Overpass erişimi ve ID.4 iletişim testleri **henüz DOĞRULANMADI**; [M8 Durma Noktası B](../../issues/62) açık. M8.8/M4/M5 açılmaz.
+- Platform referansı: https://developer.android.com/reference/android/location/Location (elapsedRealtimeNanos); https://developer.android.com/reference/android/os/SystemClock .

@@ -16,7 +16,7 @@ data class GpsSnapshot(
 ) {
     fun isFresh(nowElapsedRealtimeMs: Long): Boolean =
         point != null && receivedElapsedRealtimeMs > 0L &&
-            nowElapsedRealtimeMs - receivedElapsedRealtimeMs in 0L..15_000L
+            nowElapsedRealtimeMs - receivedElapsedRealtimeMs in 0L..GpsFixAgePolicy.MAX_AGE_MS
 }
 
 class LocationRepository {
@@ -36,6 +36,10 @@ class LocationRepository {
 
     fun update(location: Location) {
         val now = SystemClock.elapsedRealtime()
+        // A delayed/cached LocationManager callback must never be stamped "fresh".
+        val fixTime = GpsFixAgePolicy.acceptedTimestampMs(
+            now, location.elapsedRealtimeNanos,
+        ) ?: return
         val previous = state.value
         // Prefer fresh GNSS data over coarse network fixes.
         if (location.provider != android.location.LocationManager.GPS_PROVIDER &&
@@ -54,7 +58,7 @@ class LocationRepository {
             speedKmh = speed,
             accuracyMeters = accuracy,
             provider = location.provider,
-            receivedElapsedRealtimeMs = now,
+            receivedElapsedRealtimeMs = fixTime,
             active = true,
             status = if (location.provider == android.location.LocationManager.GPS_PROVIDER) {
                 "GPS sinyali alındı (doğruluk: ${accuracy?.toInt() ?: "?"} m)"

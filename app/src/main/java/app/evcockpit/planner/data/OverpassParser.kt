@@ -18,15 +18,20 @@ object OverpassParser {
     fun parse(raw:String):List<ChargerCandidate> {
         val objects=JSONObject(raw).getJSONArray("elements")
         return (0 until objects.length()).mapNotNull { i ->
-            val o=objects.getJSONObject(i)
-            val tags=o.optJSONObject("tags")?:return@mapNotNull null
-            if(tags.optString("amenity")!="charging_station")return@mapNotNull null
+            // One malformed OSM entry must not discard the whole corridor.
+            val entry=objects.optJSONObject(i) ?: return@mapNotNull null
+            runCatching { parseElement(entry) }.getOrNull()
+        }
+    }
+    private fun parseElement(o:JSONObject):ChargerCandidate? {
+            val tags=o.optJSONObject("tags")?:return null
+            if(tags.optString("amenity")!="charging_station")return null
             val center=if(o.optString("type")=="node")o else o.optJSONObject("center")
-                ?:return@mapNotNull null
-            if(!center.has("lat")||!center.has("lon"))return@mapNotNull null
+                ?:return null
+            if(!center.has("lat")||!center.has("lon"))return null
             val lat=center.getDouble("lat");val lon=center.getDouble("lon")
             if(!lat.isFinite()||!lon.isFinite() || lat !in -90.0..90.0 ||
-                lon !in -180.0..180.0)return@mapNotNull null
+                lon !in -180.0..180.0)return null
             val combo=tags.optString("socket:type2_combo").trim().lowercase()
             val isCombo=combo=="yes" || combo.toIntOrNull()?.let { it>0 }==true
             val operator=tags.optString("operator").ifBlank {
@@ -49,7 +54,7 @@ object OverpassParser {
             val auth=tags.keys().asSequence().filter { it.startsWith("authentication:") }
                 .map { it+"="+tags.optString(it) }.take(5).joinToString(", ")
             val capacity=tags.optInt("capacity",-1).takeIf { it>=0 }
-            ChargerCandidate(o.optString("type")+":"+o.optLong("id"),tags.optString("name").ifBlank {
+            return ChargerCandidate(o.optString("type")+":"+o.optLong("id"),tags.optString("name").ifBlank {
                 operator+" şarj noktası"
             }.take(100),operator.take(100),lat,lon,power,confidence,
                 access=tags.optString("access","bilinmiyor"),fee=tags.optString("fee","bilinmiyor"),
@@ -57,7 +62,6 @@ object OverpassParser {
                 authentication=auth.ifBlank { "bilinmiyor" },capacity=capacity,
                 chademo=tags.optString("socket:chademo","bilinmiyor"),
                 type2=tags.optString("socket:type2","bilinmiyor"))
-        }
     }
     fun dedupe(candidates:List<ChargerCandidate>,radiusMeters:Double=75.0):List<ChargerCandidate> {
         require(radiusMeters>0)
