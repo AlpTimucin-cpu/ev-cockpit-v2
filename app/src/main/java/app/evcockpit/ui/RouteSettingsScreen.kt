@@ -1,6 +1,7 @@
 package app.evcockpit.ui
 
 import android.content.Intent
+import app.evcockpit.ui.NightlyUpdatePanel
 import android.os.Build
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +79,7 @@ fun RouteSettingsScreen(
         }
         manualError?.let { Text(it) }
         Text("OBD SoC yanıt verirse öncelik OBD'dedir; PID ölçeği doğrulanmadı etiketi korunur.")
+        NightlyUpdatePanel()
         Text("Konum: ${gps.status}")
         Text("Hassasiyet: ${gps.accuracyMeters?.toInt()?.toString() ?: "--"} m • "
             + (gps.provider ?: "Konum sağlayıcı yok"))
