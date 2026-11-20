@@ -192,3 +192,6 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8.5B — deterministik SoC çözücü çekirdeği
 - SoC %1 durum ve %5 şarj hedefi; ön-ek enerji/zaman ve ara nokta maksimum tüketim kontrolü (sadece varışta değil bütün segment boyunca SoC asgari sınır). Dijkstra benzeri DAG DP; durağın risk/geçiş/şarj süresi şeffaf. Sahada tüm araç değerleri TAHMİN; doğru gerçek menzil iddiası yok.
 - Şarj verisi eksikse durum uyarısı; SoC yoksa planlama kapalı. ≥8 üzeri adayda budama nedeniyle **küresel gerçek optimum garantisi yok**. Bu PR yalnız saf Kotlin; UI M8.6'yı bekler.
+
+## M8.5C — Oracle, güvenlik, alternatifler ve performans
+- Küçük kesikli grafikte bağımsız brute-force oracle; 510 deterministik test; 1000km/300 aday performans, sentetik şehirler arası yaz/kış/hız; CI JUnit XML kanıtı. Gerçek araç/istasyon verisi DOĞRULANMADI. M8.6 öncesi Durma Noktası A.
