@@ -162,3 +162,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Ana ekrandaki harita üstünde kısa Open-Meteo (TAHMİN) sıcaklık ve hava özeti; veri yoksa DOĞRULANMADI. Meteoroloji, GPS ve cihaz gerçek API yanıtı DOĞRULANMADI.
 - Ücretsiz API yalnız ticari olmayan kullanım içindir, günlük 10.000 çağrı sınırı ve SLA garantisi yok; ticari kullanım lisansı ayrı. Veri CC BY 4.0 atıf gerekir. Kaynak: https://open-meteo.com/en/terms ; https://open-meteo.com/en/pricing ; https://open-meteo.com/
 - Durma Noktası 1 sürer; M4/M5, motor sesi ve şarj durağı katmanı eklenmedi.
+
+## M8.0 — GPS başlangıç, kullanıcı seçimiyle hedef
+- Rota ekranında adres arama, Ev/İş ve son hedefler ile haritada uzun basarak hedef seçme korunur. Koordinat girişi sadece Gelişmiş bölümündedir; alanlar −90..90 / −180..180 doğrulanır. Rota hesapla seçilmiş hedef olmadan etkin olmaz.
+- CI JUnit XML test sayısını gösterir. Fiziksel telefon: DOĞRULANMADI. M4/M5 Durma Noktası 1 devam eder.

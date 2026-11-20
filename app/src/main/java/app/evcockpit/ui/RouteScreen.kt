@@ -60,6 +60,8 @@ fun RouteScreen(
     var searchResults by remember { mutableStateOf<List<PhotonPlace>>(emptyList()) }
     var searchMessage by remember { mutableStateOf("Adres arama: manuel tetiklenir; Photon demo hizmeti, DOĞRULANMADI") }
     var searching by remember { mutableStateOf(false) }
+    var advanced by remember { mutableStateOf(false) }
+    var targetError by remember { mutableStateOf<String?>(null) }
     var latitude by remember { mutableStateOf("") }
     var longitude by remember { mutableStateOf("") }
     var averageText by remember { mutableStateOf("") }
@@ -85,7 +87,9 @@ fun RouteScreen(
     ) {
         Text("Rota: openrouteservice • Türkçe manevralar • canlı trafik YOK")
         Text(state.message)
-        Text("Konum: ${gps.status}")
+        Text("Başlangıç: GPS • ${gps.status}")
+        Text("Varış: " + if (state.destination == null) "Önce adres/favori/haritadan hedef seç"
+            else "Hedef seçildi — haritada doğrula")
         Text("Adres arama — Photon / komoot (kısıtlı demo; arama metnin sağlayıcıya gider)")
         OutlinedTextField(value = searchText, onValueChange = { searchText = it },
             label = { Text("Adres veya yer adı (otomatik arama yok)") },
@@ -110,20 +114,14 @@ fun RouteScreen(
             }) { Text(item.label) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
-                val point = runCatching { GeoPoint(
-                    latitude.replace(',', '.').toDouble(), longitude.replace(',', '.').toDouble())
-                }.getOrNull()
-                if (point != null) scope.launch {
-                    store.save(SavedDestination("HOME", "Ev", point))
+            Button(enabled = state.destination != null, onClick = {
+                state.destination?.let { point ->
+                    scope.launch { store.save(SavedDestination("HOME", "Ev", point)) }
                 }
             }) { Text("Ev olarak kaydet") }
-            Button(onClick = {
-                val point = runCatching { GeoPoint(
-                    latitude.replace(',', '.').toDouble(), longitude.replace(',', '.').toDouble())
-                }.getOrNull()
-                if (point != null) scope.launch {
-                    store.save(SavedDestination("WORK", "İş", point))
+            Button(enabled = state.destination != null, onClick = {
+                state.destination?.let { point ->
+                    scope.launch { store.save(SavedDestination("WORK", "İş", point)) }
                 }
             }) { Text("İş olarak kaydet") }
         }
@@ -142,29 +140,36 @@ fun RouteScreen(
             }
         }
         Text("Ses: ${voice.status} • Ses odağı: geçici MAY_DUCK")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = latitude, onValueChange = { latitude = it },
-                label = { Text("Hedef enlem") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedTextField(
-                value = longitude, onValueChange = { longitude = it },
-                label = { Text("Hedef boylam") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f),
-            )
+        OutlinedButton(onClick = { advanced = !advanced }) {
+            Text(if (advanced) "Gelişmiş koordinat girişini gizle" else "Gelişmiş: koordinat gir")
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !state.busy, onClick = {
-                val point = runCatching { GeoPoint(
-                    latitude.replace(',', '.').toDouble(), longitude.replace(',', '.').toDouble())
-                }.getOrNull()
-                if (point != null) scope.launch {
-                    store.save(SavedDestination("RECENT", "Elle girilen hedef", point))
+        if (advanced) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = latitude, onValueChange = { latitude = it },
+                    label = { Text("Enlem") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f))
+                OutlinedTextField(value = longitude, onValueChange = { longitude = it },
+                    label = { Text("Boylam") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f))
+            }
+            OutlinedButton(onClick = {
+                val parsed = RouteTargetValidator.parse(latitude, longitude)
+                if (parsed == null) targetError = "Geçersiz koordinat (-90..90 / -180..180)"
+                else {
+                    targetError = null
+                    onSelectDestination(parsed)
                 }
-                onCalculate(latitude, longitude)
+            }) { Text("Gelişmiş hedefi seç") }
+        }
+        targetError?.let { Text(it) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(enabled = !state.busy && state.destination != null, onClick = {
+                state.destination?.let { point ->
+                    onCalculate(point.latitude.toString(), point.longitude.toString())
+                    scope.launch { store.save(SavedDestination("RECENT", "Son hedef", point)) }
+                }
             }) {
                 Text(if (state.busy) "Hesaplanıyor" else "Rota hesapla")
             }
@@ -199,7 +204,7 @@ fun RouteScreen(
             Text("© openrouteservice • OpenStreetMap katkıcıları")
         } else {
             Text("Önce Ayarlar sekmesinden HeiGIT anahtarını ve GPS'i etkinleştir.")
-            Text("Gösterge sekmesindeki haritaya uzun basarak hedef seçebilir veya koordinatları kendin girebilirsin; adres araması yok.")
+            Text("Adres arama, Ev/İş, son hedef veya gösterge haritasına uzun basarak hedef seç.")
         }
     }
 }

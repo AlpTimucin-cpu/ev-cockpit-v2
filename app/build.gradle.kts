@@ -11,8 +11,8 @@ android {
         applicationId = "app.evcockpit"
         minSdk = 28
         targetSdk = 35
-        versionCode = 22
-        versionName = "0.2.12-weather"
+        versionCode = 23
+        versionName = "0.3.0-m8.0"
         val ciSha = (System.getenv("GITHUB_SHA") ?: "unknown")
             .take(40).replace(Regex("[^0-9a-f]"), "")
         buildConfigField("String", "CI_COMMIT", "\"$ciSha\"")
