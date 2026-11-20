@@ -180,3 +180,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8.4A — OSM şarj veri ayrıştırma
 - Overpass node/way/relation center, CCS2 tagleri, gücü, operatör, access, fee, opening_hours ve authentication alanları, 75m dedupe, filtreler ve ayrı kaynak/güven. Saha/gerçek istasyon DOĞRULANMADI.
 - [Şarj verisi güven notu](docs/M8_SARJ_VERI.md). Canlı doluluk/fiyat YOK.
+
+## M8.4B — nazik Overpass/OSM koridor araması
+- Douglas-Peucker ~400m, en çok 90km/30 noktalı koridor sorguları (varsayılan yarıçap 3km, 1–10km), sıralı POST, User-Agent, 429/504 Retry-After/üstel geri çekilme ve sınırlı tekrar. 7 gün JSON önbellek, 2MB yanıt sınırı. Eski önbellekte UYARI; eksik veri başarı gibi gösterilmez.
+- İstasyon rota izdüşümü/sapması sadece TAHMİN, doğrulama için istasyon ara noktalı ORS gerekiyor (M8.5 ikinci geçiş). Özel istasyon girişi için DataStore API, UI M8.6. Gerçek ağ/istasyon DOĞRULANMADI.

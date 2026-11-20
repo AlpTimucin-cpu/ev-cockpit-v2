@@ -15,6 +15,8 @@ data class ModelParameters(
     val metersPerKm: SourcedValue = SourcedValue(1000.0,"SI units",true),
     val secondsPerHour: SourcedValue = SourcedValue(3600.0,"SI units",true),
     val wattsPerKw: SourcedValue = SourcedValue(1000.0,"SI units",true),
+    val detourSpeedKmh: SourcedValue = SourcedValue(40.0,
+        "M8 candidate detour speed assumption", false),
     val minSpeedKmh: SourcedValue = SourcedValue(5.0,"M8 master low speed",false),
     val initialSoc: SourcedValue = SourcedValue(70.0,"User default",false),
     val minArrivalSoc: SourcedValue = SourcedValue(10.0,"M8 master",false),
