@@ -149,6 +149,9 @@ fun OnlineMap(
             modifier = Modifier.align(Alignment.TopStart)
                 .background(Color(0xC9000000)).padding(8.dp),
         )
+        Text(MapAttribution.LABEL, color = Color.White, fontSize = 10.sp,
+            modifier = Modifier.align(Alignment.BottomEnd)
+                .background(Color(0xDD000000)).padding(horizontal = 7.dp, vertical = 4.dp))
         if (maneuver != null) {
             Text(
                 "SONRAKİ MANEVRA • ${maneuver.instructionTr}\n" +
