@@ -81,4 +81,29 @@ class RouteRevalidationTest {
             OrsViaRequest.build(List(51){GeoPoint(0.0,it.toDouble())})
         }
     }
+
+    @Test fun cancelledRouteRequestPropagatesToViewModel() = runBlocking {
+        val (req,original)=input()
+        var caught=false
+        try {
+            PlanRevalidator(WaypointRouteClient { _ ->
+                throw kotlinx.coroutines.CancellationException("cancel selected check")
+            }).check(req,original)
+        } catch(_:kotlinx.coroutines.CancellationException) {
+            caught=true
+        }
+        assertTrue("Cancellation must not be converted into a completed verification",caught)
+    }
+
+    @Test fun failureResponseRemainsUnverifiedAndDoesNotEchoSecret() = runBlocking {
+        val (req,original)=input()
+        val outcome=PlanRevalidator(WaypointRouteClient { _ ->
+            throw IllegalStateException("MY_API_KEY_DO_NOT_ECHO")
+        }).check(req,original)
+        assertFalse(outcome.verifiedOnVehicle)
+        assertNull(outcome.finalDifferencePercent)
+        assertTrue(outcome.warning.contains("DOĞRULANMADI"))
+        assertFalse(outcome.warning.contains("MY_API_KEY_DO_NOT_ECHO"))
+    }
+
 }
