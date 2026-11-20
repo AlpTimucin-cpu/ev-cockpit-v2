@@ -207,3 +207,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8.5e — ihtiyatlı DC varsayılanı ve POCO F5 süre ölçümü
 - 52 kWh Pure için önceki 145 kW varsayımı, model yılı teyit edilemediğinden **100 kW / DOĞRULANMADI** yapıldı. Ayarlar > Araç profili: araç ekranında gözlenen tepe kW girilebilir ve tahmini SoC→kW eğrisi oransal ölçeklenir; gözlem teknik azami güç değildir.
 - Budama 40 km dilimde varsayılan 6, kaynaklı konfigüre edilebilir. Çözücüde ölçüm için `TimedPlanSolver` saf Kotlin katmanı; ekran üzerinden POCO F5 ms değeri M8.6 ile gösterilir. Gerçek cihaz DOĞRULANMADI.
+
+## M8.6a — planlama durum makinesi ve kalıcı tercihler
+- PlannerViewModel yalnız kullanıcının açık Planla eyleminde rota/eğim, nazik Overpass istasyonları, TimedPlanSolver ve alternatifler çalıştırır; StateFlow Türkçe durum/hata/iptal içerir. Gerçek API/cihaz DOĞRULANMADI.
+- PlannerOptionsStore: SoC, hız, sıcaklık/HVAC, ek yük, tüketim düzeltme, filtreler DataStore'da. Hedefte şarj seçimi şimdilik kaydedilir ancak algoritma maliyetine dahil DEĞİLDİR; UI M8.6b bunu açık gösterir.

@@ -1,0 +1,117 @@
+package app.evcockpit.planui
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import app.evcockpit.navigation.NavigationRoute
+import app.evcockpit.obd.SocReading
+import app.evcockpit.planner.charging.ChargerCandidate
+import app.evcockpit.planner.charging.ChargerFilter
+import app.evcockpit.planner.data.*
+import app.evcockpit.planner.model.*
+import app.evcockpit.planner.route.*
+import app.evcockpit.planner.solver.*
+import app.evcockpit.storage.CustomChargerStore
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+
+data class PlannerUiState(
+    val stage:PlannerStage=PlannerStage.IDLE,
+    val message:String=PlannerGuard.label(PlannerStage.IDLE),
+    val plan:PlanResult?=null,
+    val alternatives:PlanAlternatives?=null,
+    val route:NavigationRoute?=null,
+    val request:PlanRequest?=null,
+    val candidates:List<ChargerCandidate> = emptyList(),
+    val solverElapsedMs:Long?=null,
+    val stationStatus:String="Şarj verisi henüz aranmadı",
+    val warning:String="TAHMİN — araç, telefon ve istasyon DOĞRULANMADI",
+)
+class PlannerViewModel(application:Application):AndroidViewModel(application) {
+    private val assembler=RouteProfileAssembler(OpenMeteoElevationClient())
+    private val overpass=OverpassRepository(PublicOverpassTransport(),
+        ChargerCache(File(application.cacheDir,"m8-overpass")))
+    private val custom=CustomChargerStore(application)
+    private val mutable=MutableStateFlow(PlannerUiState())
+    val state=mutable.asStateFlow()
+    private var job:Job?=null
+
+    fun cancel() {
+        job?.cancel();job=null
+        mutable.value=mutable.value.copy(stage=PlannerStage.CANCELLED,
+            message=PlannerGuard.label(PlannerStage.CANCELLED))
+    }
+
+    /** Explicit user action only; never a hidden polling task. */
+    fun plan(navigation:NavigationRoute?,soc:SocReading,options:PlannerOptions,car:VehicleProfile) {
+        if(job?.isActive==true)return
+        val error=PlannerGuard.reason(navigation!=null,soc.pct,soc.source,options)
+        if(error!=null) {
+            mutable.value=PlannerUiState(stage=PlannerStage.FAILURE,message=error)
+            return
+        }
+        val selected=navigation ?:return
+        val socPct=soc.pct ?:return
+        val vehicle=options.applyTo(car)
+        if(vehicle.validate().isNotEmpty()) {
+            mutable.value=PlannerUiState(stage=PlannerStage.FAILURE,
+                message="Araç profili hatalı. Ayarlar > Araç profili alanını kontrol et.")
+            return
+        }
+        job=viewModelScope.launch {
+            try {
+                mutable.value=PlannerUiState(stage=PlannerStage.ELEVATION,
+                    message=PlannerGuard.label(PlannerStage.ELEVATION),route=selected)
+                val sampled=withContext(Dispatchers.IO) {
+                    assembler.prepare(selected,options.maxCruiseKmh)
+                }
+                mutable.value=mutable.value.copy(stage=PlannerStage.STATIONS,
+                    message=PlannerGuard.label(PlannerStage.STATIONS))
+                val saved=custom.stations.first()
+                val found=overpass.search(sampled.points,
+                    radiusMeters=options.searchRadiusMeters,
+                    filter=ChargerFilter(onlyOsmTaggedCcs2=options.onlyTaggedCcs2,
+                        minKw=options.minStationKw,
+                        excludedNetworks=options.excludedNetworks.split(',')
+                            .map{it.trim().lowercase()}.filter{it.isNotEmpty()}.toSet()),
+                    extra=saved)
+                mutable.value=mutable.value.copy(stage=PlannerStage.OPTIMIZING,
+                    message=PlannerGuard.label(PlannerStage.OPTIMIZING),
+                    stationStatus=found.status,candidates=found.chargers)
+                val request=PlanRequest(sampled,vehicle,found.chargers,socPct,
+                    socSource=soc.source,temperatureC=options.temperatureC,
+                    hvac=options.hvac,minArrivalSoc=options.minArrivalSoc,
+                    minStopSoc=options.minStopSoc,maxChargeSoc=options.maxChargeSoc,
+                    maxStops=options.maxStops,allowSlowCharging=options.allowSlowCharging,
+                    onlyOsmTaggedCcs2=options.onlyTaggedCcs2,stationDataNote=found.status)
+                val timed=withContext(Dispatchers.Default) {
+                    TimedPlanSolver().execute(request)
+                }
+                val alternatives=if(timed.result is PlanResult.Success)
+                    withContext(Dispatchers.Default){AlternativeGenerator().calculate(request)}
+                    else null
+                val stage=if(timed.result is PlanResult.Success)
+                    PlannerStage.READY else PlannerStage.FAILURE
+                val message=if(timed.result is PlanResult.Failure)
+                    timed.result.reason else PlannerGuard.label(stage)
+                mutable.value=mutable.value.copy(stage=stage,message=message,plan=timed.result,
+                    alternatives=alternatives,request=request,solverElapsedMs=timed.elapsedMs,
+                    warning="TAHMİN — "+sampled.slopeWarning+"; "+found.status)
+            } catch(cancel:CancellationException) {
+                mutable.value=mutable.value.copy(stage=PlannerStage.CANCELLED,
+                    message=PlannerGuard.label(PlannerStage.CANCELLED))
+                throw cancel
+            } catch(_:Exception) {
+                mutable.value=mutable.value.copy(stage=PlannerStage.FAILURE,
+                    message="Plan başarısız. İnternet, kota, GPS, rota ve anahtarı kontrol et. DOĞRULANMADI")
+            }
+        }
+    }
+}
