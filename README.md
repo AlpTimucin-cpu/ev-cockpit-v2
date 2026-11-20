@@ -142,3 +142,9 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## Araç bağımsız İterasyon 5 — tema ve ekranı açık tut
 - Koyu/açık Material3 tema tercihi DataStore ile kalıcı. İlk varsayılan koyu tema.
 - Ekranı açık tut (Android FLAG_KEEP_SCREEN_ON) tercihi varsayılan kapalı. Kullanıcı ayarından açılabilir, yalnız Activity aktifken uygular. Telefon ve pil etkisi DOĞRULANMADI.
+
+## Yolcu modu M6 / PR-çekirdek (yalnız telefon)
+- Media3 1.10.0 ExoPlayer, tek ViewModel oturumu; SAF content:// ve DRM'siz doğrudan HTTPS URL; YouTube yalnız resmî IFrame video kimliği. Netflix/Disney+/Prime yok, Android Auto video yok.
+- AudioFocus Media3 otomatik yönetim, navigasyon Türkçe TTS'nin MAY_DUCK odağı ile bir arada. Gerçek telefon ses kısma davranışı DOĞRULANMADI.
+- Hız kilidi tercihi default false, kullanıcı açıkça seçmeden video hıza göre kapatılmaz.
+- Resmî kaynak: https://developer.android.com/jetpack/androidx/releases/media3 ; https://developers.google.com/youtube/iframe_api_reference
