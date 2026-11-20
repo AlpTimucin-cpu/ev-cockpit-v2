@@ -27,6 +27,12 @@ import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.annotations.Polyline
 import org.maplibre.android.annotations.PolylineOptions
+import org.maplibre.android.annotations.IconFactory
+import app.evcockpit.planner.charging.ChargerCandidate
+import android.graphics.Bitmap
+import android.graphics.Canvas as AndroidCanvas
+import android.graphics.Paint
+import kotlin.math.abs
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
@@ -50,11 +56,16 @@ fun OnlineMap(
     gps: GpsSnapshot,
     weatherSummary: String = "",
     onSelectDestination: (GeoPoint) -> Unit,
+    stopMarkers: List<ChargerCandidate> = emptyList(),
+    onStopSelected: (ChargerCandidate) -> Unit = {},
+    focusedStop: ChargerCandidate? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val mapReady = remember { mutableStateOf<MapLibreMap?>(null) }
     val chosenDestination = rememberUpdatedState(onSelectDestination)
+    val chosenStop = rememberUpdatedState(onStopSelected)
+    val displayedStops = rememberUpdatedState(stopMarkers)
     val mapView = remember(context) {
         MapLibre.getInstance(context)
         MapView(context).apply {
@@ -63,6 +74,13 @@ fun OnlineMap(
                 map.addOnMapLongClickListener { location ->
                     chosenDestination.value(GeoPoint(location.latitude, location.longitude))
                     true
+                }
+                map.setOnMarkerClickListener { marker ->
+                    val found = displayedStops.value.firstOrNull {
+                        abs(it.latitude - marker.position.latitude) < 0.00001 &&
+                        abs(it.longitude - marker.position.longitude) < 0.00001
+                    }
+                    if(found!=null) { chosenStop.value(found);true } else false
                 }
                 map.setStyle("https://tiles.openfreemap.org/styles/liberty") {
                     mapReady.value = map
@@ -106,10 +124,17 @@ fun OnlineMap(
     }
 
     val loadedMap = mapReady.value
-    LaunchedEffect(loadedMap, route, destination) {
+    LaunchedEffect(loadedMap, focusedStop) {
+        if(loadedMap!=null && focusedStop!=null) {
+            loadedMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                LatLng(focusedStop.latitude,focusedStop.longitude),12.0))
+        }
+    }
+    LaunchedEffect(loadedMap, route, destination, stopMarkers) {
         val currentMap = loadedMap ?: return@LaunchedEffect
         var currentLine: Polyline? = null
         var currentMarker: Marker? = null
+        val chargingMarkers = mutableListOf<Marker>()
         try {
             if (route != null) {
                 currentLine = currentMap.addPolyline(
@@ -126,10 +151,26 @@ fun OnlineMap(
                         .title("Seçilen hedef"),
                 )
             }
+            stopMarkers.forEach { station ->
+                val color=PlannerMarkerPolicy.color(station)
+                val bitmap=Bitmap.createBitmap(44,44,Bitmap.Config.ARGB_8888)
+                val draw=AndroidCanvas(bitmap)
+                val paint=Paint(Paint.ANTI_ALIAS_FLAG)
+                paint.color=android.graphics.Color.WHITE
+                draw.drawCircle(22f,22f,21f,paint)
+                paint.color=color
+                draw.drawCircle(22f,22f,17f,paint)
+                val icon=IconFactory.getInstance(context).fromBitmap(bitmap)
+                chargingMarkers+=currentMap.addMarker(MarkerOptions()
+                    .position(LatLng(station.latitude,station.longitude))
+                    .title(PlannerMarkerPolicy.label(station).take(120))
+                    .snippet("doluluk bilinmiyor • veri TAHMİN").icon(icon))
+            }
             awaitCancellation()
         } finally {
             currentLine?.let { currentMap.removePolyline(it) }
             currentMarker?.let { currentMap.removeMarker(it) }
+            chargingMarkers.forEach { currentMap.removeMarker(it) }
         }
     }
 
