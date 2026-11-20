@@ -41,6 +41,20 @@ class OverpassParserTest {
         assertNull(OverpassParser.kw("not a watt"))
         assertNull(OverpassParser.kw("600 kW"))
     }
+    @Test fun malformedStationDoesNotHideOtherValidStations() {
+        val payload="""{"elements":[
+            {"type":"node","id":7,"lat":"wrong","lon":35.5,"tags":{"amenity":"charging_station"}},
+            {"type":"node","id":8,"lat":38.7,"lon":35.6,
+             "tags":{"amenity":"charging_station","socket:type2_combo":"yes",
+             "socket:type2_combo:output":"50 kW"}},
+            12345,
+            {"type":"way","id":9,"tags":{"amenity":"charging_station"}}
+        ]}"""
+        val parsed=OverpassParser.parse(payload)
+        assertEquals(1,parsed.size)
+        assertEquals("node:8",parsed.first().id)
+        assertEquals(50.0,parsed.first().powerKw.value,0.01)
+    }
     @Test fun knownDcNetworkOnlyImpliesProbable() {
         val p=OverpassParser.parse("""{"elements":[{"type":"node","id":5,"lat":38.8,
           "lon":35.6,"tags":{"amenity":"charging_station","operator":"ZES"}}]}""")
