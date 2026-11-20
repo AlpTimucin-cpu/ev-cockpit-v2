@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -34,6 +34,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -50,6 +51,8 @@ import app.evcockpit.passenger.PassengerPlayerModel
 import app.evcockpit.location.SpeedSelector
 import app.evcockpit.ui.PassengerVideoScreen
 import app.evcockpit.ui.RouteScreen
+import app.evcockpit.ui.PlannerScreen
+import app.evcockpit.planui.PlannerViewModel
 import app.evcockpit.ui.DashboardScreen
 import app.evcockpit.ui.ObdTestScreen
 import app.evcockpit.ui.RouteSettingsScreen
@@ -76,7 +79,8 @@ class MainActivity : ComponentActivity() {
                 val obdViewModel: ObdViewModel = viewModel()
                 val navViewModel: NavigationViewModel = viewModel()
                 val passengerModel: PassengerPlayerModel = viewModel()
-                App(obdViewModel, navViewModel, passengerModel,
+                val plannerModel: PlannerViewModel = viewModel()
+                App(obdViewModel, navViewModel, passengerModel, plannerModel,
                     displayPreferences, darkTheme, keepScreenOn)
             }
         }
@@ -85,7 +89,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
-    passengerModel: PassengerPlayerModel, displayPreferences: DisplayPreferences,
+    passengerModel: PassengerPlayerModel, plannerModel: PlannerViewModel,
+    displayPreferences: DisplayPreferences,
     darkTheme: Boolean, keepScreenOn: Boolean) {
     val context = LocalContext.current
     val cfg = remember { PidTable.load(context) }
@@ -143,12 +148,13 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     }
 
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        TabRow(selectedTabIndex = tab) {
+        ScrollableTabRow(selectedTabIndex = tab, edgePadding = 6.dp) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Gösterge") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("OBD Test") })
             Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Rota") })
-            Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text("Yolcu video") })
-            Tab(selected = tab == 4, onClick = { tab = 4 }, text = { Text("Ayarlar") })
+            Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text("Plan") })
+            Tab(selected = tab == 4, onClick = { tab = 4 }, text = { Text("Yolcu video") })
+            Tab(selected = tab == 5, onClick = { tab = 5 }, text = { Text("Ayarlar") })
         }
         when (tab) {
             0 -> DashboardScreen(
@@ -228,7 +234,11 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 onSelectDestination = navVm::selectDestination,
                 onClear = navVm::clear,
             )
-            3 -> PassengerVideoScreen(
+            3 -> PlannerScreen(
+                vm = plannerModel, navigation = navState.route, soc = socReading,
+                onOpenRoute = { tab = 2 }, onOpenSettings = { tab = 5 },
+            )
+            4 -> PassengerVideoScreen(
                 vm = passengerModel,
                 gps = gps,
                 route = navState.route,

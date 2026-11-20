@@ -211,3 +211,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8.6a — planlama durum makinesi ve kalıcı tercihler
 - PlannerViewModel yalnız kullanıcının açık Planla eyleminde rota/eğim, nazik Overpass istasyonları, TimedPlanSolver ve alternatifler çalıştırır; StateFlow Türkçe durum/hata/iptal içerir. Gerçek API/cihaz DOĞRULANMADI.
 - PlannerOptionsStore: SoC, hız, sıcaklık/HVAC, ek yük, tüketim düzeltme, filtreler DataStore'da. Hedefte şarj seçimi şimdilik kaydedilir ancak algoritma maliyetine dahil DEĞİLDİR; UI M8.6b bunu açık gösterir.
+
+## M8.6b — EV Rota Planlayıcı Compose arayüzü
+- Plan sekmesi: ısrarla TAHMİN/DOĞRULANMADI ve varış belirsizlik aralığı; açılır kalıcı SoC/çevre/şarj filtreleri; Türkçe etap/başarısızlık/iptal; 1.000km/300 aday testine ayrı **gerçek telefon çözücü ms** sayacı; durak kartları/CCS2 güveni/doluluk bilinmiyor ve yedekler; Canvas SoC ve çizgiye dokunma. Harita durak bindirmesi, planı kaydet, navigasyona aktar ve ikinci geçiş arayüzü **M8.7**.
+- Açılır Veri akışı paneli docs/M8_VERI_AKISI.md ile eşdeğer hizmet/veri özeti içerir. Hedefte şarj gücü tercihi ileriki sürüm için saklanır, şimdilik çözücüye uygulanmaz. Cihaz testi DOĞRULANMADI.
