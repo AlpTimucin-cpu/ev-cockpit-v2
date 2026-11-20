@@ -215,3 +215,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## M8.6b — EV Rota Planlayıcı Compose arayüzü
 - Plan sekmesi: ısrarla TAHMİN/DOĞRULANMADI ve varış belirsizlik aralığı; açılır kalıcı SoC/çevre/şarj filtreleri; Türkçe etap/başarısızlık/iptal; 1.000km/300 aday testine ayrı **gerçek telefon çözücü ms** sayacı; durak kartları/CCS2 güveni/doluluk bilinmiyor ve yedekler; Canvas SoC ve çizgiye dokunma. Harita durak bindirmesi, planı kaydet, navigasyona aktar ve ikinci geçiş arayüzü **M8.7**.
 - Açılır Veri akışı paneli docs/M8_VERI_AKISI.md ile eşdeğer hizmet/veri özeti içerir. Hedefte şarj gücü tercihi ileriki sürüm için saklanır, şimdilik çözücüye uygulanmaz. Cihaz testi DOĞRULANMADI.
+
+## M8.7A — plan kaydet, paylaş, ara durakla navigasyon
+- Son 10 plan DataStore JSON içinde varış/durak koordinatlarıyla yerel saklanır (cihaz dışına otomatik gönderilmez). Planı aç, sil, kullanıcının açık komutuyla ORS üzerinden GPS+duraklar+hedef navigasyon rotası iste. Anahtar mevcut Keystore'da, yalnız Authorization başlığında. Kaynak rota ve istasyonlar sahada DOĞRULANMADI.
+- Android paylaşım penceresi yalnız güvenli özet (süre, mesafe, SoC, durak sayısı) taşır; koordinat/VIN/API anahtarı yok. Gizlilik sınırı: DataStore uygulama özel alanındadır ancak depolama şifreli olduğu iddia edilmez.

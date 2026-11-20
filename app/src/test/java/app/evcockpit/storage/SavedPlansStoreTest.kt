@@ -1,0 +1,58 @@
+package app.evcockpit.storage
+
+import app.evcockpit.navigation.GeoPoint
+import app.evcockpit.navigation.NavigationRoute
+import app.evcockpit.planner.model.*
+import app.evcockpit.planner.charging.*
+import app.evcockpit.planner.integration.PlanToNavigation
+import org.junit.Assert.*
+import org.junit.Test
+
+class SavedPlansStoreTest {
+    private val station=ChargerCandidate("c","s","provider",38.123456,35.654321,
+        SourcedValue(100.0,"fixture",false),ChargerConfidence.UNKNOWN)
+    private fun sample(id:Long):StoredPlan {
+        val r=PlanResult.Success(listOf(PlannedStop(station,20,80,20.0,4.0,25.0)),
+            13,20.0,7.0,300.0,150.0,20.0,4.0,25.0,174.0,199.0,emptyList())
+        val route=NavigationRoute(listOf(GeoPoint(37.0,34.0),GeoPoint(39.0,30.0)),
+            300_000.0,10_800.0,emptyList())
+        return SavedPlanBuilder.from(r,route,id)
+    }
+    @Test fun roundTripPersistsOrderedStopsOnlyLocally() {
+        val input=sample(100)
+        assertEquals(input,SavedPlanCodec.decode(SavedPlanCodec.encode(listOf(input))).single())
+    }
+    @Test fun retainsOnlyTenNewestAndDeduplicates() {
+        val plans=(1L..12L).fold(emptyList<StoredPlan>()){all,i->
+            SavedPlanCodec.add(all,sample(i))
+        }
+        assertEquals(10,plans.size)
+        assertEquals(12L,plans.first().id)
+        assertEquals(3L,plans.last().id)
+    }
+    @Test fun shareNeverIncludesGpsVinOrApiKey() {
+        val text=SavedPlanBuilder.shareText(sample(1))
+        assertTrue(text.contains("TAHMİN"))
+        assertFalse(text.contains("38.123456"))
+        assertFalse(text.contains("35.654321"))
+        assertFalse(text.contains("39.0,30.0"))
+        assertFalse(text.contains("VIN"))
+        assertFalse(text.contains("Authorization"))
+    }
+    @Test fun navigationStopsKeepOrderAndExcludeDestination() {
+        val first=station
+        val second=station.copy(id="c2",latitude=38.5,longitude=35.7)
+        val result=PlanResult.Success(
+            stops=listOf(PlannedStop(first,20,70,20.0,3.0,0.0),
+                PlannedStop(second,15,75,25.0,3.0,0.0)),
+            arrivalSocPct=14,optimisticArrivalSocPct=21.0,
+            pessimisticArrivalSocPct=7.0,distanceKm=200.0,
+            drivingMinutes=120.0,chargingMinutes=45.0,
+            stopAndDetourMinutes=6.0,riskPenaltyMinutes=0.0,
+            physicalMinutes=171.0,riskAdjustedMinutes=171.0,warnings=emptyList())
+        val points=PlanToNavigation.intermediateStops(result)
+        assertEquals(2,points.size)
+        assertEquals(GeoPoint(38.123456,35.654321),points[0])
+        assertEquals(GeoPoint(38.5,35.7),points[1])
+    }
+}
