@@ -125,3 +125,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## Araç bağımsız İterasyon 1 — yerel hata günlüğü
 - Yakalanmamış istisna sınıfı, zaman ve sadece sınırlı/temizlenmiş uygulama stack frame'leri yerel crash.log dosyasına yazılır. İstisna mesajı, URL, anahtar, VIN ve koordinat dahil edilmez. 64 KiB sınırı.
 - Güvenli test raporuna son hata kaydı mevcut gizleme filtresinden geçirilerek eklenir. Fiziksel Android üzerinde istisna yakalama **DOĞRULANMADI**.
+
+## Araç bağımsız İterasyon 2 — atıf ve lisans
+- Harita yüzeyinin sağ altında © OpenStreetMap katkıcıları / OpenFreeMap metni görüntülenecek şekilde kodlandı (fiziksel cihaz DOĞRULANMADI).
+- Projeye MIT LICENSE ve bağımlılık kaynaklarıyla NOTICE eklendi. MapLibre Native BSD-2-Clause; AndroidX/Kotlin Apache-2.0; OSM veri ODbL. Transitive APK lisanslarının tam analizi ayrıca gerekebilir. Mola/Fermata GPL kaynak kodu depoya kopyalanmadı.
