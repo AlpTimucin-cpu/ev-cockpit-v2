@@ -1,18 +1,14 @@
 package app.evcockpit.ui
 
+import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.evcockpit.obd.VehicleState
@@ -31,15 +28,12 @@ import app.evcockpit.location.GpsSnapshot
 import app.evcockpit.location.SpeedSelector
 import app.evcockpit.navigation.GeoPoint
 import app.evcockpit.navigation.RouteUiState
-import android.os.SystemClock
 import kotlin.math.abs
 
-private val Bg = Color(0xFF0B0D10)
-private val Panel = Color(0xFF151A20)
-private val Dim = Color(0xFF8A949E)
-private val Track = Color(0xFF22272E)
-
-/** Tesla tarzı: solda hız / güç / batarya, sağda harita alanı (Aşama 2). */
+/**
+ * Landscape-first cockpit; no placeholder values are represented as vehicle readings.
+ * The existing MapLibre route and map attribution remain unchanged.
+ */
 @Composable
 fun DashboardScreen(
     s: VehicleState,
@@ -58,86 +52,205 @@ fun DashboardScreen(
         gpsKmh = gps.speedKmh,
         gpsFresh = gps.isFresh(SystemClock.elapsedRealtime()),
     )
-    Row(
-        modifier.fillMaxSize().background(Bg).padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    BoxWithConstraints(
+        modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(10.dp),
     ) {
-        Column(
-            Modifier.weight(0.38f).fillMaxHeight(),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column {
-                Text(
-                    speed.kmh?.let { "%.0f".format(it) } ?: "--",
-                    color = Color.White, fontSize = 96.sp, fontWeight = FontWeight.Light,
+        val wide = CockpitLayoutPolicy.useTwoColumns(maxWidth.value.toInt())
+        val compact = CockpitLayoutPolicy.compactDashboard(maxHeight.value.toInt())
+        if (wide) {
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DashboardReadouts(
+                    speed.kmh, speed.source, s, soc, usableKwh, compact,
+                    Modifier.weight(0.36f).fillMaxHeight(),
                 )
-                Text("km/h", color = Dim, fontSize = 18.sp)
-                Text(speed.source, color = Dim, fontSize = 12.sp)
-                if (s.demo) Text("DEMO", color = Color(0xFFFFB300), fontSize = 14.sp)
+                OnlineMap(
+                    modifier = Modifier.weight(0.64f).fillMaxHeight()
+                        .clip(RoundedCornerShape(20.dp)),
+                    route = navigation.route,
+                    destination = navigation.destination,
+                    gps = gps,
+                    weatherSummary = weatherSummary,
+                    onSelectDestination = onSelectDestination,
+                )
             }
-            PowerBar(s.powerKw)
-            BatteryBlock(soc, usableKwh)
+        } else {
+            // Split screen and large font settings still get a scrollable view.
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                DashboardReadouts(
+                    speed.kmh, speed.source, s, soc, usableKwh, true,
+                    Modifier.fillMaxWidth().heightIn(min = 260.dp),
+                )
+                OnlineMap(
+                    modifier = Modifier.fillMaxWidth().height(300.dp)
+                        .clip(RoundedCornerShape(20.dp)),
+                    route = navigation.route,
+                    destination = navigation.destination,
+                    gps = gps,
+                    weatherSummary = weatherSummary,
+                    onSelectDestination = onSelectDestination,
+                )
+            }
         }
-        OnlineMap(
-            modifier = Modifier.weight(0.62f).fillMaxHeight().clip(RoundedCornerShape(20.dp)),
-            route = navigation.route,
-            destination = navigation.destination,
-            gps = gps,
-            weatherSummary = weatherSummary,
-            onSelectDestination = onSelectDestination,
+    }
+}
+
+@Composable
+private fun DashboardReadouts(
+    speedKmh: Double?,
+    speedSource: String,
+    s: VehicleState,
+    soc: SocReading,
+    usableKwh: Double,
+    compact: Boolean,
+    modifier: Modifier,
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        modifier.clip(shape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), shape)
+            .padding(if (compact) 12.dp else 16.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                "CANLI GÖSTERGE",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+                letterSpacing = 1.sp,
+            )
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    CockpitLayoutPolicy.speedLabel(speedKmh),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = if (compact) 59.sp else 78.sp,
+                    fontWeight = FontWeight.Light,
+                    maxLines = 1,
+                )
+                Text(
+                    "km/sa",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(start = 6.dp, bottom = 13.dp),
+                )
+            }
+            Text(
+                "Hız kaynağı: $speedSource",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
+            PowerBar(s.powerKw, compact)
+            BatteryBlock(soc, usableKwh, compact)
+            Text(
+                when {
+                    s.demo -> "DEMO • Gerçek araç verisi değil"
+                    s.connected -> "OBD bağlı • PID verisi doğrulanmadı"
+                    else -> "OBD bağlı değil • Veri yoksa -- gösterilir"
+                },
+                color = when {
+                    s.demo -> CockpitColors.amber
+                    s.connected -> CockpitColors.green
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                fontSize = 11.sp,
+                maxLines = 2,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PowerBar(kw: Double?, compact: Boolean, maxKw: Double = 125.0) {
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val midpointColor = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            "GÜÇ / REJENERASYON",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 10.sp,
         )
-    }
-}
-
-@Composable
-private fun PowerBar(kw: Double?, maxKw: Double = 125.0) {
-    Column {
-        Text(kw?.let { "%.0f kW".format(it) } ?: "-- kW", color = Color.White, fontSize = 22.sp)
-        Spacer(Modifier.height(6.dp))
-        Canvas(Modifier.fillMaxWidth().height(14.dp)) {
-            val mid = size.width / 2
-            drawRoundRect(Track, size = size, cornerRadius = CornerRadius(7.dp.toPx()))
-            if (kw != null) {
-                val frac = (abs(kw) / maxKw).coerceIn(0.0, 1.0).toFloat()
-                val w = mid * frac
-                if (kw >= 0) drawRect(Color.White, Offset(mid, 0f), Size(w, size.height))
-                else drawRect(Color(0xFF3DDC84), Offset(mid - w, 0f), Size(w, size.height))
+        Text(
+            kw?.let { "%.0f kW".format(it) } ?: "-- kW",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = if (compact) 18.sp else 20.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Canvas(Modifier.fillMaxWidth().height(8.dp)) {
+            val mid = size.width / 2f
+            drawRoundRect(trackColor, cornerRadius = CornerRadius(6.dp.toPx()))
+            if (kw != null && kw.isFinite()) {
+                val width = mid * (abs(kw) / maxKw).coerceIn(0.0, 1.0).toFloat()
+                if (kw >= 0) {
+                    drawRect(CockpitColors.accent, Offset(mid, 0f), Size(width, size.height))
+                } else {
+                    drawRect(CockpitColors.green, Offset(mid - width, 0f), Size(width, size.height))
+                }
             }
-            drawRect(Dim, Offset(mid - 1f, 0f), Size(2f, size.height))
+            drawRect(midpointColor, Offset(mid - 1f, 0f), Size(2f, size.height))
         }
     }
 }
 
 @Composable
-private fun BatteryBlock(soc: SocReading, usableKwh: Double) {
-    val pct = soc.pct?.coerceIn(0.0, 100.0)
-    Column {
+private fun BatteryBlock(soc: SocReading, usableKwh: Double, compact: Boolean) {
+    val pct = soc.pct?.takeIf { it.isFinite() }?.coerceIn(0.0, 100.0)
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val levelColor = when {
+        pct == null -> MaterialTheme.colorScheme.onSurfaceVariant
+        pct > 20 -> CockpitColors.green
+        pct > 10 -> CockpitColors.amber
+        else -> Color(0xFFFF6B75)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("BATARYA / SoC", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 pct?.let { "%.0f".format(it) } ?: "--",
-                color = Color.White, fontSize = 56.sp, fontWeight = FontWeight.Light,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = if (compact) 35.sp else 44.sp,
+                fontWeight = FontWeight.Light,
             )
-            Text(" %", color = Dim, fontSize = 22.sp, modifier = Modifier.padding(bottom = 10.dp))
-        }
-        Spacer(Modifier.height(6.dp))
-        Canvas(Modifier.fillMaxWidth().height(10.dp)) {
-            drawRoundRect(Track, size = size, cornerRadius = CornerRadius(5.dp.toPx()))
+            Text(
+                "%",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 17.sp,
+                modifier = Modifier.padding(start = 2.dp, bottom = 6.dp),
+            )
+            Spacer(Modifier.weight(1f))
             if (pct != null) {
-                val color = when {
-                    pct > 20 -> Color(0xFF3DDC84)
-                    pct > 10 -> Color(0xFFFFB300)
-                    else -> Color(0xFFFF5252)
-                }
+                Text(
+                    "≈ %.1f kWh • TAHMİN".format(pct / 100.0 * usableKwh),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(bottom = 5.dp),
+                )
+            }
+        }
+        Canvas(Modifier.fillMaxWidth().height(7.dp)) {
+            drawRoundRect(trackColor, cornerRadius = CornerRadius(5.dp.toPx()))
+            if (pct != null) {
                 drawRoundRect(
-                    color, size = Size(size.width * (pct / 100.0).toFloat(), size.height),
+                    levelColor,
+                    size = Size(size.width * (pct / 100.0).toFloat(), size.height),
                     cornerRadius = CornerRadius(5.dp.toPx()),
                 )
             }
         }
-        Text(soc.source, color = Dim, fontSize = 12.sp)
-        if (pct != null) {
-            Spacer(Modifier.height(4.dp))
-            Text("≈ %.1f kWh".format(pct / 100.0 * usableKwh), color = Dim, fontSize = 14.sp)
-        }
+        Text(
+            "Kaynak: ${soc.source}",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
