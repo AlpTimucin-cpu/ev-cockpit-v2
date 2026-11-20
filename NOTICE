@@ -32,3 +32,5 @@ composition analysis of every transitive binary in the APK.
 GPL-3.0 Mola/Fermata application source is not imported into this project.
 This does NOT imply all transitive licenses are MIT, that all transitive
 dependencies were fully audited, or that proprietary source code can be copied.
+
+* Photon by komoot: OSM tabanlı kamusal demo geocoding, fair-use limits, explicit search only. https://github.com/komoot/photon
