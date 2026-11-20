@@ -129,3 +129,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 ## Araç bağımsız İterasyon 2 — atıf ve lisans
 - Harita yüzeyinin sağ altında © OpenStreetMap katkıcıları / OpenFreeMap metni görüntülenecek şekilde kodlandı (fiziksel cihaz DOĞRULANMADI).
 - Projeye MIT LICENSE ve bağımlılık kaynaklarıyla NOTICE eklendi. MapLibre Native BSD-2-Clause; AndroidX/Kotlin Apache-2.0; OSM veri ODbL. Transitive APK lisanslarının tam analizi ayrıca gerekebilir. Mola/Fermata GPL kaynak kodu depoya kopyalanmadı.
+
+## Araç bağımsız İterasyon 3 — Photon adres arama, son hedef ve Ev/İş
+- Photon (komoot) kamusal demo API, sadece kullanıcının Arama düğmesine basmasıyla HTTPS talebi; 10 saniyelik asgari istek aralığı ve en fazla 5 sonuç, User-Agent ile uygulama kimliği. Kota garantisi yok, yüksek trafikli/ücretli üründe farklı anlaşma veya kendi sunucusu gerekir.
+- Kaynak: https://github.com/komoot/photon/blob/master/README.md ; https://github.com/komoot/photon/blob/master/docs/usage.md . Son hedefler (en fazla 10) ve Ev/İş kayıtları sadece uygulama DataStore içinde; koordinatlar debug/güvenli test raporlarına eklenmez. Gerçek API ve Android testi DOĞRULANMADI.

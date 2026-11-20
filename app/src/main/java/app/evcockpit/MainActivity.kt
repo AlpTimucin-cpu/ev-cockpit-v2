@@ -187,6 +187,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel) {
                 onToggleVoice = navVm::toggleVoice,
                 onSpeakNextManeuver = navVm::testNextManeuver,
                 onCalculate = navVm::calculate,
+                onSelectDestination = navVm::selectDestination,
                 onClear = navVm::clear,
             )
             else -> RouteSettingsScreen(

@@ -1,6 +1,15 @@
 package app.evcockpit.ui
 
 import android.os.SystemClock
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import app.evcockpit.navigation.DestinationsStore
+import app.evcockpit.navigation.SavedDestination
+import app.evcockpit.navigation.PhotonGeocoder
+import app.evcockpit.navigation.PhotonPlace
+import app.evcockpit.navigation.GeoPoint
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,8 +48,18 @@ fun RouteScreen(
     onToggleVoice: () -> Unit,
     onSpeakNextManeuver: () -> Unit,
     onCalculate: (String, String) -> Unit,
+    onSelectDestination: (GeoPoint) -> Unit,
     onClear: () -> Unit,
 ) {
+    val ctx = LocalContext.current
+    val store = remember(ctx) { DestinationsStore(ctx.applicationContext) }
+    val saved by store.entries.collectAsState(initial = emptyList())
+    val geocoder = remember { PhotonGeocoder() }
+    val scope = rememberCoroutineScope()
+    var searchText by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<PhotonPlace>>(emptyList()) }
+    var searchMessage by remember { mutableStateOf("Adres arama: manuel tetiklenir; Photon demo hizmeti, DOĞRULANMADI") }
+    var searching by remember { mutableStateOf(false) }
     var latitude by remember { mutableStateOf("") }
     var longitude by remember { mutableStateOf("") }
     var averageText by remember { mutableStateOf("") }
@@ -67,6 +86,53 @@ fun RouteScreen(
         Text("Rota: openrouteservice • Türkçe manevralar • canlı trafik YOK")
         Text(state.message)
         Text("Konum: ${gps.status}")
+        Text("Adres arama — Photon / komoot (kısıtlı demo; arama metnin sağlayıcıya gider)")
+        OutlinedTextField(value = searchText, onValueChange = { searchText = it },
+            label = { Text("Adres veya yer adı (otomatik arama yok)") },
+            singleLine = true, modifier = Modifier.fillMaxWidth())
+        Button(enabled = !searching && searchText.trim().length >= 3, onClick = {
+            searching = true
+            scope.launch {
+                try {
+                    searchResults = geocoder.search(searchText)
+                    searchMessage = if (searchResults.isEmpty()) "Sonuç yok" else
+                        "Sonuçlar: " + searchResults.size + " — doğruluğu haritada kontrol et"
+                } catch (_: Exception) {
+                    searchMessage = "Arama başarısız veya çok sık istek; 10 saniye sonra dene."
+                } finally { searching = false }
+            }
+        }) { Text("Adresi ara") }
+        Text(searchMessage)
+        searchResults.forEach { item ->
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                onSelectDestination(item.point)
+                scope.launch { store.save(SavedDestination("RECENT", item.label, item.point)) }
+            }) { Text(item.label) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                val point = runCatching { GeoPoint(
+                    latitude.replace(',', '.').toDouble(), longitude.replace(',', '.').toDouble())
+                }.getOrNull()
+                if (point != null) scope.launch {
+                    store.save(SavedDestination("HOME", "Ev", point))
+                }
+            }) { Text("Ev olarak kaydet") }
+            Button(onClick = {
+                val point = runCatching { GeoPoint(
+                    latitude.replace(',', '.').toDouble(), longitude.replace(',', '.').toDouble())
+                }.getOrNull()
+                if (point != null) scope.launch {
+                    store.save(SavedDestination("WORK", "İş", point))
+                }
+            }) { Text("İş olarak kaydet") }
+        }
+        saved.forEach { item ->
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                onSelectDestination(item.point)
+            }) { Text((if (item.type == "HOME") "Ev" else if (item.type == "WORK") "İş"
+                else "Son hedef") + ": " + item.label) }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onToggleVoice) {
                 Text(if (voice.enabled) "Sesli tarifi kapat" else "Türkçe sesli tarifi aç")
@@ -91,7 +157,15 @@ fun RouteScreen(
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !state.busy, onClick = { onCalculate(latitude, longitude) }) {
+            Button(enabled = !state.busy, onClick = {
+                val point = runCatching { GeoPoint(
+                    latitude.replace(',', '.').toDouble(), longitude.replace(',', '.').toDouble())
+                }.getOrNull()
+                if (point != null) scope.launch {
+                    store.save(SavedDestination("RECENT", "Elle girilen hedef", point))
+                }
+                onCalculate(latitude, longitude)
+            }) {
                 Text(if (state.busy) "Hesaplanıyor" else "Rota hesapla")
             }
             OutlinedButton(onClick = onClear) { Text("Rotayı temizle") }
