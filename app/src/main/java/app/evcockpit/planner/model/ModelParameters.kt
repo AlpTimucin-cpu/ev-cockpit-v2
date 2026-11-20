@@ -20,7 +20,7 @@ data class ModelParameters(
     val minutesPerHour: SourcedValue = SourcedValue(60.0, "SI time units", true),
     val socDenominator: SourcedValue = SourcedValue(100.0, "Percent unit", true),
     val pruneWindowKm: SourcedValue = SourcedValue(40.0, "M8 candidate pruning window", false),
-    val pruneMaxPerWindow: SourcedValue = SourcedValue(3.0, "M8 performance budget", false),
+    val pruneMaxPerWindow: SourcedValue = SourcedValue(6.0, "M8.5e request: 6 candidates per 40 km; synthetic CI performance", false),
     val minPreferredStationKw: SourcedValue = SourcedValue(30.0, "M8 slow charger threshold", false),
     val revalidationThresholdPercent: SourcedValue = SourcedValue(
         2.0, "M8 master route discrepancy criterion", false, "TAHMİN denetim eşiği"),

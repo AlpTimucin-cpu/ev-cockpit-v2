@@ -15,8 +15,8 @@ class ChargingTimeCalculator(private val parameters:ModelParameters=ModelParamet
             fromSoc in 0.0..100.0 && toSoc in fromSoc..100.0)
         require(batteryTempC.isFinite())
         if(fromSoc==toSoc)return 0.0
-        val cap=min(stationMaxKw,car.maxDcKw.value)
-        val curve=car.chargingCurve
+        val cap=min(stationMaxKw,car.effectiveMaxDcKw)
+        val curve=car.effectiveChargingCurve
         val segments=mutableListOf(fromSoc,toSoc)
         segments+=curve.points.map { it.x }.filter { it>fromSoc && it<toSoc }
         // Add the intersection of each linear portion with station's power cap.

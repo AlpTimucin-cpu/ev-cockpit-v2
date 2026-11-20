@@ -58,7 +58,12 @@ class ChargingTimeAndPrunerTest {
         }
         val pruner=CandidatePruner()
         val a=pruner.prune(list,1_000_000.0)
-        assertTrue(a.size<100)
+        // Updated M8.5e requirement: at most SIX candidates per 40 km window.
+        assertTrue("Expected meaningful pruning", a.size < list.size)
         assertEquals(a,pruner.prune(list,1_000_000.0))
+        val bins = a.groupBy { kotlin.math.floor(it.distanceAlongMeters / 40_000.0).toInt() }
+        assertTrue("More than 6 candidates in a 40-km window",
+            bins.values.all { it.size <= 6 })
+        assertTrue(a.size <= 6 * bins.size)
     }
 }
