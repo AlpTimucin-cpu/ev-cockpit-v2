@@ -45,6 +45,8 @@ import app.evcockpit.navigation.NavigationViewModel
 import app.evcockpit.weather.OpenMeteoRouteWeather
 import app.evcockpit.weather.OpenMeteoWeatherLogic
 import app.evcockpit.passenger.PassengerPlayerModel
+import app.evcockpit.media.MediaHubViewModel
+import app.evcockpit.ui.MediaHubScreen
 import app.evcockpit.location.SpeedSelector
 import app.evcockpit.ui.PassengerVideoScreen
 import app.evcockpit.ui.RouteScreen
@@ -80,7 +82,8 @@ class MainActivity : ComponentActivity() {
                 val navViewModel: NavigationViewModel = viewModel()
                 val passengerModel: PassengerPlayerModel = viewModel()
                 val plannerModel: PlannerViewModel = viewModel()
-                App(obdViewModel, navViewModel, passengerModel, plannerModel,
+                val mediaHubModel: MediaHubViewModel = viewModel()
+                App(obdViewModel, navViewModel, passengerModel, plannerModel, mediaHubModel,
                     displayPreferences, darkTheme, keepScreenOn)
             }
         }
@@ -90,7 +93,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     passengerModel: PassengerPlayerModel, plannerModel: PlannerViewModel,
-    displayPreferences: DisplayPreferences,
+    mediaHubModel: MediaHubViewModel, displayPreferences: DisplayPreferences,
     darkTheme: Boolean, keepScreenOn: Boolean) {
     val context = LocalContext.current
     val cfg = remember { PidTable.load(context) }
@@ -249,6 +252,10 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                     obdKmh = state.speedKmh, gpsKmh = gps.speedKmh,
                     gpsFresh = gpsFresh).kmh,
                 onSelectDestination = navVm::selectDestination,
+            )
+            6 -> MediaHubScreen(
+                vm = mediaHubModel,
+                onNavigateTab = { tab = it },
             )
             else -> RouteSettingsScreen(
                 gps = gps,
