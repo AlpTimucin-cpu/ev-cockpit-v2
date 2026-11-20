@@ -23,3 +23,7 @@ Hava, rüzgâr, SoH/şarj eğrisi ve DC güç doğruluğu araçta ölçülmedi. 
 
 ## M8.2 tüketim modeli belirsizliği
 Hava yoğunluğu ISA, CdA, yuvarlanma, eğim, rejen sınırı ve yardımcı yük M8 formülleriyle hesaplanır; hız değişimi/ivmelenme ve rüzgâr dahil değildir. Soğuk sürüş çarpanı (−20°C 1.25, −5°C 1.15, 20°C 1.0) kaynaklı saha doğrulaması olmayan varsayımdır. ±10% iyimser, +15% kötümser bandı istatistiksel güven aralığı değildir. Sanity birim testleri model kalibrasyon kanıtı DEĞİLDİR.
+
+## M8.5A
+- Şarj süresi, parçalı doğrusal güç eğrisinin kapalı-form 1/P(soc) integralidir; batarya soğuk çarpanı uygulanır. Soğuk güç tablosu/şarj eğrisi sadece TAHMİN.
+- Büyük aday kümesinde 40 km başına 3 aday budama kararı hesaplama bütçesi varsayımıdır; gerçek dünya optimumu garantilenmez; küçük ≤8 adayda eksiksiz alan kullanılır.
