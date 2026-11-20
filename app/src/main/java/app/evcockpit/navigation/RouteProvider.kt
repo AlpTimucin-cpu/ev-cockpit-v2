@@ -25,4 +25,11 @@ data class NavigationRoute(
 /** API key is user-supplied at runtime; never a build-time constant. */
 interface RouteProvider {
     suspend fun calculate(start: GeoPoint, destination: GeoPoint, userApiKey: String): NavigationRoute
+
+    /** User-triggered via-route; ORS implementation supports up to 50 waypoints. */
+    suspend fun calculateVia(waypoints: List<GeoPoint>, userApiKey: String): NavigationRoute {
+        require(waypoints.size in 2..50) { "Rota en az 2, en fazla 50 nokta içerir." }
+        if (waypoints.size == 2) return calculate(waypoints[0], waypoints[1], userApiKey)
+        throw UnsupportedOperationException("Bu sağlayıcı ara noktalı rota desteklemiyor.")
+    }
 }

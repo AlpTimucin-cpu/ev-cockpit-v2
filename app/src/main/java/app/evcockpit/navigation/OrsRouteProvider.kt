@@ -18,19 +18,15 @@ class OrsRouteProvider : RouteProvider {
         start: GeoPoint,
         destination: GeoPoint,
         userApiKey: String,
+    ): NavigationRoute = calculateVia(listOf(start, destination), userApiKey)
+
+    override suspend fun calculateVia(
+        waypoints: List<GeoPoint>,
+        userApiKey: String,
     ): NavigationRoute = withContext(Dispatchers.IO) {
         val key = userApiKey.trim()
         if (key.isEmpty()) throw RouteServiceException("Önce HeiGIT API anahtarını ayarlardan girin.")
-        if (start == destination) throw RouteServiceException("Başlangıç ve hedef aynı olamaz.")
-        val body = JSONObject().apply {
-            put("coordinates", JSONArray()
-                .put(JSONArray().put(start.longitude).put(start.latitude))
-                .put(JSONArray().put(destination.longitude).put(destination.latitude)))
-            put("language", "tr")
-            put("instructions", true)
-            put("elevation", true) // ORS supports optional third Z coordinate; parser falls back if absent.
-        }.toString()
-
+        val body = OrsViaRequest.build(waypoints)
         val connection = URL(ENDPOINT).openConnection() as HttpsURLConnection
         try {
             connection.requestMethod = "POST"
@@ -111,5 +107,25 @@ object OrsGeoJsonParser {
             if (arr.length() >= 3) arr.optDouble(2, Double.NaN) else Double.NaN
         }.takeIf { it.size == path.size && it.all { value -> value.isFinite() } }
         return NavigationRoute(path, distance, duration, steps, elevationsMeters = altitudes)
+    }
+}
+
+
+/** Pure request construction: API key is NEVER included in JSON or URL. */
+object OrsViaRequest {
+    // HeiGIT hosted API limit: https://giscience.github.io/openrouteservice/hosted-api-restrictions
+    const val MAX_WAYPOINTS = 50
+    fun build(points: List<GeoPoint>): String {
+        require(points.size in 2..MAX_WAYPOINTS) {
+            "Rota ara nokta limiti 50; en az başlangıç ve hedef gerekli."
+        }
+        require(points.zipWithNext().all { it.first != it.second }) {
+            "Ardışık rota noktaları aynı olamaz."
+        }
+        val geometry = JSONArray()
+        points.forEach { geometry.put(JSONArray().put(it.longitude).put(it.latitude)) }
+        return JSONObject().put("coordinates", geometry)
+            .put("language", "tr").put("instructions", true)
+            .put("elevation", true).toString()
     }
 }

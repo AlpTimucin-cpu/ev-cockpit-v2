@@ -32,3 +32,7 @@ Hava yoğunluğu ISA, CdA, yuvarlanma, eğim, rejen sınırı ve yardımcı yük
 - Kesikli SoC ızgarasında (kaba kuvvet DFS) en iyi toplam süre küçük sentetik aday kümeleriyle kontrol edilir; **sürekli SoC optimumu veya gerçek yol optimumu iddiası YOK**.
 - 510 sabit tohumlu güvenlik senaryosu, 1000 km / 300 aday JUnit performans ölçümü ve şehirler arası isimli **sahte 700/450 km** senaryoları Actions JUnit XML kanıtından raporlanır.
 - En hızlı plana ek olarak daha az durak ve yalnız OSM CCS2 etiketli +5 yüzde SoC güvenlik alternatifi aranır. Yedekler yalnız yakın adaylardır, gerçek erişim/doluluk/sapma DOĞRULANMADI.
+
+## M8.5D rota ikinci geçiş
+- Sağlayıcı seçilen ara duraklar için yeni güzergâh üretebilir. %2 enerji farkı aşıldığında aday izdüşümleri güncellenip çözücü en fazla bir kez yeniden çağrılır. İkinci >%2 fark açık uyarıdır; sessizce 'gerçek plan' kabul edilmez.
+- Testler fake route servislerle; gerçek HeiGIT, harita sunucusu veya ID.4 sonucu DOĞRULANMADI. UI/anahtarlı gerçek hesaplama M8.6–M8.7'de bağlanır, Durma Noktası A onayı gerekir.
