@@ -40,7 +40,19 @@ class SavedPlansStoreTest {
         assertFalse(text.contains("Authorization"))
     }
     @Test fun navigationStopsKeepOrderAndExcludeDestination() {
-        val stop=sample(9).stops.single().point
-        assertEquals(GeoPoint(38.123456,35.654321),stop)
+        val first=station
+        val second=station.copy(id="c2",latitude=38.5,longitude=35.7)
+        val result=PlanResult.Success(
+            stops=listOf(PlannedStop(first,20,70,20.0,3.0,0.0),
+                PlannedStop(second,15,75,25.0,3.0,0.0)),
+            arrivalSocPct=14,optimisticArrivalSocPct=21.0,
+            pessimisticArrivalSocPct=7.0,distanceKm=200.0,
+            drivingMinutes=120.0,chargingMinutes=45.0,
+            stopAndDetourMinutes=6.0,riskPenaltyMinutes=0.0,
+            physicalMinutes=171.0,riskAdjustedMinutes=171.0,warnings=emptyList())
+        val points=PlanToNavigation.intermediateStops(result)
+        assertEquals(2,points.size)
+        assertEquals(GeoPoint(38.123456,35.654321),points[0])
+        assertEquals(GeoPoint(38.5,35.7),points[1])
     }
 }

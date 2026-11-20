@@ -67,7 +67,7 @@ object SavedPlanCodec {
                 .put("minutes",p.physicalMinutes).put("km",p.distanceKm))
         }
     }.toString()
-    fun decode(raw:String?):List<StoredPlan>=runCatching {
+    fun decode(raw:String?):List<StoredPlan> = runCatching {
         val a=JSONArray(raw?:"[]")
         (0 until minOf(a.length(),10)).mapNotNull{i->
             runCatching{
@@ -86,7 +86,7 @@ object SavedPlanCodec {
             }.getOrNull()
         }
     }.getOrElse{emptyList()}
-    fun add(old:List<StoredPlan>,new:StoredPlan):List<StoredPlan>=
+    fun add(old:List<StoredPlan>,new:StoredPlan):List<StoredPlan> =
         (listOf(new)+old.filterNot{it.id==new.id}).take(10)
 }
 class SavedPlansStore(context:Context) {
