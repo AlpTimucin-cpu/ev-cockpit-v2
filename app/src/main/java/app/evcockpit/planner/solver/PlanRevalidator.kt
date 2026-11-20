@@ -7,6 +7,7 @@ import app.evcockpit.planner.model.ModelParameters
 import app.evcockpit.planner.model.PlanRequest
 import app.evcockpit.planner.model.PlanResult
 import app.evcockpit.planner.route.RouteProfile
+import kotlinx.coroutines.CancellationException
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -82,6 +83,8 @@ class PlanRevalidator(
                     "% — planı doğrula; DOĞRULANMADI"
             else "İkinci rota karşılaştırması eşik içinde; saha DOĞRULANMADI"
             return RouteVerification(updatedPlan, firstDelta, finalDelta, true, warning)
+        } catch (cancel:CancellationException) {
+            throw cancel
         } catch (_: Exception) {
             return RouteVerification(updatedPlan, firstDelta, null, replanned,
                 "Rota sağlayıcısı/bağlantı hatası — yeniden doğrulama tamamlanamadı (DOĞRULANMADI)")

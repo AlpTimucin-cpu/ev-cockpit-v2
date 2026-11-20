@@ -222,3 +222,6 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 
 ## M8.7B — Plan durakları MapLibre katmanı
 - EV Rota Planlayıcı'da OpenFreeMap + mevcut ORS rota çizgisi ve şarj durakları gösterilir. Marker renkleri **OSM etiket güveni** içindir: yeşil CCS2 etiketli, sarı olası, gri bilinmiyor. Renkler şarj cihazı çalışması/doluluk garantisi değildir. Durak kartındaki Haritada gör tıklanınca harita odağı taşınır; marker tıklanınca istasyon ayrıntısı görünür. OSM/OpenFreeMap ve diğer sağlayıcı atıfları korunur; gerçek cihaz çizimi DOĞRULANMADI.
+
+## M8.7C — ORS ikinci geçiş UI (sahada DOĞRULANMADI)
+- Plan ekranında isteğe bağlı **ORS ile duraklı rotayı kontrol et** düğmesi; en çok 2 kullanıcı-anahtarlı ara durak rota isteği ve enerji farkı >%2 ise bir yeniden planlama. İlk/ikinci fark, başarısız kota/ağ/anahtar ve açık TAHMİN uyarısı. İptal `CancellationException` ile yayılır; başarı olarak gösterilmez. Üçüncü taraf veri akışı docs/M8_VERI_AKISI.md. Durma Noktası B telefon kabul testi bekler; M8.8/M4/M5 yok.

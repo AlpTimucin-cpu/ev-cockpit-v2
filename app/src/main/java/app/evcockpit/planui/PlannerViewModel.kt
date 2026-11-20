@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.evcockpit.navigation.NavigationRoute
+import app.evcockpit.navigation.OrsRouteProvider
+import app.evcockpit.navigation.EncryptedRouteKeyStore
+import app.evcockpit.planner.integration.OrsViaRouteAdapter
 import app.evcockpit.obd.SocReading
 import app.evcockpit.planner.charging.ChargerCandidate
 import app.evcockpit.planner.charging.ChargerFilter
@@ -31,6 +34,7 @@ data class PlannerUiState(
     val request:PlanRequest?=null,
     val candidates:List<ChargerCandidate> = emptyList(),
     val solverElapsedMs:Long?=null,
+    val verification:RouteVerification?=null,
     val stationStatus:String="Şarj verisi henüz aranmadı",
     val warning:String="TAHMİN — araç, telefon ve istasyon DOĞRULANMADI",
 )
@@ -39,9 +43,65 @@ class PlannerViewModel(application:Application):AndroidViewModel(application) {
     private val overpass=OverpassRepository(PublicOverpassTransport(),
         ChargerCache(File(application.cacheDir,"m8-overpass")))
     private val custom=CustomChargerStore(application)
+    private val keys=EncryptedRouteKeyStore(application)
     private val mutable=MutableStateFlow(PlannerUiState())
     val state=mutable.asStateFlow()
     private var job:Job?=null
+
+
+    /**
+     * User-triggered ORS waypoint revalidation. Max two requests and one solver
+     * rerun. No hidden requests, no API key or coordinates in diagnostic text.
+     */
+    fun verifySelectedStops() {
+        if(job?.isActive==true)return
+        val original=mutable.value.plan as? PlanResult.Success
+        val request=mutable.value.request
+        if(original==null || request==null) {
+            mutable.value=mutable.value.copy(stage=PlannerStage.FAILURE,
+                message="Önce şarj planı oluştur, sonra ara durakları doğrula.")
+            return
+        }
+        job=viewModelScope.launch {
+            try {
+                val key=keys.read()
+                if(key.isNullOrBlank()) {
+                    mutable.value=mutable.value.copy(stage=PlannerStage.FAILURE,
+                        message="HeiGIT anahtarı yok. Ayarlar > API anahtarı bölümünü aç.")
+                    return@launch
+                }
+                mutable.value=mutable.value.copy(stage=PlannerStage.VERIFYING,
+                    message=PlannerGuard.label(PlannerStage.VERIFYING),
+                    verification=null)
+                val source=OrsViaRouteAdapter(OrsRouteProvider(),assembler){ key }
+                val check=withContext(Dispatchers.IO) {
+                    PlanRevalidator(source).check(request,original)
+                }
+                val serviceFailed=check.warning.contains("tamamlanamadı",ignoreCase=true)
+                val stage=when {
+                    serviceFailed || check.plan is PlanResult.Failure -> PlannerStage.FAILURE
+                    else -> PlannerStage.READY
+                }
+                val info=when {
+                    serviceFailed ->
+                        "ORS ikinci rota isteği tamamlanamadı; ağ/kota/anahtarı kontrol et. DOĞRULANMADI"
+                    check.plan is PlanResult.Failure ->
+                        "Yeniden hesaplanan rota menzil koşullarını sağlamadı. DOĞRULANMADI"
+                    else -> "ORS ara durak karşılaştırması tamamlandı — TAHMİN / DOĞRULANMADI"
+                }
+                mutable.value=mutable.value.copy(stage=stage,plan=check.plan,
+                    alternatives=null,verification=check,message=info,
+                    warning=check.warning+" • gerçek rota/araç/istasyon saha testi DOĞRULANMADI")
+            } catch(cancel:CancellationException) {
+                mutable.value=mutable.value.copy(stage=PlannerStage.CANCELLED,
+                    message=PlannerGuard.label(PlannerStage.CANCELLED))
+                throw cancel
+            } catch(_:Exception) {
+                mutable.value=mutable.value.copy(stage=PlannerStage.FAILURE,
+                    message="ORS ikinci geçişi başarısız. İnternet, anahtar veya kotayı kontrol et. DOĞRULANMADI")
+            }
+        }
+    }
 
     fun cancel() {
         job?.cancel();job=null

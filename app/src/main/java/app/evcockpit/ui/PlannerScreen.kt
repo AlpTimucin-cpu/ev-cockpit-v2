@@ -185,6 +185,9 @@ fun PlannerScreen(
             }
             optionsError?.let{Text(it,color=MaterialTheme.colorScheme.error)}
         }
+        if(state.stage==PlannerStage.FAILURE && state.message.contains("anahtar",true)) {
+            OutlinedButton(onClick=onOpenSettings) {Text("HeiGIT API anahtarı ayarlarını aç")}
+        }
         if(state.plan is PlanResult.Failure) {
             val failed=state.plan as PlanResult.Failure
             Text("PLAN YOK: "+failed.reason, color=MaterialTheme.colorScheme.error)
@@ -237,6 +240,22 @@ fun PlannerScreen(
                 val dest=computedRoute?.geometry?.lastOrNull()
                 if(dest!=null)onNavigate(PlanToNavigation.intermediateStops(success),dest)
             },enabled=computedRoute!=null){Text("Şarj duraklarıyla navigasyona ekle")}
+
+            OutlinedButton(onClick=vm::verifySelectedStops,enabled=!busy) {
+                Text("ORS ile duraklı rotayı kontrol et")
+            }
+            Text("Bu işlem 1–2 ek HeiGIT API isteği kullanabilir. Enerji farkı %2'yi aşarsa " +
+                "en çok bir kez yeniden hesaplanır. Telefon/gerçek rota DOĞRULANMADI.",
+                style=MaterialTheme.typography.bodySmall)
+            state.verification?.let { checked ->
+                val first=checked.firstDifferencePercent?.let{"%.2f%%".format(it)} ?: "ölçülemedi"
+                val second=checked.finalDifferencePercent?.let{"%.2f%%".format(it)} ?: "ölçülemedi"
+                Text("İlk enerji farkı: "+first+" • son fark: "+second+
+                    " • yeniden plan: "+if(checked.replannedOnce)"EVET" else "HAYIR")
+                Text(checked.warning)
+                Text("İkinci geçiş saha kanıtı değildir — TAHMİN / DOĞRULANMADI")
+            }
+
             if(saveStatus.isNotBlank())Text(saveStatus)
             Text(PlannerDisplay.overview(success),style=MaterialTheme.typography.titleMedium)
             Text("Tahmini varış enerji: "+
