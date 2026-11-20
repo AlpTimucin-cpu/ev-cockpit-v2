@@ -138,3 +138,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 - Ayarlar ekranına girilince ve kullanıcı düğmeye basınca halka açık GitHub Releases nightly sürümü kontrol edilir. API anahtarı kullanılmaz; 15 dakikalık otomatik oturum önbelleği vardır.
 - Yalnız beklenen repo/tag/app-debug.apk yolu ve 40 haneli commit doğrulanır; yeni Nightly farklı ise indirme bağlantısı açılır. APK otomatik indirilmez veya kurulmaz.
 - Kaynak: https://docs.github.com/en/rest/releases/releases#get-a-release-by-tag-name . Android uygulama içi bildirim ve gerçek ağ sonucu **DOĞRULANMADI**.
+
+## Araç bağımsız İterasyon 5 — tema ve ekranı açık tut
+- Koyu/açık Material3 tema tercihi DataStore ile kalıcı. İlk varsayılan koyu tema.
+- Ekranı açık tut (Android FLAG_KEEP_SCREEN_ON) tercihi varsayılan kapalı. Kullanıcı ayarından açılabilir, yalnız Activity aktifken uygular. Telefon ve pil etkisi DOĞRULANMADI.
