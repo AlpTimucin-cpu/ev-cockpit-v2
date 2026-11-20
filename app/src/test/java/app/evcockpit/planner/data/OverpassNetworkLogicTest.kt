@@ -79,6 +79,42 @@ class OverpassNetworkLogicTest {
         finally { dir.deleteRecursively() }
         Unit
     }
+    @Test fun validNetworkReplySurvivesUnwritableCache() = runBlocking {
+        val dir=Files.createTempDirectory("m8-ro-cache").toFile()
+        val blocked=java.io.File(dir,"blocked").apply { writeText("not a directory") }
+        val network=object:OverpassTransport {
+            override suspend fun post(query:String)=OverpassResponse(200,
+                """{"elements":[{"type":"node","id":123,"lat":38.25,"lon":35.01,
+                    "tags":{"amenity":"charging_station","socket:type2_combo":"yes",
+                    "socket:type2_combo:output":"50 kW"}}]}""")
+        }
+        val result=OverpassRepository(network,ChargerCache(blocked),sleep={})
+            .search(route.take(2))
+        assertFalse(result.incomplete)
+        assertEquals(1,result.chargers.size)
+        assertEquals(50.0,result.chargers.first().powerKw.value,0.01)
+        dir.deleteRecursively()
+        Unit
+    }
+
+    @Test fun invalidHttp200IsNotSavedForSevenDays() = runBlocking {
+        val dir=Files.createTempDirectory("m8-invalid-json").toFile()
+        val cache=ChargerCache(dir)
+        var calls=0
+        val network=object:OverpassTransport {
+            override suspend fun post(query:String):OverpassResponse {
+                calls++
+                return OverpassResponse(200,"<html>service overloaded</html>")
+            }
+        }
+        val result=OverpassRepository(network,cache,sleep={}).search(route.take(2))
+        assertTrue(result.incomplete)
+        assertEquals(1,calls)
+        val query=CorridorChunker().query(CorridorChunker().chunks(route.take(2)).single())
+        assertNull(cache.read(query))
+        dir.deleteRecursively()
+        Unit
+    }
     @Test fun customCandidateIsProjectedWithoutNetwork() = runBlocking {
         val dir=Files.createTempDirectory("m8-custom").toFile()
         val cache=ChargerCache(dir)
