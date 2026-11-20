@@ -1,6 +1,5 @@
 package app.evcockpit.ui
 
-import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,12 +44,13 @@ fun DashboardScreen(
     onSelectDestination: (GeoPoint) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val gpsFresh = rememberGpsFreshness(gps)
     val speed = SpeedSelector.select(
         obdConnected = s.connected,
         demo = s.demo,
         obdKmh = s.speedKmh,
         gpsKmh = gps.speedKmh,
-        gpsFresh = gps.isFresh(SystemClock.elapsedRealtime()),
+        gpsFresh = gpsFresh,
     )
     BoxWithConstraints(
         modifier.fillMaxSize()
