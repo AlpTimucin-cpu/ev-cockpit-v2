@@ -22,6 +22,8 @@ data class ModelParameters(
     val pruneWindowKm: SourcedValue = SourcedValue(40.0, "M8 candidate pruning window", false),
     val pruneMaxPerWindow: SourcedValue = SourcedValue(3.0, "M8 performance budget", false),
     val minPreferredStationKw: SourcedValue = SourcedValue(30.0, "M8 slow charger threshold", false),
+    val revalidationThresholdPercent: SourcedValue = SourcedValue(
+        2.0, "M8 master route discrepancy criterion", false, "TAHMİN denetim eşiği"),
     val maxSolverStops: SourcedValue = SourcedValue(8.0, "M8 solver state budget", false),
     val minSpeedKmh: SourcedValue = SourcedValue(5.0,"M8 master low speed",false),
     val initialSoc: SourcedValue = SourcedValue(70.0,"User default",false),

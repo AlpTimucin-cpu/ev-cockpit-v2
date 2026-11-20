@@ -195,3 +195,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 
 ## M8.5C — Oracle, güvenlik, alternatifler ve performans
 - Küçük kesikli grafikte bağımsız brute-force oracle; 510 deterministik test; 1000km/300 aday performans, sentetik şehirler arası yaz/kış/hız; CI JUnit XML kanıtı. Gerçek araç/istasyon verisi DOĞRULANMADI. M8.6 öncesi Durma Noktası A.
+
+## M8.5D — Ara noktalı rota karşılaştırması
+- ORS Directions çoklu nokta (en fazla 50) POST gövdesi, gizli kullanıcı anahtarı mevcut Keystore sağlayıcısından çağrı sırasında alınabilir. Planner'ın saf Kotlin PlanRevalidator sınıfı ilk plana gerçek ara durak rotası ister; toplam enerji farkı >%2 ise adayları projekte edip yalnız bir kez yeniden planlar ve ikinci rota farkını açıkça bildirir. En fazla iki rota isteği; kota kullanıcıya aittir. Ağ bağlantısı şu anda UI'dan tetiklenmez; cihaz ve gerçek servis DOĞRULANMADI. M8.7 bağlama işidir.
+- Kaynak https://giscience.github.io/openrouteservice/hosted-api-restrictions ; 50 ara nokta ve driving sınırı 6000km.
