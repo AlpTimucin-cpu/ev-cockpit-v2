@@ -28,6 +28,7 @@ class OrsRouteProvider : RouteProvider {
                 .put(JSONArray().put(destination.longitude).put(destination.latitude)))
             put("language", "tr")
             put("instructions", true)
+            put("elevation", true) // ORS supports optional third Z coordinate; parser falls back if absent.
         }.toString()
 
         val connection = URL(ENDPOINT).openConnection() as HttpsURLConnection
@@ -105,6 +106,10 @@ object OrsGeoJsonParser {
                 }
             }
         }
-        return NavigationRoute(path, distance, duration, steps)
+        val altitudes = (0 until points.length()).map { index ->
+            val arr = points.getJSONArray(index)
+            if (arr.length() >= 3) arr.optDouble(2, Double.NaN) else Double.NaN
+        }.takeIf { it.size == path.size && it.all { value -> value.isFinite() } }
+        return NavigationRoute(path, distance, duration, steps, elevationsMeters = altitudes)
     }
 }

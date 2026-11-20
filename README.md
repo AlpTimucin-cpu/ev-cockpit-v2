@@ -172,3 +172,7 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 
 ## M8.2 — Fiziksel enerji tahmini
 - Saf Kotlin PhysicsConsumptionModel, aerodinamik/yuvarlanma/eğim/kapalı-oto-ısıtma/yardımcı yük, negatif eğimde sınırlı rejen, düşük hızda duruş süresi, soğuk çarpan ve belirsizlik bandı. Rüzgâr ve ivmelenme v1'de yok. Parametreler kaynaklı ve araç DOĞRULANMADI.
+
+## M8.3 — Rota/eğim/hız
+- ORS Directions GeoJSON elevation=true; 3D yükseklik varsa öncelik, yoksa kullanıcı plan isteğiyle Open-Meteo Elevation (100 koordinat/istek, en çok 3 istek). 400m örnekleme en fazla 4000 nokta, DEM seyrek arası enterpolasyon; eğim yoksa EĞİM VERİSİ YOK uyarısı, asla doğrulanmış diye sıfır eğim sunulmaz. GPS/rotada gerçek test DOĞRULANMADI.
+- Sağlayıcı ortalama hızı baz alır; yol sınıfı/satır bazlı hız yoksa kanıtsız Türkiye hız limiti uygulanmaz.

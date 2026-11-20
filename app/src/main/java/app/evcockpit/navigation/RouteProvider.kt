@@ -19,6 +19,7 @@ data class NavigationRoute(
     val durationSeconds: Double,
     val maneuvers: List<RouteManeuver>,
     val provider: String = "openrouteservice",
+    val elevationsMeters: List<Double>? = null,
 )
 
 /** API key is user-supplied at runtime; never a build-time constant. */
