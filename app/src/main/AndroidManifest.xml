@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <queries>
+        <package android:name="me.app.fermataX.auto.mola" />
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
