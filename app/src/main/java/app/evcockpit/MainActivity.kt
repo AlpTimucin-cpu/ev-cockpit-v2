@@ -56,6 +56,7 @@ import app.evcockpit.ui.RouteSettingsScreen
 import app.evcockpit.ui.CockpitTheme
 import app.evcockpit.ui.CockpitTabs
 import app.evcockpit.ui.DisplayPreferences
+import app.evcockpit.ui.rememberGpsFreshness
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -105,6 +106,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     val devices by vm.devices.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val gps by vm.gps.collectAsStateWithLifecycle()
+    val gpsFresh = rememberGpsFreshness(gps)
     val navState by navVm.state.collectAsStateWithLifecycle()
     val weatherProvider = remember { OpenMeteoRouteWeather() }
     var weatherSummary by remember { mutableStateOf("Hava: rota hesaplanmadı") }
@@ -245,7 +247,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 speedKmh = SpeedSelector.select(
                     obdConnected = state.connected, demo = state.demo,
                     obdKmh = state.speedKmh, gpsKmh = gps.speedKmh,
-                    gpsFresh = gps.isFresh(android.os.SystemClock.elapsedRealtime())).kmh,
+                    gpsFresh = gpsFresh).kmh,
                 onSelectDestination = navVm::selectDestination,
             )
             else -> RouteSettingsScreen(
