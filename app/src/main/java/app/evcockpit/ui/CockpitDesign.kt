@@ -49,7 +49,7 @@ object CockpitLayoutPolicy {
         else String.format(java.util.Locale.ROOT, "%.0f", kmh)
 
     val tabLabels: List<String> = listOf(
-        "Gösterge", "OBD Test", "Rota", "Plan", "Yolcu video", "Ayarlar"
+        "Gösterge", "OBD Test", "Rota", "Plan", "Yolcu video", "Ayarlar", "Radyo / IPTV"
     )
 }
 
