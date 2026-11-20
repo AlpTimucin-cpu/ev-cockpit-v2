@@ -169,3 +169,6 @@ Kotlin + Jetpack Compose ile bağımsız Android uygulaması. Mola/Fermata kodu 
 
 ## M8.1 — kaynaklı araç profili
 - Saf Kotlin VehicleProfile, ModelParameters; her değer source, verified ve note taşır; tüm araç varsayımları false. Profil DataStore JSON kaydı/reset API'si hazır, düzenleme paneli M8.6. Doğrulama defteri: [docs/M8_DOGRULAMA.md](docs/M8_DOGRULAMA.md). Cihaz ve araç DOĞRULANMADI.
+
+## M8.2 — Fiziksel enerji tahmini
+- Saf Kotlin PhysicsConsumptionModel, aerodinamik/yuvarlanma/eğim/kapalı-oto-ısıtma/yardımcı yük, negatif eğimde sınırlı rejen, düşük hızda duruş süresi, soğuk çarpan ve belirsizlik bandı. Rüzgâr ve ivmelenme v1'de yok. Parametreler kaynaklı ve araç DOĞRULANMADI.

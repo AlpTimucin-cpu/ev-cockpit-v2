@@ -8,6 +8,13 @@ data class ModelParameters(
     val kelvinOffset: SourcedValue = SourcedValue(273.15,"SI Celsius-Kelvin definition",true),
     val optimisticFactor: SourcedValue = SourcedValue(0.90,"M8 master uncertainty",false),
     val pessimisticFactor: SourcedValue = SourcedValue(1.15,"M8 master uncertainty",false),
+    val coldDrivingFactor: SourcedCurve = SourcedCurve(
+        listOf(CurvePoint(-20.0,1.25),CurvePoint(-5.0,1.15),
+            CurvePoint(20.0,1.0),CurvePoint(40.0,1.0)),
+        "M8 low temperature battery loss scenario", false, "TAHMİN"),
+    val metersPerKm: SourcedValue = SourcedValue(1000.0,"SI units",true),
+    val secondsPerHour: SourcedValue = SourcedValue(3600.0,"SI units",true),
+    val wattsPerKw: SourcedValue = SourcedValue(1000.0,"SI units",true),
     val minSpeedKmh: SourcedValue = SourcedValue(5.0,"M8 master low speed",false),
     val initialSoc: SourcedValue = SourcedValue(70.0,"User default",false),
     val minArrivalSoc: SourcedValue = SourcedValue(10.0,"M8 master",false),
