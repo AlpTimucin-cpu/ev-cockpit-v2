@@ -19,7 +19,7 @@ object CustomChargerCodec {
                 .put("kw",it.powerKw.value))
         }
     }.toString()
-    fun decode(raw:String?):List<ChargerCandidate>=runCatching {
+    fun decode(raw:String?):List<ChargerCandidate> = runCatching {
         val a=JSONArray(raw ?: "[]")
         (0 until minOf(30,a.length())).map { index ->
             val o=a.getJSONObject(index)
