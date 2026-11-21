@@ -241,7 +241,8 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 molaInstalled = molaState.status == MolaStatus.READY ||
                     molaState.status == MolaStatus.CANNOT_LAUNCH,
                 guidance = DashboardGuidancePolicy.evaluate(
-                    state, socReading, gps, gpsFresh, navState, planUi.plan),
+                    state, socReading, gps, gpsFresh, navState,
+                    planUi.plan.takeIf { planUi.route == navState.route }),
                 onGuidanceAction = { action ->
                     if (drive.mode != DriveMode.DRIVING) when (action) {
                         GuidanceAction.NONE -> Unit
