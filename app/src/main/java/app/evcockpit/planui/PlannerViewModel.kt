@@ -166,6 +166,7 @@ class PlannerViewModel(application:Application):AndroidViewModel(application) {
         val selected=navigation ?:return
         val socPct=soc.pct ?:return
         val vehicle=options.applyTo(car)
+        val curveEvidence=ChargingCurveConsistency.warnings(vehicle)
         if(vehicle.validate().isNotEmpty()) {
             mutable.value=PlannerUiState(stage=PlannerStage.FAILURE,
                 message="Araç profili hatalı. Ayarlar > Araç profili alanını kontrol et.")
@@ -212,7 +213,8 @@ class PlannerViewModel(application:Application):AndroidViewModel(application) {
                     timed.result.reason else PlannerGuard.label(stage)
                 mutable.value=mutable.value.copy(stage=stage,message=message,plan=timed.result,
                     alternatives=alternatives,request=request,solverElapsedMs=timed.elapsedMs,
-                    warning="TAHMİN — "+sampled.slopeWarning+"; "+found.status)
+                    warning=(listOf("TAHMİN — "+sampled.slopeWarning,found.status) +
+                        curveEvidence).joinToString(" • "))
             } catch(cancel:CancellationException) {
                 mutable.value=mutable.value.copy(stage=PlannerStage.CANCELLED,
                     message=PlannerGuard.label(PlannerStage.CANCELLED))
