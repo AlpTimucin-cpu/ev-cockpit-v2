@@ -6,6 +6,16 @@ import java.util.Locale
 
 /** Coordinate-free text for planner UI. Never add GPS or API response bodies here. */
 object PlannerDisplay {
+    /** Model-based arrival energy. Not a vehicle BMS reading. */
+    fun arrivalKwh(plan:PlanResult.Success,capacityAtSohKwh:Double):Double {
+        require(capacityAtSohKwh.isFinite() && capacityAtSohKwh>0.0)
+        return capacityAtSohKwh * plan.arrivalSocPct.coerceIn(0,100) / 100.0
+    }
+    fun totalTimeLabel(plan:PlanResult.Success):String =
+        "%.0f dk".format(Locale.US,plan.physicalMinutes)
+    fun chargingTimeLabel(plan:PlanResult.Success):String =
+        "%.0f dk".format(Locale.US,plan.chargingMinutes)
+
     fun uncertainty(p:PlanResult.Success):String =
         "Varış ~%"+p.arrivalSocPct+" (iyimser ~%"+
             ("%.0f".format(Locale.US,p.optimisticArrivalSocPct))+
