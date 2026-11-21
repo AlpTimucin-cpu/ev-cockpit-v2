@@ -16,9 +16,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -41,13 +46,14 @@ fun ObdTestScreen(
     onConnect: (BluetoothDevice) -> Unit,
     onDiagnose: () -> Unit,
     onShareDiagnosis: () -> Unit,
-    onExportTestReport: () -> Unit,
+    onExportTestReport: (String) -> Unit,
     onDemo: () -> Unit,
     onStop: () -> Unit,
     onShareLog: () -> Unit,
     onOpenBluetoothSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var carScannerNote by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     LaunchedEffect(log.size) { if (log.isNotEmpty()) listState.scrollToItem(log.lastIndex) }
 
@@ -100,7 +106,13 @@ fun ObdTestScreen(
             OutlinedButton(onClick = onShareLog, modifier = Modifier.fillMaxWidth()) {
                 Text("OBD logunu paylaş")
             }
-            Button(onClick = onExportTestReport, modifier = Modifier.fillMaxWidth()) {
+            Text("Car Scanner karşılaştırması (isteğe bağlı, elle girilir)", fontSize = 13.sp)
+            Text("Aynı adaptörle okunan protokol/010D/SoC değerlerini not et. VIN, konum, MAC veya API anahtarı yazma.", fontSize = 11.sp)
+            OutlinedTextField(value = carScannerNote,
+                onValueChange = { carScannerNote = it.take(600) },
+                modifier = Modifier.fillMaxWidth(), maxLines = 5,
+                label = { Text("Car Scanner gözlem notu (maks. 600 karakter)") })
+            Button(onClick = { onExportTestReport(carScannerNote) }, modifier = Modifier.fillMaxWidth()) {
                 Text("Güvenli test raporunu dışa aktar")
             }
             Text("Test raporunda API anahtarı, koordinat ve VIN gizlenir.", fontSize = 12.sp)
