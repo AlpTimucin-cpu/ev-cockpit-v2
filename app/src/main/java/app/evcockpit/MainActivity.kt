@@ -54,6 +54,7 @@ import app.evcockpit.ui.tesla.TeslaDashboardScreen
 import app.evcockpit.ui.tesla.TeslaAction
 import app.evcockpit.ui.tesla.DriveMode
 import app.evcockpit.ui.tesla.DriveModeViewModel
+import app.evcockpit.ui.tesla.DriveModePolicy
 import app.evcockpit.ui.tesla.SafeSocSelection
 import app.evcockpit.storage.VehicleProfileStore
 import app.evcockpit.planner.model.VehicleProfile
@@ -155,9 +156,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     var tab by remember { mutableIntStateOf(0) }
     LaunchedEffect(openRequest.generation) {
         openRequest.tab?.let { requested ->
-            if (drive.mode != DriveMode.DRIVING || requested !in setOf(3,4,5)) {
-                if (requested != 4 || drive.allowComplexActions) tab = requested
-            }
+            if (DriveModePolicy.allowedTab(requested, drive.mode)) tab = requested
         }
     }
     LaunchedEffect(drive.mode, tab) {
@@ -198,9 +197,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
         .windowInsetsPadding(WindowInsets.safeDrawing)) {
         if (tab != 0) CockpitTabs(selected = tab, onSelect = { selected ->
-            if (drive.mode != DriveMode.DRIVING || selected !in setOf(3,4,5)) {
-                if (selected != 4 || drive.allowComplexActions) tab = selected
-            }
+            if (DriveModePolicy.allowedTab(selected, drive.mode)) tab = selected
         })
         when (tab) {
             0 -> TeslaDashboardScreen(
