@@ -16,6 +16,7 @@ import java.util.TimeZone
 object DashboardPresentation {
     fun source(label: String): SourceKind = when {
         label.startsWith("OBD", ignoreCase = true) -> SourceKind.OBD
+        label.startsWith("GPS", ignoreCase = true) -> SourceKind.GPS
         label.startsWith("MANUEL", ignoreCase = true) -> SourceKind.MANUEL
         label.startsWith("DEMO", ignoreCase = true) -> SourceKind.DEMO
         label.startsWith("ESKİ", ignoreCase = true) -> SourceKind.ESKI
@@ -42,6 +43,7 @@ object DashboardPresentation {
             // Do not invent a range without a validated ConsumptionModel output.
             estimatedRangeKm = null,
             source = source,
+            speedSource = source(speed.source),
             status = if (pct == null) PanelStatus.EMPTY else PanelStatus.NORMAL,
             message = when {
                 state.demo -> "DEMO • Gerçek araç verisi değil"
