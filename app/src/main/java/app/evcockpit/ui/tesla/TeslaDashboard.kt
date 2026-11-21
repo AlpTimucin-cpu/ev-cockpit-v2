@@ -96,6 +96,7 @@ fun ActionRail(
     onAction: (TeslaAction) -> Unit,
     molaAvailable: Boolean = false,
     videoAllowed: Boolean = true,
+    complexAllowed: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -104,9 +105,10 @@ fun ActionRail(
     ) {
         TeslaAction.entries.forEach { action ->
             val enabled = when (action) {
-                TeslaAction.MOLA -> molaAvailable
+                TeslaAction.ROTA -> true
+                TeslaAction.MOLA -> molaAvailable && complexAllowed
                 TeslaAction.VIDEO -> videoAllowed
-                else -> true
+                else -> complexAllowed
             }
             OutlinedButton(
                 onClick = { onAction(action) },
@@ -271,25 +273,34 @@ fun TeslaDashboardScreen(
     gpsFresh: Boolean,
     navigation: RouteUiState,
     plan: PlanResult.Success?,
+    driveMode: DriveModeSnapshot,
     weatherSummary: String,
     onSelectDestination: (GeoPoint) -> Unit,
     onAction: (TeslaAction) -> Unit,
 ) {
     val speed = SpeedSelector.select(
-        obdConnected = s.connected, demo = s.demo, obdKmh = s.speedKmh,
+        obdConnected = s.connected && driveMode.obdSpeedFresh, demo = s.demo, obdKmh = s.speedKmh,
         gpsKmh = gps.speedKmh, gpsFresh = gpsFresh,
     )
-    val panel = DashboardPresentation.vehicle(s, soc, speed, usableKwhAtSoh)
+    val panel = DashboardPresentation.vehicle(s, soc, speed, usableKwhAtSoh,
+        powerFresh = driveMode.obdPowerFresh)
     DriveModeScaffold(
         left = {
-            VehicleStatePanel(panel, Modifier.fillMaxWidth(), compact = true)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(driveMode.label, color = if (driveMode.mode == DriveMode.DRIVING)
+                    TeslaTokens.warning else TeslaTokens.secondaryText,
+                    style = MaterialTheme.typography.labelMedium)
+                VehicleStatePanel(panel, Modifier.fillMaxWidth(), compact = true)
+            }
         },
         center = {
             MapHero(navigation.route, navigation.destination, gps, gpsFresh,
                 plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize())
         },
         right = {
-            ActionRail(onAction, molaAvailable = false, videoAllowed = true,
+            ActionRail(onAction, molaAvailable = false,
+                videoAllowed = driveMode.allowComplexActions,
+                complexAllowed = driveMode.allowComplexActions,
                 modifier = Modifier.fillMaxWidth())
         },
     )
