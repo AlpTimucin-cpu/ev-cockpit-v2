@@ -40,7 +40,6 @@ import app.evcockpit.obd.SafeTestReportExporter
 import app.evcockpit.obd.ObdViewModel
 import app.evcockpit.obd.ManualSocStore
 import app.evcockpit.obd.SocSelector
-import app.evcockpit.obd.PidTable
 import app.evcockpit.navigation.NavigationViewModel
 import app.evcockpit.weather.OpenMeteoRouteWeather
 import app.evcockpit.weather.OpenMeteoWeatherLogic
@@ -52,7 +51,11 @@ import app.evcockpit.ui.PassengerVideoScreen
 import app.evcockpit.ui.RouteScreen
 import app.evcockpit.ui.PlannerScreen
 import app.evcockpit.planui.PlannerViewModel
-import app.evcockpit.ui.DashboardScreen
+import app.evcockpit.ui.tesla.TeslaDashboardScreen
+import app.evcockpit.ui.tesla.TeslaAction
+import app.evcockpit.storage.VehicleProfileStore
+import app.evcockpit.planner.model.VehicleProfile
+import app.evcockpit.planner.model.PlanResult
 import app.evcockpit.ui.ObdTestScreen
 import app.evcockpit.ui.RouteSettingsScreen
 import app.evcockpit.ui.CockpitTheme
@@ -115,7 +118,10 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     darkTheme: Boolean, keepScreenOn: Boolean,
     openRequest: ExternalOpenRequest) {
     val context = LocalContext.current
-    val cfg = remember { PidTable.load(context) }
+    val vehicleProfileStore = remember(context) { VehicleProfileStore(context.applicationContext) }
+    val vehicleProfile by vehicleProfileStore.profile.collectAsStateWithLifecycle(
+        initialValue = VehicleProfile.defaults())
+    val planUi by plannerModel.state.collectAsStateWithLifecycle()
     val manualStore = remember(context) { ManualSocStore(context.applicationContext) }
     val manualSoc by manualStore.socPct.collectAsStateWithLifecycle(initialValue = null)
     val saveScope = rememberCoroutineScope()
@@ -175,12 +181,29 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
         .windowInsetsPadding(WindowInsets.safeDrawing)) {
-        CockpitTabs(selected = tab, onSelect = { tab = it })
+        if (tab != 0) CockpitTabs(selected = tab, onSelect = { tab = it })
         when (tab) {
-            0 -> DashboardScreen(
-                s = state, soc = socReading, usableKwh = cfg.usableKwh, gps = gps,
-                navigation = navState, weatherSummary = weatherSummary,
+            0 -> TeslaDashboardScreen(
+                s = state,
+                soc = socReading,
+                usableKwhAtSoh = vehicleProfile.capacityAtSohKwh,
+                gps = gps,
+                gpsFresh = gpsFresh,
+                navigation = navState,
+                plan = (planUi.plan as? PlanResult.Success).takeIf {
+                    planUi.route == navState.route
+                },
+                weatherSummary = weatherSummary,
                 onSelectDestination = navVm::selectDestination,
+                onAction = { action ->
+                    when (action) {
+                        TeslaAction.ROTA -> tab = 2
+                        TeslaAction.PLAN -> tab = 3
+                        TeslaAction.MEDYA, TeslaAction.VIDEO -> tab = 4
+                        TeslaAction.MOLA -> Unit // disabled until official API in UI-4
+                        TeslaAction.AYARLAR -> tab = 5
+                    }
+                },
             )
             1 -> ObdTestScreen(
                 state = state,
