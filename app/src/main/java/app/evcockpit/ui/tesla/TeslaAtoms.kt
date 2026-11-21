@@ -288,3 +288,33 @@ private fun VehiclePanelErrorPreview() {
         }
     }
 }
+
+@Preview(name = "Güç - rejenerasyon", widthDp = 420, heightDp = 160, showBackground = true)
+@Composable
+private fun PowerRegenPreview() {
+    CockpitTheme(dark = true) {
+        Box(Modifier.background(TeslaTokens.background).padding(16.dp)) {
+            PowerBar(-35.0)
+        }
+    }
+}
+
+@Preview(name = "Batarya - veri yok", widthDp = 420, heightDp = 220, showBackground = true)
+@Composable
+private fun SocUnknownPreview() {
+    CockpitTheme(dark = true) {
+        Box(Modifier.background(TeslaTokens.background).padding(16.dp)) {
+            SocGauge(null, null)
+        }
+    }
+}
+
+@Preview(name = "Kaynak - eski", widthDp = 300, heightDp = 100, showBackground = true)
+@Composable
+private fun StaleBadgePreview() {
+    CockpitTheme(dark = true) {
+        Box(Modifier.background(TeslaTokens.background).padding(16.dp)) {
+            SourceBadge(SourceKind.ESKI)
+        }
+    }
+}
