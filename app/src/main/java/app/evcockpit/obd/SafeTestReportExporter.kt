@@ -2,6 +2,7 @@ package app.evcockpit.obd
 
 import android.Manifest
 import app.evcockpit.diagnostics.CrashLog
+import app.evcockpit.ui.DeviceCompatibilityDiagnostics
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -38,6 +39,7 @@ object SafeTestReportText {
         diagnosisSummary: String,
         lastObdLogLines: List<String>,
         lastCrashRecord: String? = null,
+        compatibilityReport: String? = null,
     ): String = buildString {
         appendLine("ID.4 YOL ARKADAŞI — GÜVENLİ TEST RAPORU")
         appendLine("Saha doğrulaması kullanıcı ham kanıtına bağlıdır; rapor bir başarı sertifikası değildir.")
@@ -49,6 +51,10 @@ object SafeTestReportText {
         else lastCrashRecord.lines().take(12).forEach { appendLine(sanitizeLine(it)) }
         appendLine("İzinler:")
         permissionStatuses.forEach { appendLine("- " + sanitizeLine(it)) }
+        appendLine("Sistem uyumluluk tanısı (yerel; araç sonucu değildir):")
+        compatibilityReport?.lines()?.take(35)?.forEach {
+            appendLine(sanitizeLine(it))
+        } ?: appendLine("KONTROL EDİLMEDİ / DOĞRULANMADI")
         appendLine("Son Tanı özeti:")
         diagnosisSummary.lines().take(12).forEach { appendLine(sanitizeLine(it)) }
         appendLine("Son 200 OBD log satırı (hassas alanlar gizlendi):")
@@ -87,6 +93,7 @@ object SafeTestReportExporter {
             diagnosisSummary = diagnosisSummary,
             lastObdLogLines = obdLogLines,
             lastCrashRecord = CrashLog.lastRecord(context),
+            compatibilityReport = DeviceCompatibilityDiagnostics.capture(context).safeReport(),
         )
         val directory = context.getExternalFilesDir(null) ?: context.filesDir
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())

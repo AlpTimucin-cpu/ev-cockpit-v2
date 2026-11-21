@@ -38,4 +38,17 @@ class SafeTestReportTextTest {
         assertFalse(report.contains("FORBIDDEN"))
         assertFalse(report.contains("38.267123"))
     }
+
+    @Test fun systemCompatibilityIsIncludedWithSanitization() {
+        val report = SafeTestReportText.build(
+            appVersion = "0.3.21", androidVersion = "17", deviceModel = "Test",
+            permissionStatuses = emptyList(), diagnosisSummary = "DOĞRULANMADI",
+            lastObdLogLines = emptyList(),
+            compatibilityReport = "Android: 17 (API 37)\nWebView sürümü: 140\nVIN: DO_NOT_LEAK",
+        )
+        assertTrue(report.contains("Sistem uyumluluk tanısı"))
+        assertTrue(report.contains("WebView sürümü: 140"))
+        assertFalse(report.contains("DO_NOT_LEAK"))
+        assertTrue(report.contains("[HASSAS SATIR GİZLENDİ]"))
+    }
 }

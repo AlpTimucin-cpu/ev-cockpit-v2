@@ -58,6 +58,7 @@ fun ObdTestScreen(
         ) {
             Text("OBD bağlantı testi", fontSize = 18.sp)
             Text(state.statusText, fontSize = 14.sp)
+            SystemCompatibilityPanel()
             Text("ELM327 / ECU veri güveni", fontSize = 14.sp)
             ObdEvidence.describe(state.connected,state.demo,state.socPct,state.speedKmh)
                 .forEach { text ->
