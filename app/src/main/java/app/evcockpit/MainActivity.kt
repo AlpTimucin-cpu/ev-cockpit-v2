@@ -39,7 +39,6 @@ import app.evcockpit.obd.ObdLogShare
 import app.evcockpit.obd.SafeTestReportExporter
 import app.evcockpit.obd.ObdViewModel
 import app.evcockpit.obd.ManualSocStore
-import app.evcockpit.obd.SocSelector
 import app.evcockpit.navigation.NavigationViewModel
 import app.evcockpit.weather.OpenMeteoRouteWeather
 import app.evcockpit.weather.OpenMeteoWeatherLogic
@@ -53,6 +52,10 @@ import app.evcockpit.ui.PlannerScreen
 import app.evcockpit.planui.PlannerViewModel
 import app.evcockpit.ui.tesla.TeslaDashboardScreen
 import app.evcockpit.ui.tesla.TeslaAction
+import app.evcockpit.ui.tesla.DriveMode
+import app.evcockpit.ui.tesla.DriveModeViewModel
+import app.evcockpit.ui.tesla.DriveModePolicy
+import app.evcockpit.ui.tesla.SafeSocSelection
 import app.evcockpit.storage.VehicleProfileStore
 import app.evcockpit.planner.model.VehicleProfile
 import app.evcockpit.planner.model.PlanResult
@@ -61,7 +64,6 @@ import app.evcockpit.ui.RouteSettingsScreen
 import app.evcockpit.ui.CockpitTheme
 import app.evcockpit.ui.CockpitTabs
 import app.evcockpit.ui.DisplayPreferences
-import app.evcockpit.ui.rememberGpsFreshness
 import kotlinx.coroutines.launch
 
 private data class ExternalOpenRequest(val generation: Int = 0, val tab: Int? = null)
@@ -104,8 +106,9 @@ class MainActivity : ComponentActivity() {
                 val navViewModel: NavigationViewModel = viewModel()
                 val passengerModel: PassengerPlayerModel = viewModel()
                 val plannerModel: PlannerViewModel = viewModel()
+                val driveModel: DriveModeViewModel = viewModel()
                 App(obdViewModel, navViewModel, passengerModel, plannerModel,
-                    displayPreferences, darkTheme, keepScreenOn, openRequest)
+                    driveModel, displayPreferences, darkTheme, keepScreenOn, openRequest)
             }
         }
     }
@@ -114,6 +117,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     passengerModel: PassengerPlayerModel, plannerModel: PlannerViewModel,
+    driveModel: DriveModeViewModel,
     displayPreferences: DisplayPreferences,
     darkTheme: Boolean, keepScreenOn: Boolean,
     openRequest: ExternalOpenRequest) {
@@ -126,7 +130,8 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     val manualSoc by manualStore.socPct.collectAsStateWithLifecycle(initialValue = null)
     val saveScope = rememberCoroutineScope()
     val state by vm.state.collectAsStateWithLifecycle()
-    val socReading = SocSelector.select(state.connected, state.demo, state.socPct, manualSoc)
+    val drive by driveModel.state.collectAsStateWithLifecycle()
+    val socReading = SafeSocSelection.select(state, manualSoc, drive)
     val logs by vm.log.collectAsStateWithLifecycle()
     val logPath by vm.logFilePath.collectAsStateWithLifecycle()
     val diagnosisPath by vm.diagnosisFilePath.collectAsStateWithLifecycle()
@@ -134,7 +139,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     val devices by vm.devices.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val gps by vm.gps.collectAsStateWithLifecycle()
-    val gpsFresh = rememberGpsFreshness(gps)
+    val gpsFresh = drive.gpsFresh
     val navState by navVm.state.collectAsStateWithLifecycle()
     val weatherProvider = remember { OpenMeteoRouteWeather() }
     var weatherSummary by remember { mutableStateOf("Hava: rota hesaplanmadı") }
@@ -150,7 +155,17 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     var shareError by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableIntStateOf(0) }
     LaunchedEffect(openRequest.generation) {
-        openRequest.tab?.let { tab = it }
+        openRequest.tab?.let { requested ->
+            if (DriveModePolicy.allowedTab(requested, drive.mode)) tab = requested
+        }
+    }
+    LaunchedEffect(drive.mode, tab) {
+        val mustClose = (drive.mode == DriveMode.DRIVING && tab in setOf(3,4,5)) ||
+            (drive.mode != DriveMode.PARKED && tab == 4)
+        if (mustClose) {
+            passengerModel.pause()
+            tab = 0
+        }
     }
 
     val permissions = remember {
@@ -181,7 +196,9 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
         .windowInsetsPadding(WindowInsets.safeDrawing)) {
-        if (tab != 0) CockpitTabs(selected = tab, onSelect = { tab = it })
+        if (tab != 0) CockpitTabs(selected = tab, onSelect = { selected ->
+            if (DriveModePolicy.allowedTab(selected, drive.mode)) tab = selected
+        })
         when (tab) {
             0 -> TeslaDashboardScreen(
                 s = state,
@@ -193,6 +210,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 plan = (planUi.plan as? PlanResult.Success).takeIf {
                     planUi.route == navState.route
                 },
+                driveMode = drive,
                 weatherSummary = weatherSummary,
                 onSelectDestination = navVm::selectDestination,
                 onAction = { action ->
@@ -293,7 +311,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 route = navState.route,
                 destination = navState.destination,
                 speedKmh = SpeedSelector.select(
-                    obdConnected = state.connected, demo = state.demo,
+                    obdConnected = state.connected && drive.obdSpeedFresh, demo = state.demo,
                     obdKmh = state.speedKmh, gpsKmh = gps.speedKmh,
                     gpsFresh = gpsFresh).kmh,
                 onSelectDestination = navVm::selectDestination,

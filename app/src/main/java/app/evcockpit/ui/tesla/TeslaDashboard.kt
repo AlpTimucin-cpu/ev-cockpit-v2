@@ -95,7 +95,7 @@ fun DriveModeScaffold(
 fun ActionRail(
     onAction: (TeslaAction) -> Unit,
     molaAvailable: Boolean = false,
-    videoAllowed: Boolean = true,
+    mode: DriveMode = DriveMode.UNKNOWN,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -103,11 +103,7 @@ fun ActionRail(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         TeslaAction.entries.forEach { action ->
-            val enabled = when (action) {
-                TeslaAction.MOLA -> molaAvailable
-                TeslaAction.VIDEO -> videoAllowed
-                else -> true
-            }
+            val enabled = DriveModePolicy.allowedAction(action, mode, molaAvailable)
             OutlinedButton(
                 onClick = { onAction(action) },
                 enabled = enabled,
@@ -117,7 +113,7 @@ fun ActionRail(
                         contentDescription = action.title + when {
                             action == TeslaAction.MOLA && !molaAvailable ->
                                 " • bağlantı UI-4 aşamasında"
-                            action == TeslaAction.VIDEO && !videoAllowed ->
+                            action == TeslaAction.VIDEO && mode != DriveMode.PARKED ->
                                 " • sürüşte kapalı"
                             else -> ""
                         }
@@ -271,25 +267,34 @@ fun TeslaDashboardScreen(
     gpsFresh: Boolean,
     navigation: RouteUiState,
     plan: PlanResult.Success?,
+    driveMode: DriveModeSnapshot,
     weatherSummary: String,
     onSelectDestination: (GeoPoint) -> Unit,
     onAction: (TeslaAction) -> Unit,
 ) {
     val speed = SpeedSelector.select(
-        obdConnected = s.connected, demo = s.demo, obdKmh = s.speedKmh,
+        obdConnected = s.connected && driveMode.obdSpeedFresh, demo = s.demo, obdKmh = s.speedKmh,
         gpsKmh = gps.speedKmh, gpsFresh = gpsFresh,
     )
-    val panel = DashboardPresentation.vehicle(s, soc, speed, usableKwhAtSoh)
+    val panel = DashboardPresentation.vehicle(s, soc, speed, usableKwhAtSoh,
+        powerFresh = driveMode.obdPowerFresh)
     DriveModeScaffold(
         left = {
-            VehicleStatePanel(panel, Modifier.fillMaxWidth(), compact = true)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(driveMode.label, color = if (driveMode.mode == DriveMode.DRIVING)
+                    TeslaTokens.warning else TeslaTokens.secondaryText,
+                    style = MaterialTheme.typography.labelMedium)
+                VehicleStatePanel(panel, Modifier.fillMaxWidth(),
+                    compact = driveMode.mode != DriveMode.DRIVING)
+            }
         },
         center = {
             MapHero(navigation.route, navigation.destination, gps, gpsFresh,
                 plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize())
         },
         right = {
-            ActionRail(onAction, molaAvailable = false, videoAllowed = true,
+            ActionRail(onAction, molaAvailable = false,
+                mode = driveMode.mode,
                 modifier = Modifier.fillMaxWidth())
         },
     )
