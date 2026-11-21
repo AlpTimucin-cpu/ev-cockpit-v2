@@ -41,6 +41,7 @@ import app.evcockpit.navigation.GeoPoint
 import app.evcockpit.navigation.NavigationRoute
 import app.evcockpit.location.GpsSnapshot
 import app.evcockpit.navigation.RouteProgress
+import app.evcockpit.ui.tesla.RoutePolylineProgress
 
 /**
  * MapLibre Native + OpenFreeMap public online tiles. No offline tile download.
@@ -81,7 +82,7 @@ fun OnlineMap(
                     }
                     if(found!=null) { chosenStop.value(found);true } else false
                 }
-                map.setStyle("https://tiles.openfreemap.org/styles/liberty") {
+                map.setStyle("https://tiles.openfreemap.org/styles/dark") {
                     mapReady.value = map
                 }
                 map.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(39.0, 35.0), 5.2))
@@ -129,19 +130,37 @@ fun OnlineMap(
                 LatLng(focusedStop.latitude,focusedStop.longitude),12.0))
         }
     }
-    LaunchedEffect(loadedMap, route, destination, stopMarkers) {
+    val gpsFresh = rememberGpsFreshness(gps)
+    LaunchedEffect(loadedMap, route, destination, stopMarkers, gps.point, gpsFresh) {
         val currentMap = loadedMap ?: return@LaunchedEffect
         var currentLine: Polyline? = null
+        var passedLine: Polyline? = null
         var currentMarker: Marker? = null
         val chargingMarkers = mutableListOf<Marker>()
         try {
             if (route != null) {
-                currentLine = currentMap.addPolyline(
-                    PolylineOptions()
-                        .addAll(route.geometry.map { LatLng(it.latitude, it.longitude) })
-                        .color(android.graphics.Color.rgb(42, 160, 255))
-                        .width(5f),
-                )
+                val position = if (gpsFresh && gps.point != null)
+                    RouteProgress.locate(route, gps.point) else null
+                val progress = if (position != null && route.distanceMeters > 0.0)
+                    ((route.distanceMeters - position.remainingMeters) / route.distanceMeters)
+                        .coerceIn(0.0, 1.0) else 0.0
+                val parts = RoutePolylineProgress.split(route.geometry, progress)
+                if (parts.passed.size >= 2) {
+                    passedLine = currentMap.addPolyline(
+                        PolylineOptions()
+                            .addAll(parts.passed.map { LatLng(it.latitude, it.longitude) })
+                            .color(android.graphics.Color.rgb(100, 110, 117))
+                            .width(8f),
+                    )
+                }
+                if (parts.remaining.size >= 2) {
+                    currentLine = currentMap.addPolyline(
+                        PolylineOptions()
+                            .addAll(parts.remaining.map { LatLng(it.latitude, it.longitude) })
+                            .color(android.graphics.Color.rgb(61, 220, 132))
+                            .width(8f),
+                    )
+                }
             }
             if (destination != null) {
                 currentMarker = currentMap.addMarker(
@@ -168,12 +187,12 @@ fun OnlineMap(
             awaitCancellation()
         } finally {
             currentLine?.let { currentMap.removePolyline(it) }
+            passedLine?.let { currentMap.removePolyline(it) }
             currentMarker?.let { currentMap.removeMarker(it) }
             chargingMarkers.forEach { currentMap.removeMarker(it) }
         }
     }
 
-    val gpsFresh = rememberGpsFreshness(gps)
     val position = if (route != null && gpsFresh &&
         gps.point != null
     ) RouteProgress.locate(route, gps.point) else null
@@ -187,23 +206,23 @@ fun OnlineMap(
                 else -> "OpenFreeMap • hedef seçmek için haritaya uzun bas"
             },
             color = Color.White,
-            fontSize = 11.sp,
+            fontSize = 14.sp,
             modifier = Modifier.align(Alignment.TopStart)
                 .background(Color(0xC9000000)).padding(8.dp),
         )
         if (weatherSummary.isNotBlank()) {
-            Text(weatherSummary, color = Color.White, fontSize = 10.sp,
+            Text(weatherSummary, color = Color.White, fontSize = 14.sp,
                 modifier = Modifier.align(Alignment.TopEnd)
                     .background(Color(0xD9000000)).padding(6.dp))
         }
-        Text(MapAttribution.LABEL, color = Color.White, fontSize = 10.sp,
+        Text(MapAttribution.LABEL, color = Color.White, fontSize = 14.sp,
             modifier = Modifier.align(Alignment.BottomEnd)
                 .background(Color(0xDD000000)).padding(horizontal = 7.dp, vertical = 4.dp))
         if (maneuver != null) {
             Text(
                 "SONRAKİ MANEVRA • ${maneuver.instructionTr}\n" +
                     "Yaklaşık: ${position.distanceToManeuverMeters?.toInt() ?: "--"} m",
-                color = Color.White, fontSize = 12.sp,
+                color = Color.White, fontSize = 14.sp,
                 modifier = Modifier.align(Alignment.BottomStart)
                     .background(Color(0xD9000000)).padding(10.dp),
             )
