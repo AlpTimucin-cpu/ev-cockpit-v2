@@ -95,8 +95,7 @@ fun DriveModeScaffold(
 fun ActionRail(
     onAction: (TeslaAction) -> Unit,
     molaAvailable: Boolean = false,
-    videoAllowed: Boolean = true,
-    complexAllowed: Boolean = true,
+    mode: DriveMode = DriveMode.UNKNOWN,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -104,12 +103,7 @@ fun ActionRail(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         TeslaAction.entries.forEach { action ->
-            val enabled = when (action) {
-                TeslaAction.ROTA -> true
-                TeslaAction.MOLA -> molaAvailable && complexAllowed
-                TeslaAction.VIDEO -> videoAllowed
-                else -> complexAllowed
-            }
+            val enabled = DriveModePolicy.allowedAction(action, mode, molaAvailable)
             OutlinedButton(
                 onClick = { onAction(action) },
                 enabled = enabled,
@@ -119,7 +113,7 @@ fun ActionRail(
                         contentDescription = action.title + when {
                             action == TeslaAction.MOLA && !molaAvailable ->
                                 " • bağlantı UI-4 aşamasında"
-                            action == TeslaAction.VIDEO && !videoAllowed ->
+                            action == TeslaAction.VIDEO && mode != DriveMode.PARKED ->
                                 " • sürüşte kapalı"
                             else -> ""
                         }
@@ -299,8 +293,7 @@ fun TeslaDashboardScreen(
         },
         right = {
             ActionRail(onAction, molaAvailable = false,
-                videoAllowed = driveMode.allowComplexActions,
-                complexAllowed = driveMode.allowComplexActions,
+                mode = driveMode.mode,
                 modifier = Modifier.fillMaxWidth())
         },
     )
