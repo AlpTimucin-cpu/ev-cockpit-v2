@@ -84,7 +84,7 @@ val TeslaTypography = Typography(
 )
 
 enum class SourceKind(val label: String) {
-    OBD("OBD"), MANUEL("MANUEL"), DEMO("DEMO"), YOK("YOK"), ESKI("ESKİ")
+    OBD("OBD"), GPS("GPS"), MANUEL("MANUEL"), DEMO("DEMO"), YOK("YOK"), ESKI("ESKİ")
 }
 
 enum class PanelStatus {
