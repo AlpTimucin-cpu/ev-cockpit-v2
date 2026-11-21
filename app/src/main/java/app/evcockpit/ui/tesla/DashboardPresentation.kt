@@ -47,6 +47,7 @@ object DashboardPresentation {
                 state.demo -> "DEMO • Gerçek araç verisi değil"
                 source == SourceKind.OBD -> "OBD • PID ölçekleri DOĞRULANMADI"
                 source == SourceKind.MANUEL -> "MANUEL • SoC araç ekranından"
+                source == SourceKind.ESKI -> "ESKİ • OBD verisi 3 saniyeyi aştı; yenile"
                 else -> "OBD bağlı değil • Ayarlar'dan manuel SoC gir"
             },
         )
