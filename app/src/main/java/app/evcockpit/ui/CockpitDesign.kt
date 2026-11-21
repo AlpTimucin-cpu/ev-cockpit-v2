@@ -97,8 +97,10 @@ fun CockpitTabs(selected: Int, onSelect: (Int) -> Unit) {
                 Text(
                     "YOL ARKADAŞI",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 9.sp,
+                    fontSize = 14.sp,
                     letterSpacing = 0.7.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             Row(
@@ -117,7 +119,7 @@ fun CockpitTabs(selected: Int, onSelect: (Int) -> Unit) {
                         border = if (active) BorderStroke(
                             1.dp, MaterialTheme.colorScheme.primary
                         ) else null,
-                        modifier = Modifier.heightIn(min = 48.dp)
+                        modifier = Modifier.heightIn(min = 56.dp)
                             .semantics { contentDescription = "$title sekmesi" },
                     ) {
                         Box(
@@ -128,7 +130,7 @@ fun CockpitTabs(selected: Int, onSelect: (Int) -> Unit) {
                                 title,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
                             )
                         }
@@ -152,7 +154,7 @@ fun CockpitMetric(label: String, value: String, modifier: Modifier = Modifier) {
         ) {
             Text(
                 label,
-                fontSize = 10.sp,
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
