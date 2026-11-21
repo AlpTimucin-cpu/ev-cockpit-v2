@@ -19,6 +19,7 @@ object PlannerOptionsCodec {
         o.put("power",s.minStationKw);o.put("radius",s.searchRadiusMeters)
         o.put("maxStops",s.maxStops);o.put("ccs2",s.onlyTaggedCcs2)
         o.put("slow",s.allowSlowCharging);o.put("excluded",s.excludedNetworks)
+        o.put("preferred",s.preferredNetworks);o.put("bonus",s.preferenceBonusMinutes)
         s.destinationChargeKw?.let {o.put("destination",it)}
     }.toString()
     fun decode(raw:String?):PlannerOptions=runCatching {
@@ -39,6 +40,8 @@ object PlannerOptionsCodec {
             onlyTaggedCcs2=o.optBoolean("ccs2",d.onlyTaggedCcs2),
             allowSlowCharging=o.optBoolean("slow",d.allowSlowCharging),
             excludedNetworks=o.optString("excluded",""),
+            preferredNetworks=o.optString("preferred",""),
+            preferenceBonusMinutes=o.optDouble("bonus",2.0),
             destinationChargeKw=o.optDouble("destination",Double.NaN).takeIf{it.isFinite()}
         ).also{require(it.errors().isEmpty())}
     }.getOrElse{PlannerOptions()}
