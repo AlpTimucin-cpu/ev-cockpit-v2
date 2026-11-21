@@ -36,6 +36,18 @@ class DashboardPresentationTest {
         assertEquals(SourceKind.MANUEL,v.source)
         assertEquals("--",TeslaDisplayPolicy.speed(v.speedKmh))
     }
+    @Test fun gpsSpeedAndManualBatteryHaveDifferentTruthfulSources() {
+        val panel = DashboardPresentation.vehicle(
+            VehicleState(),
+            SocReading(50.0,"MANUEL — araç göstergesinden"),
+            SpeedReading(18.0,"GPS — yedek"),
+            52.0,
+        )
+        assertEquals(SourceKind.MANUEL,panel.source)
+        assertEquals(SourceKind.GPS,panel.speedSource)
+        assertEquals(18.0,panel.speedKmh!!,0.0)
+    }
+
     @Test fun missingSocAndInvalidCapacityAreNotInvented() {
         val v=DashboardPresentation.vehicle(VehicleState(),SocReading(null,"YOK"),
             SpeedReading(null,"YOK"),0.0)
