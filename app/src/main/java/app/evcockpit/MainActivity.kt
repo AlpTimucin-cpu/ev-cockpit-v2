@@ -193,14 +193,14 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 onRefresh = vm::refreshBonded,
                 onConnect = vm::connect,
                 onDiagnose = vm::diagnose,
-                onExportTestReport = {
+                onExportTestReport = { carScannerNote ->
                     shareError = null
                     val lastLogs = logs.takeLast(200)
                     val lastSummary = diagnosisSummary
                     saveScope.launch {
                         try {
                             val path = withContext(Dispatchers.IO) {
-                                SafeTestReportExporter.create(context, lastSummary, lastLogs)
+                                SafeTestReportExporter.create(context, lastSummary, lastLogs, carScannerNote)
                             }
                             ObdLogShare.launch(context, path)
                         } catch (error: Exception) {
