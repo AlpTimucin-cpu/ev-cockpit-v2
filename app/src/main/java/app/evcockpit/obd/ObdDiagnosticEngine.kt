@@ -107,7 +107,7 @@ class ObdDiagnosticEngine(
             record(command, "TIMEOUT", (System.nanoTime() - start) / 1_000_000L, true)
             try {
                 io.sendBreak()
-                val aligned = io.readUntilPrompt(1_500)
+                io.readUntilPrompt(1_500) // consume only; raw answer not logged
                 line("[RECOVERY] CR => ELM istemi geri alındı; ham veri gizli")
             } catch (_: Exception) {
                 throw ObdTimeoutException("ELM istem hizalanamadi; yeniden baglan")
@@ -159,7 +159,7 @@ class ObdDiagnosticEngine(
             standard = DiagnosticEvidence.hasMode01(pid00, "00")
             cmd("0120")
             cmd("0140")
-            cmd("0902", 6_000) // VIN may appear in raw diagnostic export: share deliberately.
+            cmd("0902", 6_000) // raw VIN response used in memory only; never persisted.
             speed = DiagnosticEvidence.hasMode01(cmd("010D"), "0D")
 
             group = "C standart CAN 11-bit"
