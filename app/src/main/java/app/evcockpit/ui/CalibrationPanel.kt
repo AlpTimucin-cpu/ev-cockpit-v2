@@ -24,7 +24,7 @@ fun CalibrationPanel(plan: PlanResult.Success, request: PlanRequest?) {
     val scope = rememberCoroutineScope()
     val journal = remember(context) { CalibrationJournalStore(context) }
     val records by journal.records.collectAsState(initial = emptyList())
-    val model = remember(request) { request?.let(ConsumptionCalibration::modelWhPer100Km) }
+    val model = remember(request) { request?.let(ConsumptionCalibration::modelKwhPer100Km) }
     var expanded by remember { mutableStateOf(false) }
     var consumptionText by remember(request) { mutableStateOf("") }
     var arrivalSocText by remember(request) { mutableStateOf("") }
@@ -56,12 +56,12 @@ fun CalibrationPanel(plan: PlanResult.Success, request: PlanRequest?) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth())
         OutlinedButton(onClick = {
-            val observedWh = consumptionText.replace(',','.').toDoubleOrNull()
+            val observedKwh = consumptionText.replace(',','.').toDoubleOrNull()
             val observedSoc = arrivalSocText.replace(',','.').toDoubleOrNull()
-            suggestion = if (model != null && observedWh != null && observedSoc != null &&
+            suggestion = if (model != null && observedKwh != null && observedSoc != null &&
                 request != null) runCatching {
                     ConsumptionCalibration.suggest(
-                        model, observedWh, plan.arrivalSocPct.toDouble(),
+                        model, observedKwh, plan.arrivalSocPct.toDouble(),
                         observedSoc, request.car.consumptionAdjust.value,
                     )
                 }.getOrNull() else null
@@ -88,8 +88,8 @@ fun CalibrationPanel(plan: PlanResult.Success, request: PlanRequest?) {
         if (records.isEmpty()) Text("Henüz gözlem yok — DOĞRULANMADI.")
         records.take(10).forEachIndexed { index, item ->
             Text(
-                "#${index + 1} Model " + format(item.modelWhPer100Km) +
-                ", gerçek " + format(item.actualWhPer100Km) + " kWh/100 km; " +
+                "#${index + 1} Model " + format(item.modelKwhPer100Km) +
+                ", gerçek " + format(item.actualKwhPer100Km) + " kWh/100 km; " +
                 "SoC " + format(item.plannedArrivalSoc) + "→" +
                 format(item.actualArrivalSoc) + "%; öneri " +
                 format(item.recommendedAdjustmentPercent) + "% • DOĞRULANMADI",
