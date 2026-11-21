@@ -5,6 +5,9 @@
         <!-- Package visibility only: no additional runtime or privileged permission. -->
         <package android:name="com.google.android.gms" />
         <package android:name="com.google.android.projection.gearhead" />
+        <!-- Only public package visibility; Mola binary, components and permissions untouched. -->
+        <package android:name="me.app.fermataX.auto.mola" />
+        <package android:name="me.app.fermataX.auto.mola.debug" />
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
