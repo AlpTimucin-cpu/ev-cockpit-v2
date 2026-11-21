@@ -196,7 +196,10 @@ class PlannerViewModel(application:Application):AndroidViewModel(application) {
                     hvac=options.hvac,minArrivalSoc=options.minArrivalSoc,
                     minStopSoc=options.minStopSoc,maxChargeSoc=options.maxChargeSoc,
                     maxStops=options.maxStops,allowSlowCharging=options.allowSlowCharging,
-                    onlyOsmTaggedCcs2=options.onlyTaggedCcs2,stationDataNote=found.status)
+                    onlyOsmTaggedCcs2=options.onlyTaggedCcs2,stationDataNote=found.status,
+                    preferredNetworks=app.evcockpit.planner.charging.PreferredNetworks.parse(
+                        options.preferredNetworks),
+                    preferenceBonusMinutes=options.preferenceBonusMinutes)
                 val timed=withContext(Dispatchers.Default) {
                     TimedPlanSolver().execute(request)
                 }

@@ -23,6 +23,7 @@ class PlanSolver(
         require(req.temperatureC.isFinite())
         require(req.minArrivalSoc in 0.0..100.0 && req.minStopSoc in 0.0..100.0)
         require(req.maxChargeSoc in 0.0..100.0 && req.maxStops in 0..8)
+        require(req.preferenceBonusMinutes.isFinite() && req.preferenceBonusMinutes in 0.0..5.0)
         val cap=req.car.capacityAtSohKwh
         require(cap>0 && cap.isFinite())
         val prefix=RouteEnergyPrefix(req.route,req.car,req.temperatureC,req.hvac)
@@ -53,7 +54,7 @@ class PlanSolver(
                 (!req.onlyOsmTaggedCcs2 || it.confidence==ChargerConfidence.OSM_TAGGED_CCS2) &&
                 (req.allowSlowCharging || it.powerKw.value>=parameters.minPreferredStationKw.value)
         }
-        val candidates=pruner.prune(rawCandidates,limit)
+        val candidates=pruner.prune(rawCandidates,limit,req.preferredNetworks)
         val nodes=listOf(Node(0.0,null))+candidates.map {Node(it.distanceAlongMeters,it)}+
             listOf(Node(limit,null))
         val end=nodes.lastIndex
@@ -80,7 +81,12 @@ class PlanSolver(
                         ChargerConfidence.PROBABLE_CCS2->parameters.probableStationPenaltyMinutes.value
                         ChargerConfidence.UNKNOWN->parameters.unknownStationPenaltyMinutes.value
                     }
-                    val costAtDeparture=current.cost+chargeMinutes+extraMinutes+riskMinutes
+                    val preferenceBonus=if(origin!=null &&
+                        PreferredNetworks.matches(origin.operator,req.preferredNetworks))
+                        req.preferenceBonusMinutes else 0.0
+                    // Preference changes ranking only; not physical travel or charge time.
+                    val costAtDeparture=current.cost+chargeMinutes+extraMinutes+riskMinutes-
+                        preferenceBonus
                     for(j in i+1..end) {
                         val threshold=if(j==end)req.minArrivalSoc else req.minStopSoc
                         val requiredPeak=prefix.maximumRequiredKwh(nodes[i].s,nodes[j].s)/cap*100.0

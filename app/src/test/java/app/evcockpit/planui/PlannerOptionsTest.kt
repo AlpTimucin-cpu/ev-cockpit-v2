@@ -22,6 +22,15 @@ class PlannerOptionsTest {
         assertTrue(PlannerOptions(maxCruiseKmh=Double.NaN).errors().isNotEmpty())
         assertTrue(PlannerOptions(searchRadiusMeters=20000).errors().isNotEmpty())
     }
+    @Test fun preferredNetworksCodecPreservesUserBonusAndRejectsOutOfRange() {
+        val option=PlannerOptions(preferredNetworks="Eşarj, ZES",
+            preferenceBonusMinutes=1.5, excludedNetworks="Diğer")
+        assertEquals(option, PlannerOptionsCodec.decode(PlannerOptionsCodec.encode(option)))
+        assertTrue(PlannerOptions(preferenceBonusMinutes=6.0).errors().isNotEmpty())
+        assertTrue(PlannerOptions(preferenceBonusMinutes=-1.0).errors().isNotEmpty())
+        assertTrue(PlannerOptions(preferredNetworks="x".repeat(251)).errors().isNotEmpty())
+    }
+
     @Test fun missingRouteSocAndDemoHaveActionableErrors() {
         assertTrue(PlannerGuard.reason(false,65.0,"MANUEL",PlannerOptions())!!.contains("Rota"))
         assertTrue(PlannerGuard.reason(true,null,"yok",PlannerOptions())!!.contains("SoC"))

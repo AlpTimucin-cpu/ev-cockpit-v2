@@ -13,6 +13,8 @@ data class PlannerOptions(
     val maxStops: Int=8, val onlyTaggedCcs2: Boolean=false,
     val allowSlowCharging: Boolean=false, val excludedNetworks: String="",
     val destinationChargeKw: Double?=null,
+    val preferredNetworks: String = "",
+    val preferenceBonusMinutes: Double = 2.0,
 ) {
     fun errors():List<String> = buildList {
         if(!minArrivalSoc.isFinite() || minArrivalSoc !in 0.0..100.0 ||
@@ -26,6 +28,9 @@ data class PlannerOptions(
         if(searchRadiusMeters !in 1000..10000) add("Yarıçap 1–10 km olmalı")
         if(maxStops !in 0..8) add("En çok 8 durak olmalı")
         if(excludedNetworks.length>250) add("Ağ listesi çok uzun")
+        if(preferredNetworks.length>250) add("Tercih edilen ağ listesi çok uzun")
+        if(!preferenceBonusMinutes.isFinite() || preferenceBonusMinutes !in 0.0..5.0)
+            add("Tercih bonusu 0–5 dk aralığında olmalı")
         if(destinationChargeKw!=null && (!destinationChargeKw.isFinite() ||
             destinationChargeKw !in 1.0..350.0)) add("Hedefte şarj 1–350 kW olmalı")
     }

@@ -19,6 +19,8 @@ data class PlanRequest(
     val allowSlowCharging: Boolean = false,
     val onlyOsmTaggedCcs2: Boolean = false,
     val stationDataNote: String = "OSM veri kaynağı — güncellik DOĞRULANMADI",
+    val preferredNetworks: Set<String> = emptySet(),
+    val preferenceBonusMinutes: Double = 2.0,
 )
 data class PlannedStop(
     val charger: ChargerCandidate,

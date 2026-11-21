@@ -2,12 +2,14 @@ package app.evcockpit.planner.solver
 
 import app.evcockpit.planner.charging.ChargerCandidate
 import app.evcockpit.planner.charging.ChargerConfidence
+import app.evcockpit.planner.charging.PreferredNetworks
 import app.evcockpit.planner.model.ModelParameters
 import kotlin.math.floor
 
 /** Exact solver domain is untouched when there are eight or fewer choices. */
 class CandidatePruner(private val parameters:ModelParameters=ModelParameters()) {
-    fun prune(candidates:List<ChargerCandidate>,routeLengthMeters:Double):List<ChargerCandidate> {
+    fun prune(candidates:List<ChargerCandidate>,routeLengthMeters:Double,
+        preferredNetworks:Set<String> = emptySet()):List<ChargerCandidate> {
         require(routeLengthMeters.isFinite() && routeLengthMeters>0)
         val ordered=candidates.filter {
             it.distanceAlongMeters.isFinite() && it.distanceAlongMeters in 0.0..routeLengthMeters
@@ -20,6 +22,8 @@ class CandidatePruner(private val parameters:ModelParameters=ModelParameters()) 
                 val preferred=group.filter {it.powerKw.value>=parameters.minPreferredStationKw.value}
                     .ifEmpty { group }
                 preferred.sortedWith(compareByDescending<ChargerCandidate> {
+                    PreferredNetworks.matches(it.operator,preferredNetworks)
+                }.thenByDescending {
                     when(it.confidence) {
                         ChargerConfidence.OSM_TAGGED_CCS2->3
                         ChargerConfidence.PROBABLE_CCS2->2
