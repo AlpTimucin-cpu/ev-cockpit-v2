@@ -284,7 +284,8 @@ fun TeslaDashboardScreen(
                 Text(driveMode.label, color = if (driveMode.mode == DriveMode.DRIVING)
                     TeslaTokens.warning else TeslaTokens.secondaryText,
                     style = MaterialTheme.typography.labelMedium)
-                VehicleStatePanel(panel, Modifier.fillMaxWidth(), compact = true)
+                VehicleStatePanel(panel, Modifier.fillMaxWidth(),
+                    compact = driveMode.mode != DriveMode.DRIVING)
             }
         },
         center = {
