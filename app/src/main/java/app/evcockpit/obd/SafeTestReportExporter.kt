@@ -23,9 +23,15 @@ object SafeTestReportText {
     private val coordinates = Regex(
         """(?<![0-9])[-+]?[0-9]{1,3}[.,][0-9]{4,}\s*[,;/]\s*[-+]?[0-9]{1,3}[.,][0-9]{4,}"""
     )
+    // Avoid printing raw VIN text even without a 'VIN:' label.
+    private val vinLike = Regex("""(?i)(?<![A-Z0-9])[A-HJ-NPR-Z0-9]{17}(?![A-Z0-9])""")
+    private val coordinateLike = Regex(
+        """(?<![\d.])[-+]?(?:[0-8]?\d|90|1[0-7]\d|180)[.,]\d{5,}(?!\d)"""
+    )
 
     fun sanitizeLine(line: String): String {
-        if (sensitive.containsMatchIn(line) || coordinates.containsMatchIn(line)) {
+        if (sensitive.containsMatchIn(line) || coordinates.containsMatchIn(line) ||
+            vinLike.containsMatchIn(line) || coordinateLike.containsMatchIn(line)) {
             return "[HASSAS SATIR GİZLENDİ]"
         }
         return line.take(512).replace("\u0000", "")
@@ -40,6 +46,7 @@ object SafeTestReportText {
         lastObdLogLines: List<String>,
         lastCrashRecord: String? = null,
         compatibilityReport: String? = null,
+        carScannerNote: String = "",
     ): String = buildString {
         appendLine("ID.4 YOL ARKADAŞI — GÜVENLİ TEST RAPORU")
         appendLine("Saha doğrulaması kullanıcı ham kanıtına bağlıdır; rapor bir başarı sertifikası değildir.")
@@ -55,11 +62,14 @@ object SafeTestReportText {
         compatibilityReport?.lines()?.take(35)?.forEach {
             appendLine(sanitizeLine(it))
         } ?: appendLine("KONTROL EDİLMEDİ / DOĞRULANMADI")
+        appendLine("Car Scanner karşılaştırması (kullanıcı notu, OBD kanıtı değil):")
+        if (carScannerNote.isBlank()) appendLine("KULLANICI GÖZLEMİ YOK / DOĞRULANMADI")
+        else carScannerNote.lines().take(12).forEach { appendLine(sanitizeLine(it)) }
         appendLine("Son Tanı özeti:")
         diagnosisSummary.lines().take(12).forEach { appendLine(sanitizeLine(it)) }
         appendLine("Son 200 OBD log satırı (hassas alanlar gizlendi):")
         lastObdLogLines.takeLast(200).forEach { appendLine(sanitizeLine(it)) }
-        appendLine("DİKKAT: Orijinal ham tanı dosyasında VIN bulunabilir; bu güvenli özet ham VIN içermez.")
+        appendLine("DİKKAT: Eski sürüm ham tanı dosyaları VIN içermiş olabilir; W2 ile yeni tanıda VIN ve pasif CAN payload kaydı engellenmiştir.")
     }
 }
 
@@ -68,6 +78,7 @@ object SafeTestReportExporter {
         context: Context,
         diagnosisSummary: String,
         obdLogLines: List<String>,
+        carScannerNote: String = "",
     ): String {
         val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
         val requested = listOf(
@@ -94,6 +105,7 @@ object SafeTestReportExporter {
             lastObdLogLines = obdLogLines,
             lastCrashRecord = CrashLog.lastRecord(context),
             compatibilityReport = DeviceCompatibilityDiagnostics.capture(context).safeReport(),
+            carScannerNote = carScannerNote.take(600),
         )
         val directory = context.getExternalFilesDir(null) ?: context.filesDir
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())

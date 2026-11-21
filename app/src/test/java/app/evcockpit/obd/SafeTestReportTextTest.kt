@@ -51,4 +51,27 @@ class SafeTestReportTextTest {
         assertFalse(report.contains("DO_NOT_LEAK"))
         assertTrue(report.contains("[HASSAS SATIR GİZLENDİ]"))
     }
+
+    @Test fun unlabelledVinAndPreciseCoordinateAreRedacted() {
+        assertEquals("[HASSAS SATIR GİZLENDİ]",
+            SafeTestReportText.sanitizeLine("WVWZZZ1JZXW000001"))
+        assertEquals("[HASSAS SATIR GİZLENDİ]",
+            SafeTestReportText.sanitizeLine("enlem=38.267123"))
+        assertEquals("[HASSAS SATIR GİZLENDİ]",
+            SafeTestReportText.sanitizeLine("nokta 34.687321"))
+    }
+
+    @Test fun carScannerNoteIsOptionalAndAlwaysSanitized() {
+        val report = SafeTestReportText.build(
+            appVersion="test", androidVersion="17", deviceModel="phone",
+            permissionStatuses=emptyList(), diagnosisSummary="DOĞRULANMADI",
+            lastObdLogLines=emptyList(), carScannerNote=
+                "Car Scanner: ISO 15765-4; 010D NO DATA\nVIN WVWZZZ1JZXW000001",
+        )
+        assertTrue(report.contains("Car Scanner karşılaştırması"))
+        assertTrue(report.contains("ISO 15765-4"))
+        assertFalse(report.contains("WVWZZZ1JZXW000001"))
+        assertTrue(report.contains("[HASSAS SATIR GİZLENDİ]"))
+    }
+
 }
