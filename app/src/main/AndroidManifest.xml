@@ -50,6 +50,20 @@
             </intent-filter>
         </activity>
 
+        <!-- Additional phone launcher target. Mola may display it in its EXISTING
+             application picker; Mola's native tiles and APK remain untouched. -->
+        <activity
+            android:name=".integration.RouteLauncherActivity"
+            android:exported="true"
+            android:label="Rota • EV Cockpit"
+            android:icon="@drawable/ic_route_launcher"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".obd.ObdConnectionService"
             android:exported="false"
