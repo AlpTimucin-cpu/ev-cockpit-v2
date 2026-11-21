@@ -43,6 +43,24 @@ class PlanSolverBasicTest {
         val req=PlanRequest(route(300),p,listOf(c(90.0),c(180.0)),50.0)
         assertEquals(PlanSolver().solve(req),PlanSolver().solve(req))
     }
+    @Test fun preferredNetworkBonusChangesSolverRankingNotPhysicalEstimate() {
+        val alternate=c(90.0).copy(id="nonpref",operator="Diğer")
+        val favored=c(90.0).copy(id="preferred",operator="ZES")
+        val next=c(180.0).copy(id="next",operator="Diğer")
+        val req=PlanRequest(route(300),p,listOf(alternate,favored,next),50.0,
+            preferredNetworks=setOf("zes"),preferenceBonusMinutes=4.0)
+        val result=PlanSolver().solve(req)
+        assertTrue(result is PlanResult.Success)
+        val chosen=result as PlanResult.Success
+        assertTrue(chosen.stops.any { it.charger.id=="preferred" })
+        assertFalse(chosen.verified)
+        assertTrue(chosen.physicalMinutes>0.0)
+    }
+    @Test fun invalidPreferenceBonusCannotChangeSafetyConstraints() {
+        val req=PlanRequest(route(300),p,listOf(c(90.0)),50.0,
+            preferenceBonusMinutes=500.0)
+        assertThrows(IllegalArgumentException::class.java) { PlanSolver().solve(req) }
+    }
     @Test fun requiresRealOrManualSoc() {
         val r=PlanSolver().solve(PlanRequest(route(200),p,emptyList(),null))
         assertTrue(r is PlanResult.Failure)
