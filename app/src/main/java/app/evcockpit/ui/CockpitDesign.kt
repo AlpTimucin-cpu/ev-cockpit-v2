@@ -16,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,15 +28,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /** Tesla-inspired visual language; no proprietary assets, branding or driving semantics. */
+/** Compatibility aliases for existing screens; new UI uses TeslaTokens directly. */
 object CockpitColors {
-    val background = Color(0xFF090C11)
-    val panel = Color(0xFF151B24)
-    val panelRaised = Color(0xFF202938)
-    val accent = Color(0xFF94AEFF)
-    val muted = Color(0xFFB0B9C9)
-    val outline = Color(0xFF344154)
-    val green = Color(0xFF45D7A4)
-    val amber = Color(0xFFFFC36F)
+    val background = app.evcockpit.ui.tesla.TeslaTokens.background
+    val panel = app.evcockpit.ui.tesla.TeslaTokens.surface
+    val panelRaised = app.evcockpit.ui.tesla.TeslaTokens.surfaceRaised
+    val accent = app.evcockpit.ui.tesla.TeslaTokens.accent
+    val muted = app.evcockpit.ui.tesla.TeslaTokens.secondaryText
+    val outline = app.evcockpit.ui.tesla.TeslaTokens.outline
+    val green = app.evcockpit.ui.tesla.TeslaTokens.accent
+    val amber = app.evcockpit.ui.tesla.TeslaTokens.warning
 }
 
 object CockpitLayoutPolicy {
@@ -54,31 +54,30 @@ object CockpitLayoutPolicy {
 }
 
 @Composable
-fun CockpitTheme(dark: Boolean, content: @Composable () -> Unit) {
-    val colors = if (dark) darkColorScheme(
-        primary = CockpitColors.accent,
-        onPrimary = Color(0xFF08111F),
-        background = CockpitColors.background,
-        onBackground = Color(0xFFF5F7FA),
-        surface = CockpitColors.panel,
-        onSurface = Color(0xFFF5F7FA),
-        surfaceVariant = CockpitColors.panelRaised,
-        onSurfaceVariant = CockpitColors.muted,
-        outline = CockpitColors.outline,
-        error = CockpitColors.amber,
-    ) else lightColorScheme(
-        primary = Color(0xFF3457A5),
-        onPrimary = Color.White,
-        background = Color(0xFFF3F6FB),
-        onBackground = Color(0xFF172133),
-        surface = Color.White,
-        onSurface = Color(0xFF172133),
-        surfaceVariant = Color(0xFFE6ECF5),
-        onSurfaceVariant = Color(0xFF526071),
-        outline = Color(0xFFBEC8D7),
-        error = Color(0xFFA34220),
+fun CockpitTheme(@Suppress("UNUSED_PARAMETER") dark: Boolean, content: @Composable () -> Unit) {
+    // A single, static dark palette. No system dynamic color or night/day switch.
+    val tokens = app.evcockpit.ui.tesla.TeslaTokens
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            primary = tokens.accent,
+            onPrimary = tokens.background,
+            background = tokens.background,
+            onBackground = tokens.text,
+            surface = tokens.surface,
+            onSurface = tokens.text,
+            surfaceVariant = tokens.surfaceRaised,
+            onSurfaceVariant = tokens.secondaryText,
+            outline = tokens.outline,
+            error = tokens.error,
+            onError = tokens.background,
+            secondary = tokens.accent,
+            onSecondary = tokens.background,
+            tertiary = tokens.warning,
+            onTertiary = tokens.background,
+        ),
+        typography = app.evcockpit.ui.tesla.TeslaTypography,
+        content = content,
     )
-    MaterialTheme(colorScheme = colors, content = content)
 }
 
 @Composable
