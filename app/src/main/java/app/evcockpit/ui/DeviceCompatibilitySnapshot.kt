@@ -3,6 +3,11 @@ package app.evcockpit.ui
 import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.content.Intent
+import android.speech.tts.TextToSpeech
+import android.webkit.WebView
+import android.system.Os
+import android.system.OsConstants
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
@@ -27,6 +32,12 @@ data class DeviceCompatibilitySnapshot(
     val bluetoothEnabled: Boolean?,
     val notificationsEnabled: Boolean,
     val batteryOptimizationExempt: Boolean,
+    val gmsStatus: String = "DOĞRULANMADI",
+    val androidAutoStatus: String = "DOĞRULANMADI",
+    val ttsEngineStatus: String = "DOĞRULANMADI",
+    val classicBluetoothAvailable: Boolean = false,
+    val webViewVersion: String = "DOĞRULANMADI",
+    val pageSizeBytes: Long? = null,
 ) {
     fun safeReport(): String = listOf(
         "ID.4 Yol Arkadaşı — telefon uyumluluk özeti",
@@ -40,6 +51,13 @@ data class DeviceCompatibilitySnapshot(
         "Bluetooth açık: " + (bluetoothEnabled?.let(::yesNo) ?: "İZİN YOK / BİLİNMİYOR"),
         "Bildirimler: " + yesNo(notificationsEnabled),
         "Pil optimizasyonu muafiyeti: " + yesNo(batteryOptimizationExempt),
+        "Google Play Hizmetleri (GMS): " + gmsStatus,
+        "Android Auto uygulaması: " + androidAutoStatus,
+        "TTS hizmeti: " + ttsEngineStatus,
+        "Klasik Bluetooth donanımı: " + yesNo(classicBluetoothAvailable),
+        "WebView sürümü: " + webViewVersion,
+        "Linux sayfa boyutu: " + (pageSizeBytes?.let { "$it bayt" } ?: "DOĞRULANMADI"),
+        "Türkçe çevrimdışı TTS sesi: " + TtsVoiceStatusStore.read(),
         "Uyarı: gerçek GPS, ELM327, rota/API ve arka plan sürekliliği DOĞRULANMADI.",
         "Bu özet koordinat, Bluetooth MAC, VIN, API anahtarı veya cihaz kimliği içermez.",
     ).joinToString("\n")
@@ -50,6 +68,10 @@ data class DeviceCompatibilitySnapshot(
 }
 
 object DeviceCompatibilityDiagnostics {
+    private fun packageStatus(context: Context, packageName: String): String =
+        if (runCatching { context.packageManager.getPackageInfo(packageName, 0) }.isSuccess)
+            "KURULU (paket görünür)" else "BULUNAMADI / DOĞRULANMADI"
+
     fun capture(context: Context): DeviceCompatibilitySnapshot {
         val fine = ContextCompat.checkSelfPermission(
             context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -92,6 +114,21 @@ object DeviceCompatibilityDiagnostics {
             bluetoothEnabled = btEnabled,
             notificationsEnabled = notifications,
             batteryOptimizationExempt = batteryExempt,
+            gmsStatus = packageStatus(context, "com.google.android.gms"),
+            androidAutoStatus = packageStatus(context, "com.google.android.projection.gearhead"),
+            ttsEngineStatus = if (runCatching {
+                context.packageManager.queryIntentServices(
+                    Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0,
+                ).isNotEmpty()
+            }.getOrDefault(false)) "HİZMET GÖRÜNÜR" else "BULUNAMADI / DOĞRULANMADI",
+            classicBluetoothAvailable =
+                context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH),
+            webViewVersion = runCatching {
+                WebView.getCurrentWebViewPackage()?.versionName?.take(40)
+            }.getOrNull() ?: "BULUNAMADI / DOĞRULANMADI",
+            pageSizeBytes = runCatching {
+                Os.sysconf(OsConstants._SC_PAGESIZE).takeIf { it > 0 }
+            }.getOrNull(),
         )
     }
 }
