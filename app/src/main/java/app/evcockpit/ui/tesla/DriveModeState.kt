@@ -60,7 +60,8 @@ object DriveModePolicy {
         val socFresh = obdEnabled &&
             fresh(vehicle.socUpdatedElapsedMs, nowElapsedMs)
         val powerFresh = obdEnabled &&
-            fresh(vehicle.powerUpdatedElapsedMs, nowElapsedMs)
+            fresh(vehicle.voltageUpdatedElapsedMs, nowElapsedMs) &&
+            fresh(vehicle.currentUpdatedElapsedMs, nowElapsedMs)
         val gpsFresh = gps.isFresh(nowElapsedMs)
         val obdSpeed = if (speedFresh) vehicle.speedKmh
             ?.takeIf { it.isFinite() && it in 0.0..300.0 } else null
