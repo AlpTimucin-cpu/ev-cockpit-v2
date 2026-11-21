@@ -79,7 +79,19 @@ class ObdDiagnosticEngine(
     private var error: String? = null
 
     private fun record(command: String, raw: String, elapsedMs: Long, timedOut: Boolean = false) {
-        val value = raw.replace("\r", "\\r").replace("\n", " | ").take(12_000)
+        // VIN Mode 09 PID 02 and passive CAN payloads stay IN MEMORY ONLY.
+        // This diagnostic is shareable; never persist those raw bytes.
+        val value = when {
+            command == "0902" ->
+                if (raw.contains("NO DATA", ignoreCase = true)) "NO DATA (VIN içeriği yazılmaz)"
+                else "[KİMLİK YANITI GİZLENDİ]"
+            command.startsWith("ATMA") ->
+                "Ham CAN veri gizlendi; okunabilir çerçeve: " +
+                    DiagnosticEvidence.monitorIdentifiers(raw).size
+            else -> SafeTestReportText.sanitizeLine(
+                raw.replace("\r", "\\r").replace("\n", " | ")
+            )
+        }
         steps += DiagnosticStep(group, command, value, elapsedMs, timedOut)
         line("[" + group + "] " + command + " (" + elapsedMs + " ms) => " + value)
     }
@@ -96,7 +108,7 @@ class ObdDiagnosticEngine(
             try {
                 io.sendBreak()
                 val aligned = io.readUntilPrompt(1_500)
-                line("[RECOVERY] CR => " + aligned.replace("\r", " ").replace("\n", " "))
+                line("[RECOVERY] CR => ELM istemi geri alındı; ham veri gizli")
             } catch (_: Exception) {
                 throw ObdTimeoutException("ELM istem hizalanamadi; yeniden baglan")
             }
