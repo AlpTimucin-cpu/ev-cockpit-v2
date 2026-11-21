@@ -42,6 +42,7 @@ data class VehiclePanelUiState(
     val estimatedKwh: Double? = null,
     val estimatedRangeKm: Double? = null,
     val source: SourceKind = SourceKind.YOK,
+    val speedSource: SourceKind = SourceKind.YOK,
     val status: PanelStatus = PanelStatus.EMPTY,
     val message: String? = null,
 )
@@ -50,6 +51,7 @@ data class VehiclePanelUiState(
 fun SourceBadge(source: SourceKind, modifier: Modifier = Modifier) {
     val statusColor = when (source) {
         SourceKind.OBD -> TeslaTokens.accent
+        SourceKind.GPS -> TeslaTokens.secondaryText
         SourceKind.MANUEL -> TeslaTokens.text
         SourceKind.DEMO -> TeslaTokens.warning
         SourceKind.ESKI -> TeslaTokens.warning
@@ -215,9 +217,20 @@ fun VehicleStatePanel(
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            SourceBadge(state.source)
+            Text("HIZ VERİ KAYNAĞI", color = TeslaTokens.secondaryText,
+                style = MaterialTheme.typography.labelMedium)
+            SourceBadge(state.speedSource)
             PowerBar(state.powerKw)
+            Text(
+                if (state.powerKw == null) "GÜÇ KAYNAĞI: YOK"
+                else "GÜÇ KAYNAĞI: OBD • PID DOĞRULANMADI",
+                color = TeslaTokens.secondaryText,
+                style = MaterialTheme.typography.labelMedium,
+            )
             SocGauge(state.socPercent, state.estimatedKwh)
+            Text("SoC VERİ KAYNAĞI", color = TeslaTokens.secondaryText,
+                style = MaterialTheme.typography.labelMedium)
+            SourceBadge(state.source)
             Text(
                 TeslaDisplayPolicy.estimatedRange(state.estimatedRangeKm),
                 color = TeslaTokens.text,
