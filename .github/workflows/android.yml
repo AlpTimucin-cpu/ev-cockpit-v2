@@ -59,6 +59,22 @@ jobs:
                     print(line)
           PY
 
+      - name: Audit 16 KB native ELF and ZIP alignment
+        run: |
+          set -euo pipefail
+          python3 ci/native_page_size_audit_test.py
+          python3 ci/native_page_size_audit.py app/build/outputs/apk/debug/app-debug.apk | tee native-page-audit.txt
+          ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name zipalign -type f | sort -V | tail -1)"
+          test -n "$ZIPALIGN"
+          "$ZIPALIGN" -c -P 16 4 app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload native alignment evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ev-cockpit-v2-native-16k-audit
+          path: native-page-audit.txt
+          if-no-files-found: error
+
       - name: Verify stable APK certificate with apksigner
         run: |
           set -euo pipefail
