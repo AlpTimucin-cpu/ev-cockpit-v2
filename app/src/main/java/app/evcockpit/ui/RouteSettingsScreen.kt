@@ -129,7 +129,7 @@ fun RouteSettingsScreen(
         }
         manualError?.let { Text(it) }
         Text("OBD SoC yanıt verirse öncelik OBD'dedir; PID ölçeği doğrulanmadı etiketi korunur.")
-        Row { Text("Gece teması"); Switch(checked = darkTheme, onCheckedChange = onDarkTheme) }
+        Text("Görünüm: sabit koyu tema • dinamik renk kullanılmıyor.")
         Row { Text("Ekranı açık tut"); Switch(checked = keepScreenOn, onCheckedChange = onKeepScreenOn) }
         Text("Ekranı açık tut seçimi yalnız uygulama açıkken geçerlidir; telefon üzerinde DOĞRULANMADI.")
         NightlyUpdatePanel()
