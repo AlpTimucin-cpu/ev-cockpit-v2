@@ -27,6 +27,7 @@ object DashboardPresentation {
         soc: SocReading,
         speed: SpeedReading,
         usableKwhAtSoh: Double,
+        powerFresh: Boolean = true,
     ): VehiclePanelUiState {
         val pct = soc.pct?.takeIf { it.isFinite() && it in 0.0..100.0 }
         // Existing battery energy identity; capacity must originate from the saved vehicle profile.
@@ -35,7 +36,7 @@ object DashboardPresentation {
         val source = if (state.demo) SourceKind.DEMO else source(soc.source)
         return VehiclePanelUiState(
             speedKmh = speed.kmh?.takeIf { it.isFinite() && it >= 0.0 },
-            powerKw = state.powerKw?.takeIf { it.isFinite() && !state.demo },
+            powerKw = state.powerKw?.takeIf { it.isFinite() && !state.demo && powerFresh },
             socPercent = pct,
             estimatedKwh = energy,
             // Do not invent a range without a validated ConsumptionModel output.
