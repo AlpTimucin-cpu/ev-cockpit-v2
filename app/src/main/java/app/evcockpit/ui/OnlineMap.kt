@@ -59,6 +59,8 @@ fun OnlineMap(
     stopMarkers: List<ChargerCandidate> = emptyList(),
     onStopSelected: (ChargerCandidate) -> Unit = {},
     focusedStop: ChargerCandidate? = null,
+    onLoadFailed: () -> Unit = {},
+    onStyleReady: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -66,10 +68,17 @@ fun OnlineMap(
     val chosenDestination = rememberUpdatedState(onSelectDestination)
     val chosenStop = rememberUpdatedState(onStopSelected)
     val displayedStops = rememberUpdatedState(stopMarkers)
+    val mapFailureCallback = rememberUpdatedState(onLoadFailed)
+    val mapReadyCallback = rememberUpdatedState(onStyleReady)
     val mapView = remember(context) {
         MapLibre.getInstance(context)
         MapView(context).apply {
             onCreate(null)
+            addOnDidFailLoadingMapListener(
+                MapView.OnDidFailLoadingMapListener { _ ->
+                    mapFailureCallback.value()
+                },
+            )
             getMapAsync { map ->
                 map.addOnMapLongClickListener { location ->
                     chosenDestination.value(GeoPoint(location.latitude, location.longitude))
@@ -84,6 +93,7 @@ fun OnlineMap(
                 }
                 map.setStyle("https://tiles.openfreemap.org/styles/dark") {
                     mapReady.value = map
+                    mapReadyCallback.value()
                 }
                 map.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(39.0, 35.0), 5.2))
             }
