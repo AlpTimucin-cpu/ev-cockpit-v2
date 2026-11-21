@@ -35,6 +35,17 @@ data class DriveModeSnapshot(
 }
 
 object DriveModePolicy {
+    fun allowedTab(tab: Int, mode: DriveMode): Boolean =
+        !(mode == DriveMode.DRIVING && tab in setOf(3,4,5)) &&
+            !(tab == 4 && mode != DriveMode.PARKED)
+
+    fun allowedAction(action: TeslaAction, mode: DriveMode, molaInstalled: Boolean): Boolean =
+        when (action) {
+            TeslaAction.ROTA -> true
+            TeslaAction.MOLA -> mode == DriveMode.PARKED && molaInstalled
+            else -> mode == DriveMode.PARKED
+        }
+
     fun fresh(last: Long, now: Long, maxAge: Long = TeslaTokens.staleObdAfterMs): Boolean =
         last > 0L && now >= last && now - last <= maxAge
 
