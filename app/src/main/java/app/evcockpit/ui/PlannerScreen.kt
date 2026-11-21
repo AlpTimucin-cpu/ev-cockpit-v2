@@ -105,6 +105,22 @@ fun PlannerScreen(
                         success?.let{ "~%" + it.arrivalSocPct } ?: "--",
                         Modifier.weight(1f))
                 }
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    CockpitMetric("TOPLAM SÜRE",
+                        success?.let { PlannerDisplay.totalTimeLabel(it) } ?: "--",
+                        Modifier.weight(1f))
+                    CockpitMetric("ŞARJ SÜRESİ",
+                        success?.let { PlannerDisplay.chargingTimeLabel(it) } ?: "--",
+                        Modifier.weight(1f))
+                    CockpitMetric("VARIŞ ENERJİ",
+                        success?.let {
+                            "~%.1f kWh".format(
+                                PlannerDisplay.arrivalKwh(it,profile.capacityAtSohKwh))
+                        } ?: "--",
+                        Modifier.weight(1f))
+                }
+                Text("Tüm süre/enerji değerleri model tahminidir; canlı trafik ve saha doğrulaması yok.",
+                    style=MaterialTheme.typography.bodySmall)
                 Text(if(success==null)"Belirsizlik: henüz hesaplanmadı — TAHMİN"
                     else PlannerDisplay.uncertainty(success),
                     style=MaterialTheme.typography.bodySmall)
@@ -184,6 +200,10 @@ fun PlannerScreen(
             Text(if(parameters)"Parametre panelini kapat" else "Parametreleri düzenle")
         }
         if(parameters) {
+            Text("Başlangıç GPS/adres/Ev-İş favorileri, hedef ve ara noktalar Rota ekranında seçilir.")
+            OutlinedButton(onClick=onOpenRoute) {
+                Text("Başlangıç, hedef ve ara noktalar için Rota ekranına git")
+            }
             Text("Tüm ayarlar cihazda kalıcı; değerler model varsayımıdır.")
             PlannerNumber("Varışta asgari SoC (%)",options.minArrivalSoc){
                 persist(options.copy(minArrivalSoc=it))
