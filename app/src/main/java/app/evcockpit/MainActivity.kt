@@ -58,6 +58,8 @@ import app.evcockpit.ui.tesla.DriveModePolicy
 import app.evcockpit.integration.MolaLinkViewModel
 import app.evcockpit.integration.MolaStatus
 import app.evcockpit.ui.tesla.MolaLaunchCard
+import app.evcockpit.ui.tesla.DashboardGuidancePolicy
+import app.evcockpit.ui.tesla.GuidanceAction
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -238,6 +240,21 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 onSelectDestination = navVm::selectDestination,
                 molaInstalled = molaState.status == MolaStatus.READY ||
                     molaState.status == MolaStatus.CANNOT_LAUNCH,
+                guidance = DashboardGuidancePolicy.evaluate(
+                    state, socReading, gps, gpsFresh, navState,
+                    planUi.plan.takeIf { planUi.route == navState.route }),
+                onGuidanceAction = { action ->
+                    if (drive.mode != DriveMode.DRIVING) when (action) {
+                        GuidanceAction.NONE -> Unit
+                        GuidanceAction.SETTINGS -> tab = 5
+                        GuidanceAction.LOCATION_PERMISSION -> gpsPermissionLauncher.launch(
+                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION))
+                        GuidanceAction.OBD_TEST -> tab = 1
+                        GuidanceAction.ROUTE -> tab = 2
+                        GuidanceAction.PLAN -> tab = 3
+                    }
+                },
                 onAction = { action ->
                     when (action) {
                         TeslaAction.ROTA -> tab = 2

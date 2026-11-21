@@ -14,6 +14,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -201,6 +203,7 @@ fun MapHero(
     onSelectDestination: (GeoPoint) -> Unit,
     modifier: Modifier = Modifier,
     previewMap: Boolean = false,
+    allowRetry: Boolean = true,
 ) {
     val position = if (gpsFresh && route != null && gps.point != null) {
         RouteProgress.locate(route, gps.point)
@@ -210,6 +213,8 @@ fun MapHero(
     )
     val next = MapHeadlinePolicy.nextStop(plan, route, position)
     var selectedStation by remember { mutableStateOf<ChargerCandidate?>(null) }
+    var mapFailed by remember { mutableStateOf(false) }
+    var mapRetry by remember { mutableIntStateOf(0) }
     Column(
         modifier.clip(RoundedCornerShape(TeslaTokens.cornerRadius))
             .background(TeslaTokens.surface),
@@ -223,16 +228,43 @@ fun MapHero(
                     contentAlignment = Alignment.Center,
                 ) { Text("HARİTA ÖNİZLEME • DEMO", color = TeslaTokens.secondaryText) }
             } else {
-                OnlineMap(
-                    modifier = Modifier.fillMaxSize(),
-                    route = route,
-                    destination = destination,
-                    gps = gps,
-                    weatherSummary = weatherSummary,
-                    onSelectDestination = onSelectDestination,
-                    stopMarkers = plan?.stops?.map { it.charger } ?: emptyList(),
-                    onStopSelected = { selectedStation = it },
-                )
+                key(mapRetry) {
+                    OnlineMap(
+                        modifier = Modifier.fillMaxSize(),
+                        route = route,
+                        destination = destination,
+                        gps = gps,
+                        weatherSummary = weatherSummary,
+                        onSelectDestination = onSelectDestination,
+                        stopMarkers = plan?.stops?.map { it.charger } ?: emptyList(),
+                        onStopSelected = { selectedStation = it },
+                        onLoadFailed = { mapFailed = true },
+                        onStyleReady = { mapFailed = false },
+                    )
+                }
+                if (mapFailed) {
+                    Column(
+                        Modifier.align(Alignment.Center)
+                            .background(TeslaTokens.surface)
+                            .padding(TeslaTokens.contentPadding),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text("Harita yüklenemedi",
+                            color = TeslaTokens.error,
+                            style = MaterialTheme.typography.labelLarge)
+                        Text("Bağlantını kontrol et. Çevrimiçi değilken harita açılamayabilir.",
+                            color = TeslaTokens.text,
+                            style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(
+                            enabled = allowRetry,
+                            onClick = {
+                                mapFailed = false
+                                mapRetry++
+                            },
+                            modifier = Modifier.heightIn(min = TeslaTokens.touchTarget),
+                        ) { Text("Haritayı yeniden dene") }
+                    }
+                }
             }
         }
         if (next != null) NextStopBar(next, onClick = {
@@ -267,6 +299,8 @@ fun TeslaDashboardScreen(
     weatherSummary: String,
     onSelectDestination: (GeoPoint) -> Unit,
     molaInstalled: Boolean,
+    guidance: DashboardGuidance = DashboardGuidance.NONE,
+    onGuidanceAction: (GuidanceAction) -> Unit = {},
     onAction: (TeslaAction) -> Unit,
 ) {
     val speed = SpeedSelector.select(
@@ -287,12 +321,19 @@ fun TeslaDashboardScreen(
         },
         center = {
             MapHero(navigation.route, navigation.destination, gps, gpsFresh,
-                plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize())
+                plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize(),
+                allowRetry = driveMode.mode != DriveMode.DRIVING)
         },
         right = {
-            ActionRail(onAction, molaAvailable = molaInstalled,
-                mode = driveMode.mode,
-                modifier = Modifier.fillMaxWidth())
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ActionRail(onAction, molaAvailable = molaInstalled,
+                    mode = driveMode.mode,
+                    modifier = Modifier.fillMaxWidth())
+                TeslaGuidanceCard(
+                    guidance, onGuidanceAction,
+                    enabled = driveMode.mode != DriveMode.DRIVING,
+                )
+            }
         },
     )
 }
