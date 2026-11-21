@@ -112,7 +112,7 @@ fun ActionRail(
                     .semantics {
                         contentDescription = action.title + when {
                             action == TeslaAction.MOLA && !molaAvailable ->
-                                " • bağlantı UI-4 aşamasında"
+                                " • kurulu değilse resmî kurulum rehberi"
                             action == TeslaAction.VIDEO && mode != DriveMode.PARKED ->
                                 " • sürüşte kapalı"
                             else -> ""
@@ -136,11 +136,7 @@ fun ActionRail(
                 )
             }
         }
-        if (!molaAvailable) Text(
-            "Mola • Android başlatma bağlantısı UI-4'te",
-            color = TeslaTokens.secondaryText,
-            style = MaterialTheme.typography.bodySmall,
-        )
+
     }
 }
 
@@ -270,6 +266,7 @@ fun TeslaDashboardScreen(
     driveMode: DriveModeSnapshot,
     weatherSummary: String,
     onSelectDestination: (GeoPoint) -> Unit,
+    molaInstalled: Boolean,
     onAction: (TeslaAction) -> Unit,
 ) {
     val speed = SpeedSelector.select(
@@ -293,7 +290,7 @@ fun TeslaDashboardScreen(
                 plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize())
         },
         right = {
-            ActionRail(onAction, molaAvailable = false,
+            ActionRail(onAction, molaAvailable = molaInstalled,
                 mode = driveMode.mode,
                 modifier = Modifier.fillMaxWidth())
         },
