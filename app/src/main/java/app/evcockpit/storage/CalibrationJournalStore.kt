@@ -12,8 +12,8 @@ import app.evcockpit.planui.CalibrationSuggestion
 private val Context.calibrationJournalPrefs by preferencesDataStore("m8_calibration_journal_v1")
 
 data class CalibrationRecord(
-    val modelWhPer100Km: Double,
-    val actualWhPer100Km: Double,
+    val modelKwhPer100Km: Double,
+    val actualKwhPer100Km: Double,
     val plannedArrivalSoc: Double,
     val actualArrivalSoc: Double,
     val recommendedAdjustmentPercent: Double,
@@ -23,13 +23,13 @@ data class CalibrationRecord(
 /** Stores numbers only: no route geometry, GPS position, VIN, API key or device ID. */
 object CalibrationJournalCodec {
     fun fromSuggestion(s: CalibrationSuggestion): CalibrationRecord =
-        CalibrationRecord(s.modelWhPer100Km, s.observedWhPer100Km,
+        CalibrationRecord(s.modelKwhPer100Km, s.observedKwhPer100Km,
             s.plannedArrivalSoc, s.observedArrivalSoc,
             s.suggestedConsumptionAdjust * 100.0, false)
 
     fun valid(x: CalibrationRecord): Boolean =
-        x.modelWhPer100Km.isFinite() && x.modelWhPer100Km in 1.0..100.0 &&
-        x.actualWhPer100Km.isFinite() && x.actualWhPer100Km in 1.0..100.0 &&
+        x.modelKwhPer100Km.isFinite() && x.modelKwhPer100Km in 1.0..100.0 &&
+        x.actualKwhPer100Km.isFinite() && x.actualKwhPer100Km in 1.0..100.0 &&
         x.plannedArrivalSoc.isFinite() && x.plannedArrivalSoc in 0.0..100.0 &&
         x.actualArrivalSoc.isFinite() && x.actualArrivalSoc in 0.0..100.0 &&
         x.recommendedAdjustmentPercent.isFinite() &&
@@ -38,8 +38,8 @@ object CalibrationJournalCodec {
     fun encode(items: List<CalibrationRecord>): String {
         val json = JSONArray()
         items.take(10).filter(::valid).forEach { item ->
-            json.put(JSONObject().put("modelWh", item.modelWhPer100Km)
-                .put("actualWh", item.actualWhPer100Km)
+            json.put(JSONObject().put("modelKwh", item.modelKwhPer100Km)
+                .put("actualKwh", item.actualKwhPer100Km)
                 .put("planSoc", item.plannedArrivalSoc)
                 .put("actualSoc", item.actualArrivalSoc)
                 .put("adjustPct", item.recommendedAdjustmentPercent))
@@ -54,8 +54,8 @@ object CalibrationJournalCodec {
             for (i in 0 until minOf(json.length(), 10)) {
                 val node = json.optJSONObject(i) ?: continue
                 val item = CalibrationRecord(
-                    node.optDouble("modelWh", Double.NaN),
-                    node.optDouble("actualWh", Double.NaN),
+                    node.optDouble("modelKwh", Double.NaN),
+                    node.optDouble("actualKwh", Double.NaN),
                     node.optDouble("planSoc", Double.NaN),
                     node.optDouble("actualSoc", Double.NaN),
                     node.optDouble("adjustPct", Double.NaN),
