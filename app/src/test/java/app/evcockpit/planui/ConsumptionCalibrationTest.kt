@@ -23,7 +23,7 @@ class ConsumptionCalibrationTest {
     }
 
     @Test fun modelConsumptionExistsButIsNotVerifiedVehicleMeasurement() {
-        val model = ConsumptionCalibration.modelWhPer100Km(request())
+        val model = ConsumptionCalibration.modelKwhPer100Km(request())
         assertNotNull(model)
         assertTrue(model!! > 1.0 && model < 100.0)
     }
@@ -31,7 +31,7 @@ class ConsumptionCalibrationTest {
     @Test fun suggestedCorrectionDoesNotAutomaticallyChangeOptions() {
         val options = PlannerOptions(consumptionAdjust = 0.05)
         val suggested = ConsumptionCalibration.suggest(
-            modelWhPer100Km=20.0, observedWhPer100Km=22.0,
+            modelKwhPer100Km=20.0, observedKwhPer100Km=22.0,
             plannedArrivalSoc=40.0, observedArrivalSoc=34.0,
             existingAdjustment=options.consumptionAdjust,
         )
@@ -73,7 +73,7 @@ class ConsumptionCalibrationTest {
     @Test fun malformedJournalNeverInventsVerifiedEvidence() {
         assertTrue(CalibrationJournalCodec.decode("{").isEmpty())
         assertTrue(CalibrationJournalCodec.decode(
-            """[{"modelWh":10,"actualWh":12,"planSoc":20,"actualSoc":999,"adjustPct":10}]"""
+            """[{"modelKwh":10,"actualKwh":12,"planSoc":20,"actualSoc":999,"adjustPct":10}]"""
         ).isEmpty())
         assertTrue(CalibrationJournalCodec.decode(
             "x".repeat(4097)
