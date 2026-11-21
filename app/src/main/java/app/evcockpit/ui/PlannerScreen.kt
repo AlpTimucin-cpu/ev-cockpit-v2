@@ -244,6 +244,20 @@ fun PlannerScreen(
             OutlinedButton(onClick={persist(options.copy(excludedNetworks=excluded))}){
                 Text("Ağ filtresini kaydet")
             }
+            var preferred by remember(options.preferredNetworks) {
+                mutableStateOf(options.preferredNetworks)
+            }
+            OutlinedTextField(value=preferred,onValueChange={preferred=it.take(250)},
+                label={Text("Tercih edilen ağlar (virgülle)")},modifier=Modifier.fillMaxWidth())
+            OutlinedButton(onClick={persist(options.copy(preferredNetworks=preferred))}){
+                Text("Ağ tercihlerini kaydet")
+            }
+            PlannerNumber("Tercih bonusu (0–5 dk, TAHMİN)",
+                options.preferenceBonusMinutes) {
+                persist(options.copy(preferenceBonusMinutes=it))
+            }
+            Text("Tercih bonusu yalnız rota sıralama ağırlığıdır; şarj süresini, " +
+                "istasyonun DC/CCS2 desteğini veya doluluğunu doğrulamaz.")
             Text("Hedefte şarj bilgisi v1'de optimizasyon maliyetine dahil değil.")
             PlannerNumber("Hedefte şarj varsa kW (0 = yok)",
                 options.destinationChargeKw ?: 0.0) {
