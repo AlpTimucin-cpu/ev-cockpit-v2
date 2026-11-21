@@ -31,7 +31,8 @@ data class VehicleState(
     val statusText: String = "Bağlı değil",
     val socUpdatedElapsedMs: Long = 0L,
     val speedUpdatedElapsedMs: Long = 0L,
-    val powerUpdatedElapsedMs: Long = 0L,
+    val voltageUpdatedElapsedMs: Long = 0L,
+    val currentUpdatedElapsedMs: Long = 0L,
 ) {
     /** Positive: traction. Negative: regeneration/charging. Community PID scale unverified. */
     val powerKw: Double? get() = if (hvVolt != null && hvAmp != null) hvVolt * hvAmp / 1000.0 else null
@@ -265,8 +266,8 @@ class ObdRepository(private val ctx: Context, private val scope: CoroutineScope)
         state.update {
             when (role) {
                 "soc" -> it.copy(socPct = value, socUpdatedElapsedMs = whenRead)
-                "volt" -> it.copy(hvVolt = value, powerUpdatedElapsedMs = whenRead)
-                "amp" -> it.copy(hvAmp = value, powerUpdatedElapsedMs = whenRead)
+                "volt" -> it.copy(hvVolt = value, voltageUpdatedElapsedMs = whenRead)
+                "amp" -> it.copy(hvAmp = value, currentUpdatedElapsedMs = whenRead)
                 "speed" -> it.copy(speedKmh = value, speedUpdatedElapsedMs = whenRead)
                 else -> it
             }
