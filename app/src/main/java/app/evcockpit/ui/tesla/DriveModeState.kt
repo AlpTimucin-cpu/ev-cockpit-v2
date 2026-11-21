@@ -42,7 +42,7 @@ object DriveModePolicy {
     fun allowedAction(action: TeslaAction, mode: DriveMode, molaInstalled: Boolean): Boolean =
         when (action) {
             TeslaAction.ROTA -> true
-            TeslaAction.MOLA -> mode == DriveMode.PARKED && molaInstalled
+            TeslaAction.MOLA -> mode == DriveMode.PARKED // card offers install guide if absent
             else -> mode == DriveMode.PARKED
         }
 

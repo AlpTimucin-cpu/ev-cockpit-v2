@@ -55,6 +55,12 @@ import app.evcockpit.ui.tesla.TeslaAction
 import app.evcockpit.ui.tesla.DriveMode
 import app.evcockpit.ui.tesla.DriveModeViewModel
 import app.evcockpit.ui.tesla.DriveModePolicy
+import app.evcockpit.integration.MolaLinkViewModel
+import app.evcockpit.integration.MolaStatus
+import app.evcockpit.ui.tesla.MolaLaunchCard
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.evcockpit.ui.tesla.SafeSocSelection
 import app.evcockpit.storage.VehicleProfileStore
 import app.evcockpit.planner.model.VehicleProfile
@@ -107,8 +113,9 @@ class MainActivity : ComponentActivity() {
                 val passengerModel: PassengerPlayerModel = viewModel()
                 val plannerModel: PlannerViewModel = viewModel()
                 val driveModel: DriveModeViewModel = viewModel()
+                val molaModel: MolaLinkViewModel = viewModel()
                 App(obdViewModel, navViewModel, passengerModel, plannerModel,
-                    driveModel, displayPreferences, darkTheme, keepScreenOn, openRequest)
+                    driveModel, molaModel, displayPreferences, darkTheme, keepScreenOn, openRequest)
             }
         }
     }
@@ -118,10 +125,22 @@ class MainActivity : ComponentActivity() {
 private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     passengerModel: PassengerPlayerModel, plannerModel: PlannerViewModel,
     driveModel: DriveModeViewModel,
+    molaModel: MolaLinkViewModel,
     displayPreferences: DisplayPreferences,
     darkTheme: Boolean, keepScreenOn: Boolean,
     openRequest: ExternalOpenRequest) {
     val context = LocalContext.current
+    val molaState by molaModel.state.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, molaModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) molaModel.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+            molaModel.refresh()
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val vehicleProfileStore = remember(context) { VehicleProfileStore(context.applicationContext) }
     val vehicleProfile by vehicleProfileStore.profile.collectAsStateWithLifecycle(
         initialValue = VehicleProfile.defaults())
@@ -154,6 +173,10 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     val voiceState by navVm.voice.collectAsStateWithLifecycle()
     var shareError by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableIntStateOf(0) }
+    var showMolaCard by remember { mutableStateOf(false) }
+    LaunchedEffect(drive.mode) {
+        if (drive.mode != DriveMode.PARKED) showMolaCard = false
+    }
     LaunchedEffect(openRequest.generation) {
         openRequest.tab?.let { requested ->
             if (DriveModePolicy.allowedTab(requested, drive.mode)) tab = requested
@@ -213,12 +236,19 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 driveMode = drive,
                 weatherSummary = weatherSummary,
                 onSelectDestination = navVm::selectDestination,
+                molaInstalled = molaState.status == MolaStatus.READY ||
+                    molaState.status == MolaStatus.CANNOT_LAUNCH,
                 onAction = { action ->
                     when (action) {
                         TeslaAction.ROTA -> tab = 2
                         TeslaAction.PLAN -> tab = 3
                         TeslaAction.MEDYA, TeslaAction.VIDEO -> tab = 4
-                        TeslaAction.MOLA -> Unit // disabled until official API in UI-4
+                        TeslaAction.MOLA -> {
+                            if (drive.mode == DriveMode.PARKED) {
+                                molaModel.refresh()
+                                showMolaCard = true
+                            }
+                        }
                         TeslaAction.AYARLAR -> tab = 5
                     }
                 },
@@ -334,4 +364,15 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
             )
         }
     }
+    if (showMolaCard && drive.mode == DriveMode.PARKED) {
+        MolaLaunchCard(
+            state = molaState,
+            onOpen = molaModel::openMola,
+            onInstallGuide = molaModel::openInstallGuide,
+            onAppSettings = molaModel::openSettings,
+            onRefresh = molaModel::refresh,
+            onDismiss = { showMolaCard = false },
+        )
+    }
+
 }
