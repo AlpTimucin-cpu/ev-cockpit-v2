@@ -43,7 +43,7 @@ object DashboardPresentation {
             // Do not invent a range without a validated ConsumptionModel output.
             estimatedRangeKm = null,
             source = source,
-            speedSource = source(speed.source),
+            speedSource = DashboardPresentation.source(speed.source),
             status = if (pct == null) PanelStatus.EMPTY else PanelStatus.NORMAL,
             message = when {
                 state.demo -> "DEMO • Gerçek araç verisi değil"
