@@ -377,6 +377,7 @@ fun PlannerScreen(
             Text("Canlı trafik, fiyat ve doluluk yok. Şarj eğrisi TAHMİN.")
             SocProfileChart(success,state.request?.startSocPct ?: 0.0,
                 state.request?.minArrivalSoc ?: 10.0)
+            CalibrationPanel(success,state.request)
             if(success.stops.isEmpty())Text("Menzil tahminine göre şarj durağı gerekmiyor.")
             success.stops.forEachIndexed { index,stop ->
                 ElevatedCard(modifier=Modifier.fillMaxWidth()) {
