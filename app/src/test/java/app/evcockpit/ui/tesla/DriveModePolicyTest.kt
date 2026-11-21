@@ -74,7 +74,9 @@ class DriveModePolicyTest {
             TeslaAction.VIDEO,DriveMode.DRIVING,false))
         assertTrue(DriveModePolicy.allowedAction(
             TeslaAction.PLAN,DriveMode.PARKED,false))
-        assertFalse(DriveModePolicy.allowedAction(
+        assertTrue(DriveModePolicy.allowedAction(
             TeslaAction.MOLA,DriveMode.PARKED,false))
+        assertFalse(DriveModePolicy.allowedAction(
+            TeslaAction.MOLA,DriveMode.DRIVING,true))
     }
 }
