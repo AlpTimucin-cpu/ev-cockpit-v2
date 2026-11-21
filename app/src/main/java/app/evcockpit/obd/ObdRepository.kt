@@ -3,6 +3,7 @@ package app.evcockpit.obd
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
+import android.os.SystemClock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +29,9 @@ data class VehicleState(
     val hvVolt: Double? = null,
     val hvAmp: Double? = null,
     val statusText: String = "Bağlı değil",
+    val socUpdatedElapsedMs: Long = 0L,
+    val speedUpdatedElapsedMs: Long = 0L,
+    val powerUpdatedElapsedMs: Long = 0L,
 ) {
     /** Positive: traction. Negative: regeneration/charging. Community PID scale unverified. */
     val powerKw: Double? get() = if (hvVolt != null && hvAmp != null) hvVolt * hvAmp / 1000.0 else null
@@ -256,12 +260,14 @@ class ObdRepository(private val ctx: Context, private val scope: CoroutineScope)
     }
 
     private fun applyValue(role: String, value: Double) {
+        if (!value.isFinite()) return
+        val whenRead = SystemClock.elapsedRealtime()
         state.update {
             when (role) {
-                "soc" -> it.copy(socPct = value)
-                "volt" -> it.copy(hvVolt = value)
-                "amp" -> it.copy(hvAmp = value)
-                "speed" -> it.copy(speedKmh = value)
+                "soc" -> it.copy(socPct = value, socUpdatedElapsedMs = whenRead)
+                "volt" -> it.copy(hvVolt = value, powerUpdatedElapsedMs = whenRead)
+                "amp" -> it.copy(hvAmp = value, powerUpdatedElapsedMs = whenRead)
+                "speed" -> it.copy(speedKmh = value, speedUpdatedElapsedMs = whenRead)
                 else -> it
             }
         }
