@@ -24,6 +24,36 @@ class DeviceCompatibilitySnapshotTest {
         assertFalse(report.contains("FINGERPRINT"))
     }
 
+    @Test fun reportIncludesAndroid17ProvidersButNoIdentifiers() {
+        val snapshot = DeviceCompatibilitySnapshot(
+            androidRelease = "17", apiLevel = 37, rom = "LineageOS",
+            preciseLocationGranted = true, approximateLocationGranted = true,
+            gpsProviderEnabled = true, networkProviderEnabled = true,
+            bluetoothPermissionGranted = true, bluetoothEnabled = true,
+            notificationsEnabled = true, batteryOptimizationExempt = false,
+            gmsStatus = "KURULU (paket görünür)",
+            androidAutoStatus = "KURULU (paket görünür)",
+            ttsEngineStatus = "HİZMET GÖRÜNÜR",
+            classicBluetoothAvailable = true,
+            webViewVersion = "140.0.7339.0",
+            pageSizeBytes = 16384,
+        )
+        val safe = snapshot.safeReport()
+        assertTrue(safe.contains("Google Play Hizmetleri (GMS): KURULU"))
+        assertTrue(safe.contains("Android Auto uygulaması: KURULU"))
+        assertTrue(safe.contains("Klasik Bluetooth donanımı: EVET"))
+        assertTrue(safe.contains("Linux sayfa boyutu: 16384 bayt"))
+        assertTrue(safe.contains("WebView sürümü: 140.0.7339.0"))
+        assertFalse(safe.contains("IMEI"))
+        assertFalse(safe.contains("android_id"))
+    }
+
+    @Test fun missingTurkishOfflineVoiceIsNotClaimedAsWorking() {
+        assertTrue(TtsOfflineEvidence.describe(true, false).contains("bulunamadı"))
+        assertTrue(TtsOfflineEvidence.describe(true, true).contains("DOĞRULANMADI"))
+        assertTrue(TtsOfflineEvidence.describe(false, null).contains("DOĞRULANMADI"))
+    }
+
     @Test fun reportShowsGrantedPermissionsWithoutClaimingRealDeviceTests() {
         val snapshot = DeviceCompatibilitySnapshot(
             "16", 36, "Android / ROM türü doğrulanamadı", true, true, true, true,
