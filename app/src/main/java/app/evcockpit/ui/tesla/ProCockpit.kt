@@ -91,7 +91,7 @@ object ProCockpitPolicy {
         TeslaAction.PLAN -> "Şarj durakları"
         TeslaAction.MEDYA -> "Telefon medya ekranı"
         TeslaAction.VIDEO -> "Yalnız parkta"
-        TeslaAction.MOLA -> "Orijinal uygulamayı aç"
+        TeslaAction.MOLA -> "Mola bağlantı paneli"
         TeslaAction.AYARLAR -> "Araç, OBD ve bağlantı"
     }
 
@@ -110,7 +110,7 @@ object ProCockpitPolicy {
     }
 
     fun planLabel(plan: PlanResult.Success?): String = plan?.let {
-        "ŞARJ PLANI • ${it.stops.size} DURAK • ~${it.chargingMinutes.toInt()} DK"
+        "ŞARJ • ${it.stops.size} DURAK • ~${it.chargingMinutes.toInt()} DK • TAHMİN"
     } ?: "ŞARJ PLANI • HENÜZ YOK"
 }
 
