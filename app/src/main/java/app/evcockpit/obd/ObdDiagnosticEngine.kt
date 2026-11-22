@@ -38,12 +38,16 @@ object DiagnosticEvidence {
         .replace(Regex("[^0-9A-F]"), "")
 
     fun hasMode01(raw: String, pid: String): Boolean =
-        hexOnly(raw).contains("41" + pid.uppercase(Locale.US)) &&
-            !raw.uppercase(Locale.US).contains("NO DATA")
+        !raw.uppercase(Locale.US).contains("NO DATA") &&
+            raw.replace("\r", "\n").lines().any { line ->
+                hexOnly(line).contains("41" + pid.uppercase(Locale.US))
+            }
 
+    // Reuse the same byte-aligned, per-frame UDS parser as live telemetry.
+    // A transport echo, split CAN frames or SID/DID without data is NOT ECU proof.
     fun hasUds(raw: String, did: String): Boolean =
-        hexOnly(raw).contains("62" + did.uppercase(Locale.US)) &&
-            !raw.uppercase(Locale.US).contains("NO DATA")
+        did.matches(Regex("(?i)[0-9a-f]{4}")) &&
+            Elm327.parseUds("22" + did.uppercase(Locale.US), raw) != null
 
     fun monitorIdentifiers(raw: String): List<String> = raw.uppercase(Locale.US).lines()
         .mapNotNull { line ->

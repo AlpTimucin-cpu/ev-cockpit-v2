@@ -133,23 +133,31 @@ class Elm327(
                 upper.lines().any { it.trim() == "?" }
             ) return null
 
+            // ELM responses may contain command echoes, CAN IDs, multiple
+            // responder lines and numbered frames. NEVER concatenate separate
+            // lines: a positive service/DID assembled across two unrelated CAN
+            // frames is not evidence of a valid vehicle measurement.
             val lines = upper.replace("\r", "\n").lines()
-            val hex = buildString {
-                for (raw in lines) {
-                    val trimmed = raw.trim()
-                    if (trimmed.isEmpty() || trimmed.startsWith("SEARCHING")) continue
-                    val payload = trimmed.substringAfter(':', trimmed)
-                        .replace(" ", "").replace("\t", "").replace(">", "")
-                    if (payload.isNotEmpty() && payload.all { it in '0'..'9' || it in 'A'..'F' }) {
-                        append(payload)
-                    }
-                }
+            val hexChars = "0123456789ABCDEF"
+            val lineNumber = Regex("^[0-9A-F]{1,2}:\\s*")
+            val canHeader = Regex("^(?:[0-9A-F]{3}|[0-9A-F]{8})\\s+")
+            for (raw in lines) {
+                var line = raw.trim()
+                if (line.isEmpty() || line.startsWith("SEARCHING")) continue
+                line = line.replaceFirst(lineNumber, "")
+                line = line.replaceFirst(canHeader, "")
+                val payload = line.replace(" ", "").replace("\t", "")
+                    .replace(">", "")
+                if (payload.isEmpty() || payload == cmd.uppercase() ||
+                    !payload.all { it in hexChars }) continue
+
+                val index = payload.indexOf(expected)
+                if (index < 0 || index % 2 != 0) continue // byte-aligned service
+                val bytesAfterDid = payload.substring(index + expected.length)
+                if (bytesAfterDid.isEmpty() || bytesAfterDid.length % 2 != 0) continue
+                return bytesAfterDid.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
             }
-            val idx = hex.indexOf(expected)
-            if (idx < 0) return null
-            val data = hex.substring(idx + expected.length)
-            if (data.isEmpty() || data.length % 2 != 0) return null
-            return data.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+            return null
         }
     }
 }
