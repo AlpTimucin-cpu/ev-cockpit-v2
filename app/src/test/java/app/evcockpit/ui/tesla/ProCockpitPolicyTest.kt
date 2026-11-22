@@ -53,7 +53,7 @@ class ProCockpitPolicyTest {
 
     @Test fun actionDescriptionsCorrespondToRealScreensAndDrivePolicy() {
         assertTrue(ProCockpitPolicy.actionSubtitle(TeslaAction.ROTA).contains("navigasyon"))
-        assertTrue(ProCockpitPolicy.actionSubtitle(TeslaAction.MOLA).contains("Orijinal"))
+        assertTrue(ProCockpitPolicy.actionSubtitle(TeslaAction.MOLA).contains("bağlantı paneli"))
         assertFalse(DriveModePolicy.allowedAction(TeslaAction.VIDEO, DriveMode.DRIVING, true))
         assertFalse(DriveModePolicy.allowedAction(TeslaAction.PLAN, DriveMode.UNKNOWN, true))
         assertTrue(DriveModePolicy.allowedAction(TeslaAction.ROTA, DriveMode.DRIVING, false))
