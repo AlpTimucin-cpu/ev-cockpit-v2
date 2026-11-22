@@ -34,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.evcockpit.obd.VehicleState
+import app.evcockpit.navigation.NavigationRoute
+import app.evcockpit.navigation.RoutePosition
 import app.evcockpit.planner.model.PlanResult
 import java.util.Locale
 
@@ -42,6 +44,8 @@ import java.util.Locale
  * validated StateFlows, not simulated telemetry or new background requests.
  * Original Mola binary/menus are not touched by this UI.
  */
+data class ProManeuver(val instruction: String, val distance: String)
+
 data class ProStatus(
     val driveLabel: String,
     val obdLabel: String,
@@ -89,6 +93,20 @@ object ProCockpitPolicy {
         TeslaAction.VIDEO -> "Yalnız parkta"
         TeslaAction.MOLA -> "Orijinal uygulamayı aç"
         TeslaAction.AYARLAR -> "Araç, OBD ve bağlantı"
+    }
+
+    fun nextManeuver(route: NavigationRoute?, position: RoutePosition?): ProManeuver? {
+        if (route == null || position == null) return null
+        val step = position.nextManeuverIndex?.let { route.maneuvers.getOrNull(it) }
+            ?: return null
+        val distance = position.distanceToManeuverMeters
+            ?.takeIf { it.isFinite() && it >= 0.0 } ?: return null
+        val instruction = step.instructionTr.trim().take(120)
+        if (instruction.isBlank()) return null
+        val distanceText = if (distance >= 1000.0)
+            String.format(Locale.ROOT, "~%.1f km", distance / 1000.0)
+        else "~${distance.toInt()} m"
+        return ProManeuver(instruction, distanceText)
     }
 
     fun planLabel(plan: PlanResult.Success?): String = plan?.let {
@@ -351,6 +369,35 @@ fun ProRouteRibbon(plan: PlanResult.Success?, weatherSummary: String) {
                 color = TeslaTokens.secondaryText,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+fun ProNextManeuverCard(maneuver: ProManeuver) {
+    Surface(
+        color = TeslaTokens.surfaceRaised,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, TeslaTokens.accent.copy(alpha = 0.36f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("↳", color = TeslaTokens.accent, fontSize = 28.sp)
+            Column(Modifier.weight(1f)) {
+                Text("SONRAKİ MANEVRA • TAHMİN",
+                    color = TeslaTokens.secondaryText,
+                    style = MaterialTheme.typography.labelSmall)
+                Text(maneuver.instruction, color = TeslaTokens.text,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Text(maneuver.distance, color = TeslaTokens.accent,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1)
         }
     }
 }
