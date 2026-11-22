@@ -1,6 +1,10 @@
 package app.evcockpit.ui.tesla
 
 import app.evcockpit.obd.VehicleState
+import app.evcockpit.navigation.GeoPoint
+import app.evcockpit.navigation.NavigationRoute
+import app.evcockpit.navigation.RouteManeuver
+import app.evcockpit.navigation.RoutePosition
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -53,6 +57,24 @@ class ProCockpitPolicyTest {
         assertFalse(DriveModePolicy.allowedAction(TeslaAction.VIDEO, DriveMode.DRIVING, true))
         assertFalse(DriveModePolicy.allowedAction(TeslaAction.PLAN, DriveMode.UNKNOWN, true))
         assertTrue(DriveModePolicy.allowedAction(TeslaAction.ROTA, DriveMode.DRIVING, false))
+    }
+
+    @Test fun freshOnRoutePositionAllowsRealNextManeuver() {
+        val route = NavigationRoute(
+            geometry = listOf(GeoPoint(38.0, 35.0), GeoPoint(38.1, 35.1)),
+            distanceMeters = 10000.0,
+            durationSeconds = 600.0,
+            maneuvers = listOf(RouteManeuver("Sağa dön", 1, 1)),
+        )
+        val maneuver = ProCockpitPolicy.nextManeuver(
+            route, RoutePosition(5000.0, 0, 125.0))
+        assertEquals("Sağa dön", maneuver!!.instruction)
+        assertEquals("~125 m", maneuver.distance)
+        assertNull(ProCockpitPolicy.nextManeuver(route, null))
+        assertNull(ProCockpitPolicy.nextManeuver(route,
+            RoutePosition(5000.0, 0, Double.NaN)))
+        assertNull(ProCockpitPolicy.nextManeuver(route,
+            RoutePosition(5000.0, 9, 50.0)))
     }
 
     @Test fun noPlanDoesNotAdvertiseNonexistentChargingStops() {
