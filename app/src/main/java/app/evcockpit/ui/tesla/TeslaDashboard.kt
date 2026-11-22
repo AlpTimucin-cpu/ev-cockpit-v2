@@ -221,6 +221,7 @@ fun MapHero(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         MapHeadlineBar(headline)
+        ProRouteRibbon(plan, weatherSummary)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (previewMap) {
                 Box(
@@ -309,33 +310,32 @@ fun TeslaDashboardScreen(
     )
     val panel = DashboardPresentation.vehicle(s, soc, speed, usableKwhAtSoh,
         powerFresh = driveMode.obdPowerFresh)
-    DriveModeScaffold(
-        left = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(driveMode.label, color = if (driveMode.mode == DriveMode.DRIVING)
-                    TeslaTokens.warning else TeslaTokens.secondaryText,
-                    style = MaterialTheme.typography.labelMedium)
-                VehicleStatePanel(panel, Modifier.fillMaxWidth(),
-                    compact = driveMode.mode != DriveMode.DRIVING)
-            }
-        },
-        center = {
-            MapHero(navigation.route, navigation.destination, gps, gpsFresh,
-                plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize(),
-                allowRetry = driveMode.mode != DriveMode.DRIVING)
-        },
-        right = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ActionRail(onAction, molaAvailable = molaInstalled,
-                    mode = driveMode.mode,
-                    modifier = Modifier.fillMaxWidth())
-                TeslaGuidanceCard(
-                    guidance, onGuidanceAction,
-                    enabled = driveMode.mode != DriveMode.DRIVING,
-                )
-            }
-        },
-    )
+    val header = ProCockpitPolicy.status(driveMode.mode, s, driveMode, panel.source)
+    Column(Modifier.fillMaxSize().background(TeslaTokens.background)) {
+        ProCockpitHeader(header)
+        DriveModeScaffold(
+            left = {
+                ProVehiclePanel(panel, Modifier.fillMaxWidth())
+            },
+            center = {
+                MapHero(navigation.route, navigation.destination, gps, gpsFresh,
+                    plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize(),
+                    allowRetry = driveMode.mode != DriveMode.DRIVING)
+            },
+            right = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ProActionRail(onAction, mode = driveMode.mode,
+                        molaAvailable = molaInstalled,
+                        modifier = Modifier.fillMaxWidth())
+                    TeslaGuidanceCard(
+                        guidance, onGuidanceAction,
+                        enabled = driveMode.mode != DriveMode.DRIVING,
+                    )
+                }
+            },
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
 
 @Preview(name = "Tesla üçlü düzen - DEMO", widthDp = 1000, heightDp = 540,
