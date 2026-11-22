@@ -17,6 +17,15 @@ class ObdDiagnosticEngineTest {
         assertFalse(DiagnosticEvidence.hasUds("NO DATA", "028C"))
     }
 
+    @Test fun malformedOrSplitUdsRepliesAreNotPositiveEvidence() {
+        assertFalse(DiagnosticEvidence.hasUds("62 02 8C", "028C"))
+        assertFalse(DiagnosticEvidence.hasUds("62 02\r8C C8", "028C"))
+        assertFalse(DiagnosticEvidence.hasUds("7F 22 31", "028C"))
+        assertFalse(DiagnosticEvidence.hasUds("62 02 8C C8", "INVALID"))
+        assertTrue(DiagnosticEvidence.hasUds("17FE007B 04 62 02 8C C8", "028C"))
+        assertFalse(DiagnosticEvidence.hasMode01("41\r0D 00", "0D"))
+    }
+
     @Test fun monitorCountsOnlyFrameLikeLines() {
         val ids = DiagnosticEvidence.monitorIdentifiers(
             "ATMA\r\n17FE007B 04 62 02 8C C8\r\n7E8 06 41 00 BE 1F A8\r\nOK\r\n")
