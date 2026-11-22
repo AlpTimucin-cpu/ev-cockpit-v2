@@ -266,6 +266,24 @@ fun MapHero(
                     }
                 }
             }
+            // Navigation data is overlaid on the map instead of shrinking its
+            // viewport, especially important in short landscape displays.
+            if (!mapFailed) {
+                ProCockpitPolicy.nextManeuver(route, position)?.let { maneuver ->
+                    Box(
+                        Modifier.align(Alignment.TopStart).padding(8.dp)
+                            .widthIn(max = 350.dp),
+                    ) {
+                        ProNextManeuverCard(maneuver)
+                    }
+                }
+                Box(
+                    Modifier.align(Alignment.BottomStart).padding(8.dp)
+                        .widthIn(max = 330.dp),
+                ) {
+                    ProRouteRibbon(plan, weatherSummary)
+                }
+            }
         }
         if (next != null) NextStopBar(next, onClick = {
             selectedStation = next.charger
@@ -309,70 +327,87 @@ fun TeslaDashboardScreen(
     )
     val panel = DashboardPresentation.vehicle(s, soc, speed, usableKwhAtSoh,
         powerFresh = driveMode.obdPowerFresh)
-    DriveModeScaffold(
-        left = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(driveMode.label, color = if (driveMode.mode == DriveMode.DRIVING)
-                    TeslaTokens.warning else TeslaTokens.secondaryText,
-                    style = MaterialTheme.typography.labelMedium)
-                VehicleStatePanel(panel, Modifier.fillMaxWidth(),
-                    compact = driveMode.mode != DriveMode.DRIVING)
-            }
-        },
-        center = {
-            MapHero(navigation.route, navigation.destination, gps, gpsFresh,
-                plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize(),
-                allowRetry = driveMode.mode != DriveMode.DRIVING)
-        },
-        right = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ActionRail(onAction, molaAvailable = molaInstalled,
-                    mode = driveMode.mode,
-                    modifier = Modifier.fillMaxWidth())
-                TeslaGuidanceCard(
-                    guidance, onGuidanceAction,
-                    enabled = driveMode.mode != DriveMode.DRIVING,
-                )
-            }
-        },
-    )
-}
-
-@Preview(name = "Tesla üçlü düzen - DEMO", widthDp = 1000, heightDp = 540,
-    showBackground = true)
-@Composable
-private fun ThreePanePreview() {
-    CockpitTheme(dark = true) {
+    val header = ProCockpitPolicy.status(driveMode.mode, s, driveMode, panel.source)
+    Column(Modifier.fillMaxSize().background(TeslaTokens.background)) {
+        ProCockpitHeader(header)
         DriveModeScaffold(
             left = {
-                VehicleStatePanel(
-                    VehiclePanelUiState(speedKmh = 74.0, socPercent = 60.0,
-                        source = SourceKind.DEMO, status = PanelStatus.NORMAL,
-                        message = "ÖNİZLEME / DEMO"),
-                    compact = true,
-                )
+                ProVehiclePanel(panel, Modifier.fillMaxWidth())
             },
             center = {
-                MapHero(null, null, GpsSnapshot(), false, null, "",
-                    {}, Modifier.fillMaxSize(), previewMap = true)
+                MapHero(navigation.route, navigation.destination, gps, gpsFresh,
+                    plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize(),
+                    allowRetry = driveMode.mode != DriveMode.DRIVING)
             },
-            right = { ActionRail(onAction = {}) },
+            right = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ProActionRail(onAction, mode = driveMode.mode,
+                        molaAvailable = molaInstalled,
+                        modifier = Modifier.fillMaxWidth())
+                    TeslaGuidanceCard(
+                        guidance, onGuidanceAction,
+                        enabled = driveMode.mode != DriveMode.DRIVING,
+                    )
+                }
+            },
+            modifier = Modifier.weight(1f),
         )
     }
 }
 
-@Preview(name = "Tesla dikey düzen - DEMO", widthDp = 400, heightDp = 850,
+@Preview(name = "Pro Cockpit yatay - DEMO", widthDp = 1000, heightDp = 540,
+    showBackground = true)
+@Composable
+private fun ThreePanePreview() {
+    CockpitTheme(dark = true) {
+        Column(Modifier.fillMaxSize()) {
+            ProCockpitHeader(
+                ProCockpitPolicy.status(
+                    DriveMode.PARKED, VehicleState(connected = true, demo = true),
+                    DriveModeSnapshot(mode = DriveMode.PARKED), SourceKind.DEMO,
+                )
+            )
+            DriveModeScaffold(
+                left = {
+                    ProVehiclePanel(VehiclePanelUiState(
+                        speedKmh = 0.0, socPercent = 60.0, estimatedKwh = 31.2,
+                        source = SourceKind.DEMO, status = PanelStatus.NORMAL,
+                        message = "ÖNİZLEME • DEMO"),
+                    )
+                },
+                center = {
+                    MapHero(null, null, GpsSnapshot(), false, null,
+                        "Hava: önizleme / DEMO",
+                        {}, Modifier.fillMaxSize(), previewMap = true)
+                },
+                right = { ProActionRail(onAction = {}, mode = DriveMode.PARKED,
+                    molaAvailable = false) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Preview(name = "Pro Cockpit dikey - DEMO", widthDp = 400, heightDp = 850,
     showBackground = true)
 @Composable
 private fun VerticalDashboardPreview() {
     CockpitTheme(dark = true) {
-        DriveModeScaffold(
-            left = { VehicleStatePanel(VehiclePanelUiState(), compact = true) },
-            center = {
-                MapHero(null, null, GpsSnapshot(), false, null, "",
-                    {}, Modifier.fillMaxSize(), previewMap = true)
-            },
-            right = { ActionRail(onAction = {}) },
-        )
+        Column(Modifier.fillMaxSize()) {
+            ProCockpitHeader(
+                ProCockpitPolicy.status(DriveMode.UNKNOWN, VehicleState(),
+                    DriveModeSnapshot(), SourceKind.YOK)
+            )
+            DriveModeScaffold(
+                left = { ProVehiclePanel(VehiclePanelUiState()) },
+                center = {
+                    MapHero(null, null, GpsSnapshot(), false, null,
+                        "", {}, Modifier.fillMaxSize(), previewMap = true)
+                },
+                right = { ProActionRail(onAction = {},
+                    mode = DriveMode.UNKNOWN, molaAvailable = false) },
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
