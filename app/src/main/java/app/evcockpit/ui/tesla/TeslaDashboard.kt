@@ -221,10 +221,6 @@ fun MapHero(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         MapHeadlineBar(headline)
-        ProRouteRibbon(plan, weatherSummary)
-        ProCockpitPolicy.nextManeuver(route, position)?.let { maneuver ->
-            ProNextManeuverCard(maneuver)
-        }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (previewMap) {
                 Box(
@@ -268,6 +264,24 @@ fun MapHero(
                             modifier = Modifier.heightIn(min = TeslaTokens.touchTarget),
                         ) { Text("Haritayı yeniden dene") }
                     }
+                }
+            }
+            // Navigation data is overlaid on the map instead of shrinking its
+            // viewport, especially important in short landscape displays.
+            if (!mapFailed) {
+                ProCockpitPolicy.nextManeuver(route, position)?.let { maneuver ->
+                    Box(
+                        Modifier.align(Alignment.TopStart).padding(8.dp)
+                            .widthIn(max = 350.dp),
+                    ) {
+                        ProNextManeuverCard(maneuver)
+                    }
+                }
+                Box(
+                    Modifier.align(Alignment.BottomStart).padding(8.dp)
+                        .widthIn(max = 330.dp),
+                ) {
+                    ProRouteRibbon(plan, weatherSummary)
                 }
             }
         }
