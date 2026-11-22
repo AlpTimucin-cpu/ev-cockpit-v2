@@ -82,6 +82,29 @@ class ObdParseTest {
         }
     }
 
+    @Test fun independentCanFramesMustNotBeJoinedIntoOneUdsPayload() {
+        // Neither individual responder line contains the expected positive DID.
+        assertNull(Elm327.parseUds("22028C", "62 02\r8C C8"))
+        assertNull(Elm327.parseUds("22028C", "17FE007B 02 62 02\r17FE0076 02 8C C8"))
+        assertNull(Elm327.parseUds("22028C", "62 02 8C")) // no data
+    }
+
+    @Test fun oneFramedResponseReturnsOnlyItsOwnPayload() {
+        val response = "17FE007B 04 62 02 8C C8\r17FE0076 04 62 02 8C FF"
+        val data = Elm327.parseUds("22028C", response)!!
+        assertEquals(1, data.size)
+        assertEquals(80.0, PidTable.decode(pid(1, 0.4), data)!!, 1e-9)
+        val elevenBit = Elm327.parseUds("22028C", "7E8 04 62 02 8C C8")!!
+        assertEquals(1, elevenBit.size)
+        assertEquals(80.0, PidTable.decode(pid(1, 0.4), elevenBit)!!, 1e-9)
+    }
+
+    @Test fun requestEchoWrongDidAndOddByteAlignmentNeverDecode() {
+        assertNull(Elm327.parseUds("22028C", "22028C"))
+        assertNull(Elm327.parseUds("22028C", "17FE007B 04 62 02 8D C8"))
+        assertNull(Elm327.parseUds("22028C", "F62 02 8C C8"))
+    }
+
     private class FakeTransport(private val answers: Map<String, String>) : ObdTransport {
         val commands = mutableListOf<String>()
         override suspend fun open() = Unit
