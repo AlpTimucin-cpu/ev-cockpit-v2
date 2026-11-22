@@ -222,6 +222,9 @@ fun MapHero(
     ) {
         MapHeadlineBar(headline)
         ProRouteRibbon(plan, weatherSummary)
+        ProCockpitPolicy.nextManeuver(route, position)?.let { maneuver ->
+            ProNextManeuverCard(maneuver)
+        }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (previewMap) {
                 Box(
