@@ -355,41 +355,59 @@ fun TeslaDashboardScreen(
     }
 }
 
-@Preview(name = "Tesla üçlü düzen - DEMO", widthDp = 1000, heightDp = 540,
+@Preview(name = "Pro Cockpit yatay - DEMO", widthDp = 1000, heightDp = 540,
     showBackground = true)
 @Composable
 private fun ThreePanePreview() {
     CockpitTheme(dark = true) {
-        DriveModeScaffold(
-            left = {
-                VehicleStatePanel(
-                    VehiclePanelUiState(speedKmh = 74.0, socPercent = 60.0,
-                        source = SourceKind.DEMO, status = PanelStatus.NORMAL,
-                        message = "ÖNİZLEME / DEMO"),
-                    compact = true,
+        Column(Modifier.fillMaxSize()) {
+            ProCockpitHeader(
+                ProCockpitPolicy.status(
+                    DriveMode.PARKED, VehicleState(connected = true, demo = true),
+                    DriveModeSnapshot(mode = DriveMode.PARKED), SourceKind.DEMO,
                 )
-            },
-            center = {
-                MapHero(null, null, GpsSnapshot(), false, null, "",
-                    {}, Modifier.fillMaxSize(), previewMap = true)
-            },
-            right = { ActionRail(onAction = {}) },
-        )
+            )
+            DriveModeScaffold(
+                left = {
+                    ProVehiclePanel(VehiclePanelUiState(
+                        speedKmh = 0.0, socPercent = 60.0, estimatedKwh = 31.2,
+                        source = SourceKind.DEMO, status = PanelStatus.NORMAL,
+                        message = "ÖNİZLEME • DEMO"),
+                    )
+                },
+                center = {
+                    MapHero(null, null, GpsSnapshot(), false, null,
+                        "Hava: önizleme / DEMO",
+                        {}, Modifier.fillMaxSize(), previewMap = true)
+                },
+                right = { ProActionRail(onAction = {}, mode = DriveMode.PARKED,
+                    molaAvailable = false) },
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
-@Preview(name = "Tesla dikey düzen - DEMO", widthDp = 400, heightDp = 850,
+@Preview(name = "Pro Cockpit dikey - DEMO", widthDp = 400, heightDp = 850,
     showBackground = true)
 @Composable
 private fun VerticalDashboardPreview() {
     CockpitTheme(dark = true) {
-        DriveModeScaffold(
-            left = { VehicleStatePanel(VehiclePanelUiState(), compact = true) },
-            center = {
-                MapHero(null, null, GpsSnapshot(), false, null, "",
-                    {}, Modifier.fillMaxSize(), previewMap = true)
-            },
-            right = { ActionRail(onAction = {}) },
-        )
+        Column(Modifier.fillMaxSize()) {
+            ProCockpitHeader(
+                ProCockpitPolicy.status(DriveMode.UNKNOWN, VehicleState(),
+                    DriveModeSnapshot(), SourceKind.YOK)
+            )
+            DriveModeScaffold(
+                left = { ProVehiclePanel(VehiclePanelUiState()) },
+                center = {
+                    MapHero(null, null, GpsSnapshot(), false, null,
+                        "", {}, Modifier.fillMaxSize(), previewMap = true)
+                },
+                right = { ProActionRail(onAction = {},
+                    mode = DriveMode.UNKNOWN, molaAvailable = false) },
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
