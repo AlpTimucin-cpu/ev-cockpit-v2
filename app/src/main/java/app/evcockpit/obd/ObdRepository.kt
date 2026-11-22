@@ -261,8 +261,18 @@ class ObdRepository(private val ctx: Context, private val scope: CoroutineScope)
     }
 
     private fun applyValue(role: String, value: Double) {
-        if (!value.isFinite()) return
         val whenRead = SystemClock.elapsedRealtime()
+        val current = state.value
+        val verdict = ObdValueQuality.assess(
+            role, value, current.socPct, current.socUpdatedElapsedMs, whenRead,
+        )
+        if (verdict != ObdReadingVerdict.ACCEPT) {
+            // Keep diagnostics useful without publishing rejected numeric data as telemetry.
+            if (verdict != ObdReadingVerdict.UNMAPPED_ROLE) {
+                addLine("OBD ÖLÇÜMÜ REDDEDİLDİ: $role / $verdict; PID doğrulanmadı")
+            }
+            return
+        }
         state.update {
             when (role) {
                 "soc" -> it.copy(socPct = value, socUpdatedElapsedMs = whenRead)
