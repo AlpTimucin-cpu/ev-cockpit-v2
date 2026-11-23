@@ -895,6 +895,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1081,38 +1083,43 @@ fun ChargingExplorerScreen(
                     )
                 }
                 val entries: @Composable () -> Unit = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().height(470.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         if (filtered.isEmpty()) {
-                            Surface(color = panel, shape = RoundedCornerShape(16.dp)) {
-                                Text("Henüz istasyon yok. Haritayı görüntülemek için bir rota, " +
-                                    "istasyon taraması için OCM API anahtarı gerekiyor.",
-                                    color = soft, modifier = Modifier.padding(15.dp))
+                            item {
+                                Surface(color = panel, shape = RoundedCornerShape(16.dp)) {
+                                    Text("Henüz istasyon yok. Rota seçip OCM anahtarıyla tara.",
+                                        color = soft, modifier = Modifier.padding(15.dp))
+                                }
                             }
                         }
-                        filtered.take(if (wide) 35 else 10).forEach { station ->
+                        items(filtered, key = { it.id }) { station ->
                             StationCard(station, state.selected?.id == station.id,
                                 state.catalog, state.manual,
                                 onPick = { vm.select(station) },
                                 onAdd = { vm.addStop(station) })
-                        }
-                        if (filtered.size > if (wide) 35 else 10) {
-                            Text("Listede ilk ${if (wide) 35 else 10} istasyon gösteriliyor. " +
-                                "Haritadaki noktalardan diğerlerine erişebilirsin.",
-                                color = soft, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
                 if (wide) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         map(Modifier.weight(1.8f).height(470.dp))
-                        Column(Modifier.weight(1f).height(470.dp)
-                            .verticalScroll(rememberScrollState())) { entries() }
+                        Box(Modifier.weight(1f)) { entries() }
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         map(Modifier.fillMaxWidth().height(340.dp))
+                        Text("BULUNAN İSTASYONLAR • ${filtered.size}",
+                            color = soft, style = MaterialTheme.typography.labelLarge)
                         entries()
                     }
+                }
+                if (filtered.size > 250) {
+                    Text("Performans için haritada ilk 250 nokta işaretli; " +
+                        "istasyonların tamamı kaydırılabilir listede.",
+                        color = soft, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
