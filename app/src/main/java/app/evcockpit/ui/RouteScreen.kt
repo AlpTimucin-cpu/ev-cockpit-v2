@@ -258,7 +258,7 @@ fun RouteScreen(
                         val charge = when (preview?.requiresCharging) {
                             false -> "Ön modele göre durak gerekmiyor"
                             true -> "Şarj gerekli • gereken ek enerji en az " +
-                                "${fmt(preview.extraKwhForMinimum ?: 0.0)} kWh"
+                                "${fmt(preview?.extraKwhForMinimum ?: 0.0)} kWh"
                             null -> "SoC bilinmiyor; durak planı hesaplanamaz"
                         }
                         Text("Şarj: $charge")
