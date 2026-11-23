@@ -1,7 +1,9 @@
 package app.evcockpit.navigation
 
+import android.app.Application
+import app.evcockpit.CockpitApplication
 import android.os.SystemClock
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -27,7 +29,7 @@ enum class PlaceField { ORIGIN, DESTINATION }
 object AutocompletePolicy {
     const val MIN_LENGTH = 3
     const val MAX_LENGTH = 120
-    const val DEBOUNCE_MS = 750L
+    const val DEBOUNCE_MS = 250L
     const val CITY_REQUEST_GAP_MS = 2_500L
     const val CACHE_MAX = 16
 
@@ -152,9 +154,25 @@ data class PlaceSuggestionState(
 )
 
 /** UI only reads StateFlow, no network calls within a Composable. */
-class PlaceAutocompleteViewModel(
-    private val source: PlaceSuggestionSource = PublicPlaceSuggestionSource(),
-) : ViewModel() {
+class PlaceAutocompleteViewModel @JvmOverloads constructor(
+    application: Application,
+    private val source: PlaceSuggestionSource = PublicPlaceSuggestionSource(
+        photon = PhotonGeocoder {
+            val gps = (application as? CockpitApplication)?.locationRepository?.state?.value
+            gps?.point?.takeIf {
+                gps.isFresh(SystemClock.elapsedRealtime()) &&
+                    (gps.accuracyMeters ?: 999f) <= 100f
+            }
+        },
+    ),
+) : AndroidViewModel(application) {
+    // Available instantly and without network, even if the fair-use geocoder is throttled.
+    private val offline = runCatching {
+        application.assets.open("tr_province_district_centres.txt")
+            .bufferedReader(Charsets.UTF_8)
+            .use { OfflineTurkishPlaces.fromDelimited(it.readText()) }
+    }.getOrElse { OfflineTurkishPlaces.empty() }
+
     private val mutable = MutableStateFlow(PlaceSuggestionState())
     val state = mutable.asStateFlow()
     private var originJob: Job? = null
@@ -162,36 +180,50 @@ class PlaceAutocompleteViewModel(
 
     fun onTextChanged(field: PlaceField, raw: String) {
         val text = raw.take(AutocompletePolicy.MAX_LENGTH)
+        val local = offline.suggest(text)
+        val onlineEligible = AutocompletePolicy.eligible(text)
+        val status = when {
+            local.isNotEmpty() && onlineEligible ->
+                "İl/ilçe önerileri hazır • tam adres internetten aranıyor."
+            local.isNotEmpty() ->
+                "Çevrim dışı il/ilçe önerileri • adres için 3 veya daha fazla harf."
+            onlineEligible -> "İnternet üzerinden adres önerileri aranacak…"
+            else -> "İl/ilçe için en az 2, adres için en az 3 harf yaz."
+        }
         if (field == PlaceField.ORIGIN) {
             originJob?.cancel()
             mutable.value = mutable.value.copy(
-                originText = text, originResults = emptyList(), searchingOrigin = false,
-                originStatus = if (AutocompletePolicy.eligible(text))
-                    "Adres önerileri aranacak…" else "Başlangıç için en az 3 harf yaz.",
+                originText = text, originResults = local, searchingOrigin = false,
+                originStatus = status,
             )
         } else {
             destinationJob?.cancel()
             mutable.value = mutable.value.copy(
-                destinationText = text, destinationResults = emptyList(),
-                searchingDestination = false,
-                destinationStatus = if (AutocompletePolicy.eligible(text))
-                    "Adres önerileri aranacak…" else "Hedef için en az 3 harf yaz.",
+                destinationText = text, destinationResults = local,
+                searchingDestination = false, destinationStatus = status,
             )
         }
-        if (!AutocompletePolicy.eligible(text)) return
+        // Never wait for the network to display an already known province/district.
+        if (!onlineEligible) return
         val job = viewModelScope.launch {
             delay(AutocompletePolicy.DEBOUNCE_MS)
             markLoading(field)
             try {
-                val found = source.suggest(text)
-                setResults(field, found, if (found.isEmpty())
-                    "Öneri bulunamadı veya ücretsiz arama servisi sınırlı. Biraz sonra yeniden yaz."
-                else "Öneriler • Open-Meteo şehir / Photon adres. Haritada doğrula.")
+                val online = source.suggest(text)
+                val combined = (online + local).distinctBy {
+                    it.label + "|" + it.point.latitude + "|" + it.point.longitude
+                }.take(10)
+                setResults(field, combined, when {
+                    online.isNotEmpty() -> "Adres / şehir önerileri • seçmeden önce haritada doğrula."
+                    local.isNotEmpty() -> "İl/ilçe önerileri • çevrim içi adres yanıtı yok."
+                    else -> "Öneri bulunamadı veya ücretsiz servis sınırlı. Tekrar dene."
+                })
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (_: Exception) {
-                setResults(field, emptyList(),
-                    "Adres önerileri alınamadı. İnterneti kontrol edip tekrar yaz.")
+                setResults(field, local, if (local.isNotEmpty())
+                    "İl/ilçe önerileri kullanılabilir • tam adres çevrim dışı."
+                else "Adres önerileri alınamadı. İnternet bağlantısını kontrol et.")
             }
         }
         if (field == PlaceField.ORIGIN) originJob = job else destinationJob = job
