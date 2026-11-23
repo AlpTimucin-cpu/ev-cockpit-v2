@@ -55,6 +55,10 @@ fun RouteSettingsScreen(
     val context = LocalContext.current
     val store = remember(context) { EncryptedRouteKeyStore(context) }
     val configured by store.isConfigured.collectAsState(initial = false)
+    val mapTilerStore = remember(context) { MapTilerKeyStore(context) }
+    val mapTilerKey by mapTilerStore.key.collectAsState(initial = null)
+    var mapTilerInput by remember { mutableStateOf("") }
+    var mapTilerStatus by remember { mutableStateOf<String?>(null) }
     val profileStore = remember(context) { VehicleProfileStore(context.applicationContext) }
     val vehicleProfile by profileStore.profile.collectAsState(initial = VehicleProfile.defaults())
     val scope = rememberCoroutineScope()
@@ -129,6 +133,45 @@ fun RouteSettingsScreen(
         }
         manualError?.let { Text(it) }
         Text("OBD SoC yanıt verirse öncelik OBD'dedir; PID ölçeği doğrulanmadı etiketi korunur.")
+        Text("Harita katmanları: sokak / açık / koyu ücretsiz; uydu ve topo için MapTiler anahtarı.")
+        Text("MapTiler anahtarı: " +
+            if (mapTilerKey.isNullOrBlank()) "kayıtlı değil" else "cihaza şifreli kaydedildi")
+        OutlinedTextField(
+            value = mapTilerInput,
+            onValueChange = { mapTilerInput = it.take(256) },
+            label = { Text("Kendi MapTiler API anahtarın (uydu ve topo)") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(enabled = mapTilerInput.isNotBlank(), onClick = {
+            scope.launch {
+                try {
+                    mapTilerStore.save(mapTilerInput)
+                    mapTilerInput = ""
+                    mapTilerStatus = "Anahtar kaydedildi; uydu/topo artık harita katmanından seçilebilir."
+                } catch (_: Exception) {
+                    mapTilerStatus = "Anahtar kaydedilemedi; biçimini veya cihaz güvenliğini kontrol et."
+                }
+            }
+        }) { Text("MapTiler anahtarını şifreli kaydet") }
+        if (!mapTilerKey.isNullOrBlank()) {
+            OutlinedButton(onClick = {
+                scope.launch {
+                    try {
+                        mapTilerStore.clear()
+                        mapTilerInput = ""
+                        mapTilerStatus = "MapTiler anahtarı silindi."
+                    } catch (_: Exception) {
+                        mapTilerStatus = "Anahtar silinemedi."
+                    }
+                }
+            }) { Text("MapTiler anahtarını sil") }
+        }
+        mapTilerStatus?.let { Text(it) }
+        Text("Anahtar MapTiler karo isteklerinde sağlayıcıya gönderilir. " +
+            "Ücretsiz kullanım kotası sağlayıcı hesabına bağlıdır; karoların yüklenmesi garanti değil.")
         Text("Görünüm: sabit koyu tema • dinamik renk kullanılmıyor.")
         Row { Text("Ekranı açık tut"); Switch(checked = keepScreenOn, onCheckedChange = onKeepScreenOn) }
         Text("Ekranı açık tut seçimi yalnız uygulama açıkken geçerlidir; telefon üzerinde DOĞRULANMADI.")

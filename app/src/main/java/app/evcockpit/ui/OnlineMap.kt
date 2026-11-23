@@ -2,6 +2,8 @@ package app.evcockpit.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -42,6 +44,7 @@ import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
 import kotlin.math.abs
 import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
@@ -74,9 +77,16 @@ fun OnlineMap(
     val context = LocalContext.current
     val layerPreferences = remember(context) { MapLayerPreferences(context) }
     val layer by layerPreferences.selected.collectAsState(initial = MapLayer.DARK)
-    val chosenLayer = rememberUpdatedState(layer)
+    val mapTilerStore = remember(context) { MapTilerKeyStore(context) }
+    val mapTilerKey by mapTilerStore.key.collectAsState(initial = null)
+    val styleUrl = MapStyleResolver.url(layer, mapTilerKey)
+        ?: MapLayer.DARK.styleUrl
+    val chosenStyleUrl = rememberUpdatedState(styleUrl)
     val scope = rememberCoroutineScope()
-    val mapStyleApplied = remember { mutableStateOf(MapLayer.DARK) }
+    val mapStyleApplied = remember { mutableStateOf("") }
+    var followCamera by remember { mutableStateOf(false) }
+    var tiltedCamera by remember { mutableStateOf(false) }
+    var northUp by remember { mutableStateOf(false) }
     val layerMenu = remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val mapReady = remember { mutableStateOf<MapLibreMap?>(null) }
@@ -106,8 +116,8 @@ fun OnlineMap(
                     }
                     if(found!=null) { chosenStop.value(found);true } else false
                 }
-                mapStyleApplied.value = chosenLayer.value
-                map.setStyle(chosenLayer.value.styleUrl) {
+                mapStyleApplied.value = chosenStyleUrl.value
+                map.setStyle(chosenStyleUrl.value) {
                     mapReady.value = map
                     mapReadyCallback.value()
                 }
@@ -150,12 +160,12 @@ fun OnlineMap(
     }
 
     val loadedMap = mapReady.value
-    LaunchedEffect(layer) {
+    LaunchedEffect(styleUrl) {
         val map = mapReady.value
-        if (map != null && layer != mapStyleApplied.value) {
+        if (map != null && styleUrl != mapStyleApplied.value) {
             mapReady.value = null
-            map.setStyle(layer.styleUrl) {
-                mapStyleApplied.value = layer
+            map.setStyle(styleUrl) {
+                mapStyleApplied.value = styleUrl
                 mapReady.value = map
                 mapReadyCallback.value()
             }
@@ -163,11 +173,40 @@ fun OnlineMap(
     }
     LaunchedEffect(loadedMap, focusedStop) {
         if(loadedMap!=null && focusedStop!=null) {
+            followCamera = false
             loadedMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
                 LatLng(focusedStop.latitude,focusedStop.longitude),12.0))
         }
     }
     val gpsFresh = rememberGpsFreshness(gps)
+    // Takip kapalıyken de 2B/3B değişimi mevcut harita merkezinde uygulanır.
+    LaunchedEffect(loadedMap, tiltedCamera, northUp) {
+        val map = loadedMap ?: return@LaunchedEffect
+        if (followCamera) return@LaunchedEffect
+        val current = map.cameraPosition
+        val camera = CameraPosition.Builder()
+            .target(current.target)
+            .zoom(current.zoom)
+            .bearing(if (northUp) 0.0 else current.bearing)
+            .tilt(if (tiltedCamera) 45.0 else 0.0)
+            .build()
+        map.animateCamera(CameraUpdateFactory.newCameraPosition(camera))
+    }
+    // Takip isteğe bağlıdır; GPS güncel değilse kamera sahte konuma gitmez.
+    // GNSS course hareket yönüdür; pusula okumak gibi yorumlanmaz.
+    LaunchedEffect(loadedMap, gps.point, gpsFresh, gps.courseDegrees,
+        followCamera, tiltedCamera, northUp) {
+        val map = loadedMap ?: return@LaunchedEffect
+        val point = gps.point ?: return@LaunchedEffect
+        if (!followCamera || !gpsFresh) return@LaunchedEffect
+        val camera = CameraPosition.Builder()
+            .target(LatLng(point.latitude, point.longitude))
+            .zoom(15.0)
+            .bearing(if (northUp) 0.0 else gps.courseDegrees ?: 0.0)
+            .tilt(if (tiltedCamera) 45.0 else 0.0)
+            .build()
+        map.animateCamera(CameraUpdateFactory.newCameraPosition(camera))
+    }
     LaunchedEffect(loadedMap, route, destination, stopMarkers, gps.point, gpsFresh) {
         val currentMap = loadedMap ?: return@LaunchedEffect
         var currentLine: Polyline? = null
@@ -245,11 +284,33 @@ fun OnlineMap(
                 MapLayer.entries.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option.titleTr + if (option == layer) " ✓" else "") },
+                        enabled = MapStyleResolver.url(option, mapTilerKey) != null,
                         onClick = {
                             layerMenu.value = false
                             scope.launch { layerPreferences.choose(option) }
                         },
                     )
+                }
+            }
+        }
+        if (canChangeLayer) {
+            Column(
+                modifier = Modifier.align(Alignment.CenterEnd)
+                    .background(Color(0x99000000)).padding(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                OutlinedButton(
+                    enabled = gpsFresh && gps.point != null,
+                    onClick = { followCamera = !followCamera },
+                ) { Text(if (followCamera) "Takibi kapat" else "Konumumu izle") }
+                OutlinedButton(onClick = { tiltedCamera = !tiltedCamera }) {
+                    Text(if (tiltedCamera) "2B görünüm" else "3B açı (45°)")
+                }
+                OutlinedButton(onClick = { northUp = !northUp }) {
+                    Text(if (northUp) "Hareket yönü" else "Kuzey yukarı")
+                }
+                if (!gpsFresh || gps.point == null) {
+                    Text("GPS güncel değil", color = Color.White, fontSize = 12.sp)
                 }
             }
         }

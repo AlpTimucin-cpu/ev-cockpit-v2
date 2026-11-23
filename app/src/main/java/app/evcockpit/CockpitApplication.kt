@@ -1,6 +1,7 @@
 package app.evcockpit
 
 import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
 import app.evcockpit.obd.ObdRepository
 import app.evcockpit.diagnostics.CrashLog
 import app.evcockpit.location.LocationRepository
@@ -9,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
 /** Process-scoped state holder so Activity recreation does not cancel the OBD session. */
+@HiltAndroidApp
 class CockpitApplication : Application() {
     override fun onCreate() {
         super.onCreate()

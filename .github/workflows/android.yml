@@ -2,7 +2,8 @@ name: Android CI
 
 on:
   push:
-    branches: [main]
+    # Her özellik dalında da APK artifaktı üret; Nightly yalnız main'de kalır.
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 

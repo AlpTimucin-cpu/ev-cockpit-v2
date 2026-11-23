@@ -13,6 +13,8 @@ data class GpsSnapshot(
     val receivedElapsedRealtimeMs: Long = 0L,
     val active: Boolean = false,
     val status: String = "Konum takibi başlatılmadı",
+    // GNSS hareket doğrultusu: cihazın pusula açısı değildir.
+    val courseDegrees: Double? = null,
 ) {
     fun isFresh(nowElapsedRealtimeMs: Long): Boolean =
         point != null && receivedElapsedRealtimeMs > 0L &&
@@ -60,6 +62,10 @@ class LocationRepository {
             provider = location.provider,
             receivedElapsedRealtimeMs = fixTime,
             active = true,
+            courseDegrees = if (location.hasBearing() &&
+                location.bearing.isFinite() && location.bearing in 0f..360f &&
+                (accuracy == null || accuracy <= 100f)
+            ) location.bearing.toDouble() else null,
             status = if (location.provider == android.location.LocationManager.GPS_PROVIDER) {
                 "GPS sinyali alındı (doğruluk: ${accuracy?.toInt() ?: "?"} m)"
             } else "Yaklaşık ağ konumu; kesin GPS değil",
