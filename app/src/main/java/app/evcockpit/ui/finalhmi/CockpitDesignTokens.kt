@@ -49,13 +49,14 @@ object CockpitDesignTokens {
     val topBarMinHeight = 56.dp
     val tabBarHeight = 70.dp
     val bannerMinHeight = 36.dp
-    val phoneMapHeight = 400.dp
-    val compactMapHeight = 330.dp
+    val phoneMapHeight = 388.dp
+    val compactMapHeight = 312.dp
     val wideWeatherHeight = 112.dp
     val speedCardMinHeight = 116.dp
-    val metricCardMinHeight = 112.dp
+    val metricCardMinHeight = 88.dp
     val chargingCardMinHeight = 140.dp
-    val mapSummaryHeight = 72.dp
+    val mapSummaryHeight = 116.dp
+    val mapControlsVerticalMinHeight = 280.dp
     val mapBorderRadius = 18.dp
     val mapAttributionPadding = 4.dp
 
