@@ -28,6 +28,7 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 
 /** F1 yalnız temel haritayı açar; GPS, rota ve şarj istasyonu TAKLİDİ yapmaz. */
@@ -56,7 +57,10 @@ fun MapHeroPane(
     val mapView = remember(context, inspection) {
         if (inspection) null else {
             MapLibre.getInstance(context)
-            MapView(context).apply {
+            // Compose içinde varsayılan GLSurfaceView siyah kalabilmektedir.
+            // TextureView, Compose katmanlarıyla aynı kompozisyon yüzeyinde çizilir.
+            MapView(context, MapLibreMapOptions.createFromAttributes(context)
+                .textureMode(true)).apply {
                 onCreate(null)
                 addOnDidFailLoadingMapListener(
                     MapView.OnDidFailLoadingMapListener { _ ->
