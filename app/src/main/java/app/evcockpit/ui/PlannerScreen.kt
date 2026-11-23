@@ -34,6 +34,7 @@ import app.evcockpit.planner.integration.PlanToNavigation
 import app.evcockpit.navigation.GeoPoint
 import app.evcockpit.location.GpsSnapshot
 import app.evcockpit.planner.charging.ChargerCandidate
+import app.evcockpit.charging.ui.ChargingExplorerScreen
 import app.evcockpit.planner.charging.ChargerEvidence
 import app.evcockpit.planner.charging.ChargerConfidence
 import android.os.SystemClock
@@ -62,6 +63,7 @@ fun PlannerScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
     var showPlanMap by remember{mutableStateOf(true)}
+    var showAdvancedPlanner by remember { mutableStateOf(false) }
     var highlightedStation by remember{mutableStateOf<ChargerCandidate?>(null)}
     var selectedSaved by remember{mutableStateOf<StoredPlan?>(null)}
     var saveStatus by remember{mutableStateOf("")}
@@ -81,7 +83,23 @@ fun PlannerScreen(
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-        .padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+        .padding(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        // C aşamasında ana deneyim önce harita ve gerçek OCM şarj listesi.
+        // Eski ayrıntılı parametre/çözücü ekranı aşağıda isteğe bağlı açılır.
+        ChargingExplorerScreen(
+            route = navigation,
+            gps = gps,
+            onSelectDestination = onSelectDestination,
+            onNavigateViaStops = onNavigate,
+        )
+        OutlinedButton(
+            onClick = { showAdvancedPlanner = !showAdvancedPlanner },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (showAdvancedPlanner) "Gelişmiş enerji ve plan ayarlarını kapat"
+                else "Gelişmiş enerji ve otomatik şarj planlaması")
+        }
+        if (showAdvancedPlanner) {
         val success=state.plan as? PlanResult.Success
         Surface(
             modifier=Modifier.fillMaxWidth(),
@@ -458,6 +476,7 @@ fun PlannerScreen(
         Text("© OpenStreetMap katkıcıları / OpenFreeMap • © openrouteservice • Open-Meteo")
         Text("Sürüş öncesi kullanım. Sürüşte ekrana yoğun dokunmayın.",
             style=MaterialTheme.typography.bodySmall)
+        } // Gelişmiş plan görünümü
     }
     if(dataFlow) {
         AlertDialog(onDismissRequest={dataFlow=false},

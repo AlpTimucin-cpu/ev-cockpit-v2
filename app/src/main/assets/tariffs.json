@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "notice": "Fiyatlar 23.11.2026 tarihinde operatörlerin resmî web sayfalarında görülen yayımlanmış değerlerdir; lokasyon/soket/kampanya/üyeliğe göre değişebilir. Özellikle ZES ve Trugo DC tek fiyat değildir: null.",
+  "attribution": "Operatörlerin yayımladığı tarifelerle doğrulanması gereken kullanıcı veri kataloğu; canlı fiyat API'si değildir.",
+  "operators": [
+    {
+      "id": "zes",
+      "operator": "ZES",
+      "aliases": [
+        "zes"
+      ],
+      "ac_tl_kwh": 10.99,
+      "dc_tl_kwh": null,
+      "updated_at": "2026-11-23",
+      "source_url": "https://zes.net/tr/fiyatlandirma"
+    },
+    {
+      "id": "esarj",
+      "operator": "Eşarj",
+      "aliases": [
+        "esarj"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "trugo",
+      "operator": "Trugo",
+      "aliases": [
+        "trugo"
+      ],
+      "ac_tl_kwh": 9.95,
+      "dc_tl_kwh": null,
+      "updated_at": "2026-11-23",
+      "source_url": "https://www.trugo.com.tr/price"
+    },
+    {
+      "id": "voltrun",
+      "operator": "Voltrun",
+      "aliases": [
+        "voltrun"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "sharz",
+      "operator": "Sharz",
+      "aliases": [
+        "sharz"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "tesla",
+      "operator": "Tesla",
+      "aliases": [
+        "tesla"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "powersarj",
+      "operator": "Powerşarj",
+      "aliases": [
+        "powersarj"
+      ],
+      "ac_tl_kwh": 11.19,
+      "dc_tl_kwh": 13.99,
+      "updated_at": "2026-11-23",
+      "source_url": "https://powersarj.com/fiyatlandirma/"
+    },
+    {
+      "id": "rhg-enerturk",
+      "operator": "RHG Enertürk",
+      "aliases": [
+        "rhg enerturk"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "kilovati",
+      "operator": "Kilovati",
+      "aliases": [
+        "kilovati"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    }
+  ]
+}

@@ -61,3 +61,17 @@ dependencies were fully audited, or that proprietary source code can be copied.
   Genel örnek serviste yoğun kullanım kısıtlanabilir. Kullanıcı koordinatı,
   sadece geçerli konum izni ve güncel GPS varsa arama yanlılığı için gönderilir.
 * Başka bir uygulamanın kapalı API'si, fiyat verisi ya da algoritması kopyalanmadı.
+
+## C aşaması: Open Charge Map ve tarifeler
+- Open Charge Map, şarj istasyonu konumu ve bağlantı türleri:
+  © Open Charge Map contributors, https://openchargemap.org
+  API belgesi ve kullanım koşulları: https://openchargemap.org/develop/api
+  Kullanıcının kendi ücretsiz API anahtarı gerekir; anlık doluluk bu
+  veri kaynağıyla doğrulanmış sayılmaz.
+- İstasyonların coğrafi temeli / rota: © OpenStreetMap contributors,
+  https://www.openstreetmap.org/copyright
+- `app/src/main/assets/tariffs.json`: bu uygulama için hazırlanmış
+  sürümlü operatör kataloğu. Başlangıçta fiyat alanları null'dır;
+  canlı/resmî fiyat olduğu iddia edilmez. Kullanıcı girişi yereldir.
+- GitHub raw tarife dağıtımı: GitHub kullanımı ve bant genişliği/servis
+  koşulları geçerlidir. Çevrim dışı katalog verisi telefonda tutulur.
