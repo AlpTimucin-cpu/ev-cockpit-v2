@@ -31,6 +31,11 @@
         android:allowBackup="false"
         android:label="ID.4 Yol Arkadaşı"
         android:theme="@android:style/Theme.Material.NoActionBar">
+        <!-- F1: ayrı telefon önizlemesi; dışarıya açık değildir. -->
+        <activity
+            android:name=".ui.finalhmi.MapFirstDashboardActivity"
+            android:exported="false"
+            android:screenOrientation="fullSensor" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
