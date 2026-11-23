@@ -204,6 +204,7 @@ fun MapHero(
     modifier: Modifier = Modifier,
     previewMap: Boolean = false,
     allowRetry: Boolean = true,
+    alternatives: List<NavigationRoute> = emptyList(),
 ) {
     val position = if (gpsFresh && route != null && gps.point != null) {
         RouteProgress.locate(route, gps.point)
@@ -241,6 +242,7 @@ fun MapHero(
                         onLoadFailed = { mapFailed = true },
                         onStyleReady = { mapFailed = false },
                         canChangeLayer = allowRetry,
+                        alternativeRoutes = alternatives,
                     )
                 }
                 if (mapFailed) {
@@ -323,7 +325,8 @@ fun TeslaDashboardScreen(
         center = {
             MapHero(navigation.route, navigation.destination, gps, gpsFresh,
                 plan, weatherSummary, onSelectDestination, Modifier.fillMaxSize(),
-                allowRetry = driveMode.mode != DriveMode.DRIVING)
+                allowRetry = driveMode.mode != DriveMode.DRIVING,
+                alternatives = navigation.alternatives)
         },
         right = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

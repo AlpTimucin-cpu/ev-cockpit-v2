@@ -1,152 +1,156 @@
 package app.evcockpit.ui
 
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import app.evcockpit.navigation.DestinationsStore
-import app.evcockpit.navigation.SavedDestination
-import app.evcockpit.navigation.PhotonPlace
-import app.evcockpit.navigation.PlaceAutocompleteViewModel
-import app.evcockpit.navigation.PlaceField
-import app.evcockpit.navigation.GeoPoint
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.evcockpit.location.GpsSnapshot
-import app.evcockpit.navigation.ArrivalEnergyEstimator
+import app.evcockpit.navigation.DestinationsStore
+import app.evcockpit.navigation.GeoPoint
+import app.evcockpit.navigation.PhotonPlace
+import app.evcockpit.navigation.PlaceAutocompleteViewModel
+import app.evcockpit.navigation.PlaceField
+import app.evcockpit.navigation.RouteAlternativePreview
 import app.evcockpit.navigation.RouteProgress
 import app.evcockpit.navigation.RouteUiState
+import app.evcockpit.navigation.SavedDestination
 import app.evcockpit.navigation.VoiceUiState
+import app.evcockpit.planner.model.VehicleProfile
+import kotlinx.coroutines.launch
+import java.util.Locale
 
+/**
+ * B aşaması: adres seçimi -> gerçek OSRM alternatifleri -> enerji/SoC karşılaştırması.
+ * Enlem/boylam kullanıcı alanı değildir; seçimler öneriden veya haritadan yapılır.
+ */
 @Composable
 fun RouteScreen(
     state: RouteUiState,
     gps: GpsSnapshot,
     socPct: Double?,
     socSource: String,
-    usableKwh: Double,
+    vehicleProfile: VehicleProfile,
     voice: VoiceUiState,
     onToggleVoice: () -> Unit,
     onSpeakNextManeuver: () -> Unit,
-    onCalculate: (String, String) -> Unit,
+    onCalculate: () -> Unit,
     onSelectDestination: (GeoPoint) -> Unit,
     onSelectNamedDestination: (GeoPoint, String) -> Unit,
     onSelectOrigin: (GeoPoint, String) -> Unit,
     onUseGpsOrigin: () -> Unit,
     onClearDestinationSelection: () -> Unit,
     onSelectAlternative: (Int) -> Unit,
+    onManualSoc: (Double) -> Unit,
     searchVm: PlaceAutocompleteViewModel,
     routeWeather: String,
     onClear: () -> Unit,
 ) {
-    val ctx = LocalContext.current
-    val store = remember(ctx) { DestinationsStore(ctx.applicationContext) }
+    val context = LocalContext.current
+    val store = remember(context) { DestinationsStore(context.applicationContext) }
     val saved by store.entries.collectAsState(initial = emptyList())
-    val searchUi by searchVm.state.collectAsState()
+    val suggestions by searchVm.state.collectAsState()
     val scope = rememberCoroutineScope()
-    var advanced by remember { mutableStateOf(false) }
-    var targetError by remember { mutableStateOf<String?>(null) }
-    var latitude by remember { mutableStateOf("") }
-    var longitude by remember { mutableStateOf("") }
-    var averageText by remember { mutableStateOf("") }
-
-    LaunchedEffect(state.destination) {
-        state.destination?.let {
-            latitude = it.latitude.toString()
-            longitude = it.longitude.toString()
-        }
-    }
-
+    var manualSocText by remember { mutableStateOf("") }
+    var minArrivalText by remember { mutableStateOf("15") }
+    var inputError by remember { mutableStateOf<String?>(null) }
+    val minimumArrival = minArrivalText.trim().replace(',', '.').toDoubleOrNull()
+        ?.takeIf { it.isFinite() && it in 0.0..100.0 }
     val gpsFresh = rememberGpsFreshness(gps)
-    val route = state.route
-    val position = if (route != null && gpsFresh &&
-        gps.point != null
-    ) RouteProgress.locate(route, gps.point) else null
-    val remainingKm = position?.remainingMeters?.div(1000.0)
-    val average = averageText.trim().replace(',', '.').toDoubleOrNull()
-    val expectedKwh = ArrivalEnergyEstimator.estimate(usableKwh, socPct, remainingKm, average)
+    val position = state.route?.takeIf { gpsFresh && gps.point != null }
+        ?.let { route -> gps.point?.let { RouteProgress.locate(route, it) } }
 
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Rota: openrouteservice • Türkçe manevralar • canlı trafik YOK")
-        Text(routeWeather, style =
-            androidx.compose.material3.MaterialTheme.typography.bodyMedium)
-        Text(state.message)
-        Text("NEREDEN → NEREYE", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
-        Text("Başlangıç: ${state.originLabel}" +
-            if (state.origin == null) " • ${gps.status}" else " • MANUEL SEÇİM")
+        Text("EV ROTA PLANLAYICI", style = MaterialTheme.typography.titleLarge)
+        Text("OSRM gerçek yol ağı • Türkiye öncelikli Photon • trafik verisi yok",
+            style = MaterialTheme.typography.bodySmall)
+        Text(state.message, style = MaterialTheme.typography.bodyMedium)
+        Text(routeWeather, style = MaterialTheme.typography.bodySmall)
+
+        Text("NEREDEN", style = MaterialTheme.typography.titleMedium)
+        Text("Seçili başlangıç: ${state.originLabel}")
         OutlinedTextField(
-            value = searchUi.originText,
+            value = suggestions.originText,
             onValueChange = {
                 onUseGpsOrigin()
                 searchVm.onTextChanged(PlaceField.ORIGIN, it)
             },
-            label = { Text("Nereden? Şehir, ilçe, adres") },
-            placeholder = { Text("Örn. Kayseri veya Antalya Otogar") },
+            label = { Text("Şehir, ilçe, cadde veya yer adı") },
+            placeholder = { Text("Örn. Niğde, Bor veya Kayseri Otogar") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        if (searchUi.searchingOrigin) Text("Başlangıç önerileri aranıyor…")
-        else Text(searchUi.originStatus)
-        searchUi.originResults.forEach { suggestion ->
-            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
-                searchVm.selected(PlaceField.ORIGIN, suggestion)
-                onSelectOrigin(suggestion.point, suggestion.label)
-            }) { Text("↗ " + suggestion.label) }
+        if (suggestions.searchingOrigin) Text("Adres kaynakları sorgulanıyor…")
+        else Text(suggestions.originStatus)
+        suggestions.originResults.forEach { place ->
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    searchVm.selected(PlaceField.ORIGIN, place)
+                    onSelectOrigin(place.point, place.label)
+                },
+            ) { Text(place.label) }
         }
         OutlinedButton(onClick = {
             searchVm.useGpsOrigin()
             onUseGpsOrigin()
-        }) { Text("Başlangıç için mevcut GPS konumumu kullan") }
+        }) { Text("Başlangıç: konumum (GPS)") }
 
-        Text("Hedef: " + (state.destinationLabel.ifBlank {
-            if (state.destination == null) "Henüz seçilmedi" else "Haritadan seçilen yer"
-        }))
+        Text("NEREYE", style = MaterialTheme.typography.titleMedium)
+        Text("Seçili hedef: ${state.destinationLabel.ifBlank { "Henüz seçilmedi" }}")
         OutlinedTextField(
-            value = searchUi.destinationText,
+            value = suggestions.destinationText,
             onValueChange = {
                 onClearDestinationSelection()
                 searchVm.onTextChanged(PlaceField.DESTINATION, it)
             },
-            label = { Text("Nereye? Şehir, adres, otel veya yer") },
-            placeholder = { Text("Örn. Antalya, Konyaaltı, otel adı") },
+            label = { Text("Şehir, otel, işletme veya açık adres") },
+            placeholder = { Text("Örn. Antalya, Konyaaltı") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        if (searchUi.searchingDestination) Text("Hedef önerileri aranıyor…")
-        else Text(searchUi.destinationStatus)
-        searchUi.destinationResults.forEach { suggestion ->
-            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
-                searchVm.selected(PlaceField.DESTINATION, suggestion)
-                onSelectNamedDestination(suggestion.point, suggestion.label)
-                scope.launch {
-                    store.save(SavedDestination("RECENT", suggestion.label, suggestion.point))
-                }
-            }) { Text("● " + suggestion.label) }
+        if (suggestions.searchingDestination) Text("Adres kaynakları sorgulanıyor…")
+        else Text(suggestions.destinationStatus)
+        suggestions.destinationResults.forEach { place ->
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    searchVm.selected(PlaceField.DESTINATION, place)
+                    onSelectNamedDestination(place.point, place.label)
+                    scope.launch {
+                        store.save(SavedDestination("RECENT", place.label, place.point))
+                    }
+                },
+            ) { Text(place.label) }
         }
-        Text("Yazarken öneri: Open-Meteo şehirler + Photon adresleri (ücretsiz, hız sınırlı). " +
-            "Girdiler arama sağlayıcılarına gönderilir; adresi haritada kontrol et.")
+        Text("İl/ilçe merkezleri 2 harften itibaren çevrim dışı gösterilir. " +
+            "Tam adres için 250 ms yazma beklemesi vardır; Photon genel sunucusuna " +
+            "en fazla 10 saniyede bir istek gönderilir. Öneriyi haritada doğrula.",
+            style = MaterialTheme.typography.bodySmall)
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = state.destination != null, onClick = {
@@ -154,161 +158,155 @@ fun RouteScreen(
                     scope.launch { store.save(SavedDestination("HOME", "Ev", point)) }
                 }
             }) { Text("Ev olarak kaydet") }
-            Button(enabled = state.destination != null, onClick = {
+            OutlinedButton(enabled = state.destination != null, onClick = {
                 state.destination?.let { point ->
                     scope.launch { store.save(SavedDestination("WORK", "İş", point)) }
                 }
             }) { Text("İş olarak kaydet") }
         }
         saved.forEach { item ->
-            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
-                searchVm.selected(PlaceField.DESTINATION, PhotonPlace(item.label, item.point))
-                onSelectNamedDestination(item.point, item.label)
-            }) { Text((if (item.type == "HOME") "Ev" else if (item.type == "WORK") "İş"
-                else "Son hedef") + ": " + item.label) }
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    searchVm.selected(PlaceField.DESTINATION, PhotonPlace(item.label, item.point))
+                    onSelectNamedDestination(item.point, item.label)
+                },
+            ) {
+                Text((if (item.type == "HOME") "Ev" else if (item.type == "WORK") "İş"
+                    else "Son arama") + ": " + item.label)
+            }
         }
 
+        Text("BATARYA VE HEDEF REZERVİ", style = MaterialTheme.typography.titleMedium)
+        Text("Araç: ID.4 Pure • kullanılabilir kapasite: " +
+            fmt(vehicleProfile.capacityAtSohKwh) + " kWh")
+        Text("Başlangıç SoC: ${socPct?.let { fmt(it) + " %" } ?: "bilinmiyor"} • kaynak: $socSource")
+        OutlinedTextField(
+            value = manualSocText,
+            onValueChange = { manualSocText = it.take(6) },
+            label = { Text("Manuel başlangıç SoC (%) — OBD gerekmez") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedButton(onClick = {
+            val soc = manualSocText.replace(',', '.').toDoubleOrNull()
+            if (soc == null || soc !in 0.0..100.0) {
+                inputError = "SoC için 0 ile 100 arasında sayı gir."
+            } else {
+                onManualSoc(soc)
+                manualSocText = ""
+                inputError = null
+            }
+        }) { Text("Başlangıç SoC kaydet") }
+        OutlinedTextField(
+            value = minArrivalText,
+            onValueChange = { minArrivalText = it.take(6) },
+            label = { Text("Minimum varış SoC (%)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (minimumArrival == null) {
+            Text("Minimum varış yüzdesi 0–100 arasında olmalı. Ön hesap yapılmayacak.",
+                color = MaterialTheme.colorScheme.error)
+        }
+        inputError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onToggleVoice) {
-                Text(if (voice.enabled) "Sesli tarifi kapat" else "Türkçe sesli tarifi aç")
-            }
-            OutlinedButton(onClick = onSpeakNextManeuver, enabled = voice.enabled) {
-                Text("Sıradaki manevrayı oku")
-            }
-        }
-        Text("Ses: ${voice.status} • Ses odağı: geçici MAY_DUCK")
-        OutlinedButton(onClick = { advanced = !advanced }) {
-            Text(if (advanced) "Gelişmiş koordinat girişini gizle" else
-                "Gelişmiş: hedef koordinatı gir")
-        }
-        if (advanced) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = latitude, onValueChange = { latitude = it },
-                    label = { Text("Enlem") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f))
-                OutlinedTextField(value = longitude, onValueChange = { longitude = it },
-                    label = { Text("Boylam") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f))
-            }
-            OutlinedButton(onClick = {
-                val parsed = RouteTargetValidator.parse(latitude, longitude)
-                if (parsed == null) targetError = "Geçersiz koordinat (-90..90 / -180..180)"
-                else {
-                    targetError = null
-                    onSelectNamedDestination(parsed, "Manuel koordinat")
+            Button(enabled = state.destination != null && !state.busy, onClick = {
+                onCalculate()
+                state.destination?.let { dest ->
+                    scope.launch {
+                        store.save(SavedDestination("RECENT",
+                            state.destinationLabel.ifBlank { "Son hedef" }, dest))
+                    }
                 }
-            }) { Text("Gelişmiş hedefi seç") }
+            }) { Text(if (state.busy) "Rotalar hesaplanıyor…" else "Rotaları karşılaştır") }
+            OutlinedButton(onClick = onClear) { Text("Temizle") }
         }
-        targetError?.let { Text(it) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = state.destination != null, onClick = {
-                state.destination?.let { point ->
-                    scope.launch { store.save(SavedDestination("HOME", "Ev", point)) }
-                }
-            }) { Text("Ev olarak kaydet") }
-            Button(enabled = state.destination != null, onClick = {
-                state.destination?.let { point ->
-                    scope.launch { store.save(SavedDestination("WORK", "İş", point)) }
-                }
-            }) { Text("İş olarak kaydet") }
-        }
-        saved.forEach { item ->
-            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
-                onSelectDestination(item.point)
-            }) { Text((if (item.type == "HOME") "Ev" else if (item.type == "WORK") "İş"
-                else "Son hedef") + ": " + item.label) }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onToggleVoice) {
-                Text(if (voice.enabled) "Sesli tarifi kapat" else "Türkçe sesli tarifi aç")
-            }
-            OutlinedButton(onClick = onSpeakNextManeuver, enabled = voice.enabled) {
-                Text("Sıradaki manevrayı oku")
-            }
-        }
-        Text("Ses: ${voice.status} • Ses odağı: geçici MAY_DUCK")
-        OutlinedButton(onClick = { advanced = !advanced }) {
-            Text(if (advanced) "Gelişmiş koordinat girişini gizle" else "Gelişmiş: koordinat gir")
-        }
-        if (advanced) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = latitude, onValueChange = { latitude = it },
-                    label = { Text("Enlem") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f))
-                OutlinedTextField(value = longitude, onValueChange = { longitude = it },
-                    label = { Text("Boylam") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f))
-            }
-            OutlinedButton(onClick = {
-                val parsed = RouteTargetValidator.parse(latitude, longitude)
-                if (parsed == null) targetError = "Geçersiz koordinat (-90..90 / -180..180)"
-                else {
-                    targetError = null
-                    onSelectDestination(parsed)
-                }
-            }) { Text("Gelişmiş hedefi seç") }
-        }
-        targetError?.let { Text(it) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !state.busy && state.destination != null, onClick = {
-                state.destination?.let { point ->
-                    onCalculate(point.latitude.toString(), point.longitude.toString())
-                    scope.launch { store.save(SavedDestination("RECENT", "Son hedef", point)) }
-                }
-            }) {
-                Text(if (state.busy) "Hesaplanıyor" else "Rota hesapla")
-            }
-            OutlinedButton(onClick = onClear) { Text("Rotayı temizle") }
-        }
-        if (route != null) {
-            Text("GÜZERGÂH SEÇENEKLERİ", style =
-                androidx.compose.material3.MaterialTheme.typography.titleMedium)
+
+        if (state.route != null) {
+            Text("HARİTADAKİ GERÇEK ALTERNATİFLER",
+                style = MaterialTheme.typography.titleMedium)
             Text(state.alternativesNote)
+            OnlineMap(
+                modifier = Modifier.fillMaxWidth().height(310.dp),
+                route = state.route,
+                destination = state.destination,
+                gps = gps,
+                onSelectDestination = onSelectDestination,
+                alternativeRoutes = state.alternatives,
+                canChangeLayer = true,
+            )
             state.alternatives.forEachIndexed { index, candidate ->
                 val selected = index == state.activeAlternativeIndex
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { onSelectAlternative(index) },
-                ) {
-                    Text((if (selected) "✓ " else "") + "Rota ${index + 1} • " +
-                        "%.1f km".format(candidate.distanceMeters / 1000.0) + " • " +
-                        "~%.0f dk".format(candidate.durationSeconds / 60.0) +
-                        " • TAHMİN / trafik yok")
+                val preview = RouteAlternativePreview.calculate(
+                    candidate, vehicleProfile, socPct, minimumArrival ?: Double.NaN)
+                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text((if (selected) "✓ SEÇİLİ • " else "") + "Rota ${index + 1}",
+                            style = MaterialTheme.typography.titleMedium)
+                        Text("Mesafe: ${fmt(candidate.distanceMeters / 1000.0)} km" +
+                            "  •  Süre: ${time(candidate.durationSeconds)} (trafiksiz)")
+                        Text("Enerji: ${preview?.let { fmt(it.routeEnergyKwh) + " kWh" } ?: "—"}" +
+                            "  •  Ort. tüketim: " +
+                            (preview?.let { fmt(it.averageKwhPer100Km) + " kWh/100 km" } ?: "—"))
+                        val arrival = when {
+                            preview == null || preview.startSocPct == null -> "Başlangıç SoC bilinmiyor"
+                            preview.arrivalSocPct == null -> "Şarj olmadan varış mümkün görünmüyor"
+                            else -> "${fmt(preview.arrivalSocPct)} %"
+                        }
+                        Text("Tahmini varış SoC: $arrival")
+                        val charge = when (preview?.requiresCharging) {
+                            false -> "Ön modele göre durak gerekmiyor"
+                            true -> "Şarj gerekli • gereken ek enerji en az " +
+                                "${fmt(preview?.extraKwhForMinimum ?: 0.0)} kWh"
+                            null -> "SoC bilinmiyor; durak planı hesaplanamaz"
+                        }
+                        Text("Şarj: $charge")
+                        Text(if (preview?.requiresCharging == false)
+                            "Yol üzerinde şarj: 0 dk • 0 TL (önden tahmin)"
+                            else "Şarj süresi: — • Şarj ücreti: fiyat/istasyon planı yok",
+                            style = MaterialTheme.typography.bodySmall)
+                        Button(
+                            enabled = !state.busy && !selected,
+                            onClick = { onSelectAlternative(index) },
+                        ) { Text(if (selected) "Seçili rota" else "Bu rotayı seç") }
+                    }
                 }
             }
-            Text("Son rota: %.1f km • yaklaşık %.0f dk (trafiksiz)".format(
-                route.distanceMeters / 1000.0, route.durationSeconds / 60.0))
-            Text("Rota çizgisi noktaları: ${route.geometry.size} • sağlayıcı: ${route.provider}")
-            if (position == null) {
-                Text("Rota üzerindeki güncel GPS konumu doğrulanamadı; kalan mesafe hesaplanmıyor.")
-            } else {
-                Text("Kalan mesafe (yaklaşık): %.1f km".format(position.remainingMeters / 1000.0))
-                val step = position.nextManeuverIndex?.let { route.maneuvers.getOrNull(it) }
-                Text("Sonraki manevra: " + (step?.instructionTr ?: "Yönlendirme verisi yok"))
-                Text("Manevraya yaklaşık: " +
-                    (position.distanceToManeuverMeters?.let { "%.0f m".format(it) } ?: "--"))
-            }
-            OutlinedTextField(
-                value = averageText, onValueChange = { averageText = it },
-                label = { Text("Ortalama tüketim (kWh/100 km) — kendin gir") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text("SoC kaynağı: " + socSource)
-            Text("Varış enerjisi (TAHMİN): " +
-                (expectedKwh?.let { "%.1f kWh".format(it) } ?: "-- kWh — veri eksik"))
-            Text("Formül: ${usableKwh.toInt()} × SoC%/100 − kalan_km × ort_tüketim/100")
-            Text("SoC OBD PID henüz doğrulanmadı. Tüketim kullanıcı girdisidir; " +
-                "eğim, rüzgâr, sıcaklık ve batarya kayıpları hesaba katılmaz.")
-            Text("© openrouteservice • OpenStreetMap katkıcıları")
+            Text("Enerji: 20°C, düz yol, ortalama hız ve otomatik klima ile ÖN TAHMİN. " +
+                "Yükselti, rüzgâr, şarj istasyonu ve tarifeler D/C/E aşamalarında eklenir. " +
+                "Yetersiz SoC hiçbir zaman gerçek varış garantisi değildir.",
+                style = MaterialTheme.typography.bodySmall)
+            Text("GPS: " + (position?.let {
+                "Kalan mesafe ~${fmt(it.remainingMeters / 1000.0)} km"
+            } ?: "Rota üzerinde doğrulanmış güncel konum yok"))
+            Text("© OpenStreetMap katkıcıları • OSRM/FOSSGIS; canlı trafik yok",
+                style = MaterialTheme.typography.bodySmall)
         } else {
-            Text("Önce Ayarlar sekmesinden HeiGIT anahtarını ve GPS'i etkinleştir.")
-            Text("Adres arama, Ev/İş, son hedef veya gösterge haritasına uzun basarak hedef seç.")
+            Text("Başlangıç ve hedef seçildikten sonra gerçek alternatifler haritada " +
+                "karşılaştırılır. Sunucu yalnız tek yol döndürürse diğer yollar uydurulmaz.")
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onToggleVoice) {
+                Text(if (voice.enabled) "Sesli tarifi kapat" else "Türkçe sesli tarifi aç")
+            }
+            OutlinedButton(onClick = onSpeakNextManeuver, enabled = voice.enabled) {
+                Text("Sıradaki manevrayı oku")
+            }
+        }
+        Text("Sesli tarif: ${voice.status}", style = MaterialTheme.typography.bodySmall)
     }
+}
+
+private fun fmt(value: Double): String =
+    String.format(Locale.forLanguageTag("tr-TR"), "%.1f", value)
+
+private fun time(seconds: Double): String {
+    val minutes = (seconds / 60.0).toInt().coerceAtLeast(0)
+    return if (minutes < 60) "$minutes dk"
+    else "${minutes / 60} sa ${minutes % 60} dk"
 }

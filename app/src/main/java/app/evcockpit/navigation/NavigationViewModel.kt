@@ -115,19 +115,17 @@ class NavigationViewModel(application: Application) : AndroidViewModel(applicati
         super.onCleared()
     }
 
-    fun calculate(destinationLatitude: String, destinationLongitude: String) {
+    /**
+     * Rota için kullanıcıdan enlem/boylam istenmez.
+     * Hedef, arama önerisi / kayıtlı favori / haritadan seçimle belirlenir.
+     */
+    fun calculateSelected() {
         if (mutable.value.busy) return
-        val lat = destinationLatitude.trim().replace(',', '.').toDoubleOrNull()
-        val lon = destinationLongitude.trim().replace(',', '.').toDoubleOrNull()
-        val destination = try {
-            GeoPoint(lat ?: Double.NaN, lon ?: Double.NaN)
-        } catch (_: IllegalArgumentException) {
-            mutable.value = mutable.value.copy(
-                route = null, alternatives = emptyList(),
-                message = "Hedef enlem ve boylam geçersiz.")
+        val previous = mutable.value
+        val destination = previous.destination ?: run {
+            mutable.value = previous.copy(message = "Önce Nereye alanından bir hedef seç.")
             return
         }
-        val previous = mutable.value
         val gps = app.locationRepository.state.value
         val gpsValid = gps.point != null &&
             gps.isFresh(SystemClock.elapsedRealtime()) &&
@@ -135,41 +133,61 @@ class NavigationViewModel(application: Application) : AndroidViewModel(applicati
         val start = previous.origin ?: gps.point.takeIf { gpsValid }
         if (start == null) {
             mutable.value = previous.copy(
-                destination = destination, route = null, alternatives = emptyList(),
-                message = "Başlangıç seç veya GPS'i etkinleştir. Konum alınamadı.")
+                route = null, alternatives = emptyList(),
+                message = "Başlangıç için bir yer seç veya kesin GPS konumunu aç.")
             return
         }
         if (start == destination) {
-            mutable.value = previous.copy(
-                message = "Başlangıç ve hedef aynı; farklı bir yer seç.")
+            mutable.value = previous.copy(message = "Başlangıç ve hedef aynı; başka yer seç.")
             return
         }
 
         deliveredCues.clear()
         speaker?.stop()
         mutable.value = previous.copy(
-            destination = destination, route = null, alternatives = emptyList(),
-            busy = true, message = "Gerçek rota seçenekleri hesaplanıyor...")
+            route = null, alternatives = emptyList(),
+            busy = true, message = "OSRM yol ağı ve alternatifler sorgulanıyor…")
         viewModelScope.launch {
             try {
-                val key = keys.read()
-                    ?: throw RouteServiceException("HeiGIT API anahtarı yok. Ayarlar'dan gir.")
-                val options = provider.calculateAlternatives(start, destination, key)
-                val attempted = OrsAlternativePolicy.eligible(start, destination)
+                var usingFallback = false
+                val options = try {
+                    OsrmRouteProvider().calculateAlternatives(start, destination, "")
+                } catch (cancel: kotlinx.coroutines.CancellationException) {
+                    throw cancel
+                } catch (osrmError: Exception) {
+                    // Kullanıcı kendi ORS anahtarını kaydetmişse eski servise geçilir.
+                    // ORS'nin uzun yol alternatif sınırı olduğundan uydurma seçenek eklenmez.
+                    val key = runCatching { keys.read() }.getOrNull()
+                    if (key.isNullOrBlank()) throw RouteServiceException(
+                        "Ücretsiz OSRM rotası alınamadı. Bağlantıyı kontrol edip tekrar dene. " +
+                        "İstersen Ayarlar'a kendi ORS anahtarını ekle.")
+                    val fallback = provider.calculateAlternatives(start, destination, key)
+                    usingFallback = true
+                    fallback
+                }
+                require(options.isNotEmpty()) { "Sağlayıcı rota döndürmedi." }
+                val note = if (usingFallback)
+                    "OSRM kullanılamadı: ORS yedek rota kullanıldı. " +
+                    "Uzun yolda tek rota dönebilir; canlı trafik yok."
+                else if (options.size == 1)
+                    "OSRM tek gerçek güzergâh döndürdü; 2-3 alternatif garanti değil."
+                else "OSRM'den ${options.size} gerçek alternatif rota alındı • trafik yok."
                 mutable.value = mutable.value.copy(
                     route = options.first(), alternatives = options,
-                    activeAlternativeIndex = 0,
-                    alternativesNote = OrsAlternativePolicy.label(options.size, attempted),
-                    busy = false,
-                    message = "openrouteservice güzergâhları yüklendi; trafik ve canlı yol durumu yok.")
+                    activeAlternativeIndex = 0, alternativesNote = note,
+                    busy = false, message = note)
+            } catch (cancel: kotlinx.coroutines.CancellationException) {
+                mutable.value = mutable.value.copy(busy = false,
+                    message = "Rota isteği iptal edildi.")
+                throw cancel
             } catch (error: RouteServiceException) {
                 mutable.value = mutable.value.copy(
                     route = null, alternatives = emptyList(), busy = false,
-                    message = error.message ?: "Rota hizmeti kullanılamıyor.")
+                    message = error.message ?: "Rota servisi kullanılamıyor.")
             } catch (_: Exception) {
                 mutable.value = mutable.value.copy(
                     route = null, alternatives = emptyList(), busy = false,
-                    message = "Rota alınamadı. İnternet, başlangıç, hedef ve anahtarı kontrol et.")
+                    message = "Rota alınamadı. İnternet veya harita sağlayıcısı kullanılamıyor.")
             }
         }
     }
@@ -215,7 +233,7 @@ class NavigationViewModel(application: Application) : AndroidViewModel(applicati
         speaker?.stop()
         mutable.value = mutable.value.copy(
             route = options[index], activeAlternativeIndex = index,
-            message = "Güzergâh ${index + 1} seçildi • süre/mesafe TAHMİN, trafik yok.")
+            message = "Güzergâh ${index + 1} seçildi • enerji tahmini hesaplanabilir, canlı trafik yok.")
     }
 
     /** Explicit user action: fetch actual waypoint route; no auto-OBD recalculation. */

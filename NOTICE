@@ -44,3 +44,20 @@ dependencies were fully audited, or that proprietary source code can be copied.
 - Open-Meteo Elevation: https://open-meteo.com/en/docs/elevation-api ; Copernicus/Open-Meteo atıf.
 - OSM/Overpass: https://dev.overpass-api.de/overpass-doc/en/preface/commons.html ; OSM katkıcıları, ODbL veri atfı.
 - Araç profilindeki tüm tahmini parametreler verified=false, sayısal kanıt: docs/M8_DOGRULAMA.md.
+
+## B aşaması koordinat verisi ve OSRM altyapısı
+* `app/src/main/assets/tr_province_district_centres.txt`, AEKHer/il-ilce-koordinat
+  kaynak verisinin uyarlanmış il/ilçe merkezleri listesidir. Telif:
+  Copyright (c) 2026 Abdurrahman Ebrar Koçak; MIT Lisansı.
+  https://github.com/AEKHer/il-ilce-koordinat
+* Kaynak koordinatlar: © OpenStreetMap contributors, Open Database License
+  (ODbL 1.0), https://www.openstreetmap.org/copyright
+  Yerleşim merkezi koordinatları bina kapısı ya da yol erişim noktası garantisi vermez.
+* OSRM güzergâh hizmeti: © OpenStreetMap contributors / FOSSGIS,
+  https://routing.openstreetmap.de/about.html
+  Harita verisi ve yol süresi trafiksizdir; genel örnek servis saniyede
+  en fazla bir istek ve makul kişisel kullanım için sunulur.
+* Photon arama: komoot, https://github.com/komoot/photon
+  Genel örnek serviste yoğun kullanım kısıtlanabilir. Kullanıcı koordinatı,
+  sadece geçerli konum izni ve güncel GPS varsa arama yanlılığı için gönderilir.
+* Başka bir uygulamanın kapalı API'si, fiyat verisi ya da algoritması kopyalanmadı.
