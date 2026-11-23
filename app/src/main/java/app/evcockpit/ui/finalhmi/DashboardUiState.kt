@@ -229,8 +229,8 @@ object DemoDashboardMapper {
             outdoorTemperatureC = demo(18.0),
             speedKmh = demo(83.0),
             socPercent = demo(soc),
-            estimatedRangeKm = demo(
-                DashboardMath.estimatedRangeKm(soc, capacity, consumption) ?: 0.0),
+            estimatedRangeKm = DashboardMath.estimatedRangeKm(soc, capacity, consumption)
+                ?.let(::demo) ?: StampedValue(),
             consumptionKwhPer100Km = demo(consumption),
             powerKw = demo(21.0),
             arrivalMinutes = demo(88.0),
