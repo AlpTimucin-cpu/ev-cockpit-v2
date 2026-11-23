@@ -1,12 +1,8 @@
-# Aşama C — değişen 12 dosyanın TAM içeriği
+# Aşama C — değişen 13 dosyanın TAM içeriği
 
-Bu belge `feature/stage-c-ocm-tariffs-premium-20261123` dalında Aşama C kapsamında değişen **12 dosyanın eksiksiz sürümüdür**. Hiçbir kod bölümü atlanmamıştır. Dosyalar GitHub'a zaten doğrudan uygulanmıştır; Android telefonundan yeniden yüklemen gerekmez.
+GitHub dalı: `feature/stage-c-ocm-tariffs-premium-20261123` · B aşaması üzerine uygulanmıştır. Dosyaların tüm içeriği buradadır; hiçbir kaynak bölümü kısaltılmamıştır. Dosyaları telefondan tekrar yüklemek gerekmez.
 
-- Ana dal ve Mola değiştirilmedi.
-- Open Charge Map kullanıcı API anahtarı gerektirir.
-- Fiyatı bilinmeyen operatörler için `null` kullanılır, hiçbir fiyat uydurulmaz.
-- Yalnızca kod/CI doğrulaması yapılabilir; POCO F5 ve araç içinde fiziksel test yapılmadı.
-- Şarj Planlayıcı sekmesindeki yeni arayüz, tüm uygulamanın yeniden tasarlandığı anlamına gelmez.
+**Aşamaya ilişkin doğruluk notları:** OCM genel envanteri canlı doluluk göstermez. Rota koridorundaki istasyon taraması örneklemeyle yapılır; bütün istasyonları bulma garantisi yoktur. 23 Kasım 2026 tarihinde resmî operatör web sitelerinden gözlenen fiyatlar tarihlidir ve her lokasyonda aynı olacağı iddia edilmez. Bilinmeyenler null'dır. OCM anahtarı kullanıcıya aittir; repoya gömülmez. Mola değiştirilmedi. Telefon/ID.4 üzerinde saha testi yapılmadı.
 
 
 ---
@@ -168,7 +164,7 @@ dependencies {
 ```json
 {
   "schema_version": 1,
-  "notice": "Bilinmeyen fiyatlar null'dır. Operatör resmî fiyatı doğrulanmadan tutar girmeyin.",
+  "notice": "Fiyatlar 23.11.2026 tarihinde operatörlerin resmî web sayfalarında görülen yayımlanmış değerlerdir; lokasyon/soket/kampanya/üyeliğe göre değişebilir. Özellikle ZES ve Trugo DC tek fiyat değildir: null.",
   "attribution": "Operatörlerin yayımladığı tarifelerle doğrulanması gereken kullanıcı veri kataloğu; canlı fiyat API'si değildir.",
   "operators": [
     {
@@ -177,10 +173,10 @@ dependencies {
       "aliases": [
         "zes"
       ],
-      "ac_tl_kwh": null,
+      "ac_tl_kwh": 10.99,
       "dc_tl_kwh": null,
-      "updated_at": null,
-      "source_url": null
+      "updated_at": "2026-11-23",
+      "source_url": "https://zes.net/tr/fiyatlandirma"
     },
     {
       "id": "esarj",
@@ -199,10 +195,10 @@ dependencies {
       "aliases": [
         "trugo"
       ],
-      "ac_tl_kwh": null,
+      "ac_tl_kwh": 9.95,
       "dc_tl_kwh": null,
-      "updated_at": null,
-      "source_url": null
+      "updated_at": "2026-11-23",
+      "source_url": "https://www.trugo.com.tr/price"
     },
     {
       "id": "voltrun",
@@ -243,10 +239,10 @@ dependencies {
       "aliases": [
         "powersarj"
       ],
-      "ac_tl_kwh": null,
-      "dc_tl_kwh": null,
-      "updated_at": null,
-      "source_url": null
+      "ac_tl_kwh": 11.19,
+      "dc_tl_kwh": 13.99,
+      "updated_at": "2026-11-23",
+      "source_url": "https://powersarj.com/fiyatlandirma/"
     },
     {
       "id": "rhg-enerturk",
@@ -379,11 +375,11 @@ object OcmParser {
     }
 }
 
-/** 25–30 km aralıklı çağrılar; kapsama tamamlığı ve sorgu üst sınırı açıkça bildirilir. */
+/** ~26 km aralıklı, 14 km yarıçaplı çağrılar; 22 bölgeden sonrası açıkça kısmi. */
 data class OcmSamplingPlan(val points: List<GeoPoint>, val incomplete: Boolean)
 object OcmCorridor {
-    const val MAX_CALLS = 18
-    const val RADIUS_KM = 9.0
+    const val MAX_CALLS = 22
+    const val RADIUS_KM = 14.0
 
     fun sample(geometry: List<GeoPoint>): OcmSamplingPlan {
         require(geometry.size >= 2)
@@ -475,6 +471,9 @@ class OcmKeyStore(context: Context) {
     suspend fun clear() { app.ocmSettings.edit { it.remove(field) } }
 }
 
+class OcmAccessException(message: String) : Exception(message)
+class OcmRateLimitException(message: String) : Exception(message)
+
 interface OcmTransport {
     suspend fun nearby(point: GeoPoint, apiKey: String, radiusKm: Double): List<OcmStation>
 }
@@ -508,8 +507,8 @@ class OcmHttpTransport : OcmTransport {
                     }
                     OcmParser.parse(raw)
                 }
-                401, 403 -> error("OCM anahtarı reddedildi; hesabındaki anahtarı kontrol et.")
-                429 -> error("Open Charge Map istek sınırı aşıldı.")
+                401, 403 -> throw OcmAccessException("OCM anahtarı reddedildi; hesabındaki anahtarı kontrol et.")
+                429 -> throw OcmRateLimitException("Open Charge Map istek sınırı aşıldı.")
                 else -> error("OCM hizmetine erişilemiyor (HTTP $status).")
             }
         } finally { conn.disconnect() }
@@ -533,6 +532,7 @@ class OcmRepository(
         val all = linkedMapOf<Long, OcmStation>()
         var failures = 0
         var truncated = false
+        var blocked: String? = null
         for ((index, p) in sampling.points.withIndex()) {
             if (index > 0) delayCall(1_200L)
             try {
@@ -544,6 +544,14 @@ class OcmRepository(
                 }
             } catch (cancel: CancellationException) {
                 throw cancel
+            } catch (blockedApi: OcmAccessException) {
+                failures++
+                blocked = "OCM anahtarı geçersiz; devam eden istekler durduruldu."
+                break
+            } catch (rateLimit: OcmRateLimitException) {
+                failures++
+                blocked = "OCM kota sınırı; diğer istekler iptal edildi."
+                break
             } catch (_: Exception) {
                 // Diğer sorgular başarısız olsa da başarılı kısımları göster.
                 failures++
@@ -551,6 +559,7 @@ class OcmRepository(
         }
         val complete = failures == 0 && !sampling.incomplete && !truncated
         val status = when {
+            blocked != null -> blocked
             all.isEmpty() && failures > 0 ->
                 "Şarj verisi alınamadı. API anahtarı, kota ve interneti kontrol et."
             !complete ->
@@ -1215,8 +1224,9 @@ fun ChargingExplorerScreen(
                         Text("GitHub tarifelerini yenile")
                     }
                     Text("Tarife dosyası GitHub raw URL'sinden alınır; 24 saat önbelleğe " +
-                        "kaydedilir. İlk APK içinde fiyatlar bilinmiyor (null). " +
-                        "Girdiğin fiyatlar operatörün resmî güncel fiyatı yerine geçmez.",
+                        "kaydedilir. Resmî sayfada tek tutar bulunabilen bazı operatör fiyatları " +
+                        "kaynak ve tarih ile gösterilir; diğerleri bilinmiyor (null). " +
+                        "Lokasyon, kampanya ve soket bazında ödeme öncesi doğrula.",
                         color = soft, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -2590,6 +2600,86 @@ class OcmAndTariffTest {
         assertThrows(IllegalArgumentException::class.java) {
             TariffCatalogCodec.parse(invalid)
         }
+    }
+}
+```
+
+---
+
+## 13. `app/src/test/java/app/evcockpit/charging/OcmRepositoryTest.kt`
+
+```kotlin
+package app.evcockpit.charging
+
+import app.evcockpit.charging.ocm.*
+import app.evcockpit.navigation.GeoPoint
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.*
+import org.junit.Test
+
+class OcmRepositoryTest {
+    private val route = listOf(
+        GeoPoint(37.96, 34.65),
+        GeoPoint(37.90, 34.92),
+        GeoPoint(37.84, 35.16),
+    )
+
+    @Test fun reddedilenAnahtarSonrasiIstekYiginiOlusmaz() = runBlocking {
+        var calls = 0
+        val transport = object : OcmTransport {
+            override suspend fun nearby(
+                point: GeoPoint, apiKey: String, radiusKm: Double,
+            ): List<OcmStation> {
+                calls++
+                throw OcmAccessException("Kötü anahtar")
+            }
+        }
+        val repo = OcmRepository(transport, delayCall = {})
+        val result = repo.search(route, "YANLIS_ANAHTAR")
+        assertEquals(1, calls)
+        assertTrue(result.stations.isEmpty())
+        assertFalse(result.complete)
+        assertTrue(result.message.contains("anahtarı"))
+    }
+
+    @Test fun kotaDoluncaDigerBolgelereIstekGonderilmez() = runBlocking {
+        var calls = 0
+        val transport = object : OcmTransport {
+            override suspend fun nearby(
+                point: GeoPoint, apiKey: String, radiusKm: Double,
+            ): List<OcmStation> {
+                calls++
+                throw OcmRateLimitException("Kota doldu")
+            }
+        }
+        val result = OcmRepository(transport, delayCall = {}).search(route, "KEY")
+        assertEquals(1, calls)
+        assertFalse(result.complete)
+        assertTrue(result.message.contains("kota"))
+    }
+
+    @Test fun kismiSonuclardaEksikBilgiAcikcaRaporlanir() = runBlocking {
+        var calls = 0
+        val station = OcmStation(
+            id = 112, name = "Örnek", operator = "ZES",
+            point = GeoPoint(37.95, 34.66), powerKw = 100.0,
+            hasAc = false, hasDc = true, hasCcs2 = true,
+            connectors = listOf("CCS2"), access = "bilinmiyor", reportedStatus = null,
+        )
+        val transport = object : OcmTransport {
+            override suspend fun nearby(
+                point: GeoPoint, apiKey: String, radiusKm: Double,
+            ): List<OcmStation> {
+                calls++
+                if (calls == 2) throw IllegalStateException("Ağ kesildi")
+                return listOf(station)
+            }
+        }
+        val result = OcmRepository(transport, delayCall = {}).search(route, "KEY")
+        assertTrue(calls >= 2)
+        assertEquals(1, result.stations.size)
+        assertFalse(result.complete)
+        assertTrue(result.message.contains("KISMİ"))
     }
 }
 ```
