@@ -1,3 +1,5 @@
+> **23.11.2026 TASARIM ÖNCELİĞİ:** Bu belge tarihsel UI-1 uygulamasını anlatır; **Aşama F ana ekranı için artık geçerli hedef değildir**. Nihai tasarım: [Aşama F — KESİN Ana Ekran Şartnamesi](./ASAMA_F_KESIN_ANA_EKRAN_SARTNAMESI.md). Yeni hedef **%65 harita / %35 bilgi**, **mavi vurgu**, **Harita/Rota/Şarj/Enerji/Ayarlar** sekmeleridir; araç görseli, Mola/medya, klima, kilit, kamera ve diğer kontrol panelleri hariçtir. Bu not UI-1'in tarihî test kayıtlarını geçersiz kılmaz.
+
 # UI-1 — Tesla tarzı tasarım temeli
 
 Tarih: 21.11.2026 | Depo: AlpTimucin-cpu/ev-cockpit-v2 | Telefon ve araç saha sonucu: **DOĞRULANMADI**.
