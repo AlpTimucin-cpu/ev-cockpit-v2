@@ -18,14 +18,17 @@ import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import app.evcockpit.CockpitApplication
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import app.evcockpit.MainActivity
 
 /**
  * User-started location foreground service. No background-start workaround,
  * no fake GPS position and no ACCESS_BACKGROUND_LOCATION request.
  */
+@AndroidEntryPoint
 class LocationTrackingService : Service() {
-    private val repo get() = (application as CockpitApplication).locationRepository
+    @Inject lateinit var repo: LocationRepository
     private var manager: LocationManager? = null
     private var listener: LocationListener? = null
 
