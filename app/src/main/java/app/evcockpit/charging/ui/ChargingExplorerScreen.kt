@@ -335,8 +335,9 @@ fun ChargingExplorerScreen(
                         Text("GitHub tarifelerini yenile")
                     }
                     Text("Tarife dosyası GitHub raw URL'sinden alınır; 24 saat önbelleğe " +
-                        "kaydedilir. İlk APK içinde fiyatlar bilinmiyor (null). " +
-                        "Girdiğin fiyatlar operatörün resmî güncel fiyatı yerine geçmez.",
+                        "kaydedilir. Resmî sayfada tek tutar bulunabilen bazı operatör fiyatları " +
+                        "kaynak ve tarih ile gösterilir; diğerleri bilinmiyor (null). " +
+                        "Lokasyon, kampanya ve soket bazında ödeme öncesi doğrula.",
                         color = soft, style = MaterialTheme.typography.bodySmall)
                 }
             }
