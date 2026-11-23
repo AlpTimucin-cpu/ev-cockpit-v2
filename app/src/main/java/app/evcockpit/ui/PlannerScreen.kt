@@ -476,6 +476,7 @@ fun PlannerScreen(
         Text("© OpenStreetMap katkıcıları / OpenFreeMap • © openrouteservice • Open-Meteo")
         Text("Sürüş öncesi kullanım. Sürüşte ekrana yoğun dokunmayın.",
             style=MaterialTheme.typography.bodySmall)
+        } // Gelişmiş plan görünümü
     }
     if(dataFlow) {
         AlertDialog(onDismissRequest={dataFlow=false},
@@ -553,5 +554,4 @@ private fun SocProfileChart(plan:PlanResult.Success,startSoc:Double,minSoc:Doubl
     if(selected.isNotBlank())Text(selected)
     Text("Mavi varış aralığı: model ±%10/+%15 varsayımı; istatistiksel güven aralığı değildir.",
         style=MaterialTheme.typography.bodySmall)
-    }
 }
