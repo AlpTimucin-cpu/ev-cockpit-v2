@@ -1,5 +1,6 @@
 package app.evcockpit.ui.finalhmi
 
+import app.evcockpit.planner.model.VehicleProfile
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.time.Instant
@@ -219,7 +220,8 @@ object DemoDashboardMapper {
     fun map(nowEpochMs: Long): DashboardUiState {
         fun <T> demo(value: T): StampedValue<T> =
             StampedValue(value, DashboardOrigin.DEMO, nowEpochMs)
-        val capacity = 52.0 // Yalnız F1 DEMO araca özgü örnek; gerçek mod profil deposunu kullanır.
+        // Demo bile mevcut tek araç profilinin varsayılanını kullanır, kapasiteyi sabitlemez.
+        val capacity = VehicleProfile.defaults().capacityAtSohKwh
         val soc = 74.0
         val consumption = 17.2
         return DashboardUiState(
