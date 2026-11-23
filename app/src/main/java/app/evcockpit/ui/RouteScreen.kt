@@ -76,9 +76,9 @@ fun RouteScreen(
     var minArrivalText by remember { mutableStateOf("15") }
     var inputError by remember { mutableStateOf<String?>(null) }
     val minimumArrival = minArrivalText.trim().replace(',', '.').toDoubleOrNull()
-        ?.takeIf { it in 0.0..100.0 } ?: 15.0
-
-    val position = state.route?.takeIf { rememberGpsFreshness(gps) && gps.point != null }
+        ?.takeIf { it.isFinite() && it in 0.0..100.0 }
+    val gpsFresh = rememberGpsFreshness(gps)
+    val position = state.route?.takeIf { gpsFresh && gps.point != null }
         ?.let { route -> gps.point?.let { RouteProgress.locate(route, it) } }
 
     Column(
@@ -207,6 +207,10 @@ fun RouteScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth(),
         )
+        if (minimumArrival == null) {
+            Text("Minimum varış yüzdesi 0–100 arasında olmalı. Ön hesap yapılmayacak.",
+                color = MaterialTheme.colorScheme.error)
+        }
         inputError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -238,7 +242,7 @@ fun RouteScreen(
             state.alternatives.forEachIndexed { index, candidate ->
                 val selected = index == state.activeAlternativeIndex
                 val preview = RouteAlternativePreview.calculate(
-                    candidate, vehicleProfile, socPct, minimumArrival)
+                    candidate, vehicleProfile, socPct, minimumArrival ?: Double.NaN)
                 OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(5.dp)) {
