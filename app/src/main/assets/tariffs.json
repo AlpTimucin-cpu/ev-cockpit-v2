@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "notice": "Bilinmeyen fiyatlar null'dır. Operatör resmî fiyatı doğrulanmadan tutar girmeyin.",
+  "notice": "Fiyatlar 23.11.2026 tarihinde operatörlerin resmî web sayfalarında görülen yayımlanmış değerlerdir; lokasyon/soket/kampanya/üyeliğe göre değişebilir. Özellikle ZES ve Trugo DC tek fiyat değildir: null.",
   "attribution": "Operatörlerin yayımladığı tarifelerle doğrulanması gereken kullanıcı veri kataloğu; canlı fiyat API'si değildir.",
   "operators": [
     {
@@ -9,10 +9,10 @@
       "aliases": [
         "zes"
       ],
-      "ac_tl_kwh": null,
+      "ac_tl_kwh": 10.99,
       "dc_tl_kwh": null,
-      "updated_at": null,
-      "source_url": null
+      "updated_at": "2026-11-23",
+      "source_url": "https://zes.net/tr/fiyatlandirma"
     },
     {
       "id": "esarj",
@@ -31,10 +31,10 @@
       "aliases": [
         "trugo"
       ],
-      "ac_tl_kwh": null,
+      "ac_tl_kwh": 9.95,
       "dc_tl_kwh": null,
-      "updated_at": null,
-      "source_url": null
+      "updated_at": "2026-11-23",
+      "source_url": "https://www.trugo.com.tr/price"
     },
     {
       "id": "voltrun",
@@ -75,10 +75,10 @@
       "aliases": [
         "powersarj"
       ],
-      "ac_tl_kwh": null,
-      "dc_tl_kwh": null,
-      "updated_at": null,
-      "source_url": null
+      "ac_tl_kwh": 11.19,
+      "dc_tl_kwh": 13.99,
+      "updated_at": "2026-11-23",
+      "source_url": "https://powersarj.com/fiyatlandirma/"
     },
     {
       "id": "rhg-enerturk",
