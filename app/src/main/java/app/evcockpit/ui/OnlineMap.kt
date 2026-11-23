@@ -8,6 +8,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.awaitCancellation
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,6 +22,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import kotlinx.coroutines.launch
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -61,8 +69,15 @@ fun OnlineMap(
     focusedStop: ChargerCandidate? = null,
     onLoadFailed: () -> Unit = {},
     onStyleReady: () -> Unit = {},
+    canChangeLayer: Boolean = true,
 ) {
     val context = LocalContext.current
+    val layerPreferences = remember(context) { MapLayerPreferences(context) }
+    val layer by layerPreferences.selected.collectAsState(initial = MapLayer.DARK)
+    val chosenLayer = rememberUpdatedState(layer)
+    val scope = rememberCoroutineScope()
+    val mapStyleApplied = remember { mutableStateOf(MapLayer.DARK) }
+    val layerMenu = remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val mapReady = remember { mutableStateOf<MapLibreMap?>(null) }
     val chosenDestination = rememberUpdatedState(onSelectDestination)
@@ -91,7 +106,8 @@ fun OnlineMap(
                     }
                     if(found!=null) { chosenStop.value(found);true } else false
                 }
-                map.setStyle("https://tiles.openfreemap.org/styles/dark") {
+                mapStyleApplied.value = chosenLayer.value
+                map.setStyle(chosenLayer.value.styleUrl) {
                     mapReady.value = map
                     mapReadyCallback.value()
                 }
@@ -134,6 +150,17 @@ fun OnlineMap(
     }
 
     val loadedMap = mapReady.value
+    LaunchedEffect(layer) {
+        val map = mapReady.value
+        if (map != null && layer != mapStyleApplied.value) {
+            mapReady.value = null
+            map.setStyle(layer.styleUrl) {
+                mapStyleApplied.value = layer
+                mapReady.value = map
+                mapReadyCallback.value()
+            }
+        }
+    }
     LaunchedEffect(loadedMap, focusedStop) {
         if(loadedMap!=null && focusedStop!=null) {
             loadedMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
@@ -209,6 +236,23 @@ fun OnlineMap(
     val maneuver = position?.nextManeuverIndex?.let { route?.maneuvers?.getOrNull(it) }
     Box(modifier) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        Box(modifier = Modifier.align(Alignment.TopStart)) {
+            OutlinedButton(onClick = { layerMenu.value = true }, enabled = canChangeLayer) {
+                Text("Katman: " + layer.titleTr, fontSize = 14.sp, color = Color.White)
+            }
+            DropdownMenu(expanded = layerMenu.value,
+                onDismissRequest = { layerMenu.value = false }) {
+                MapLayer.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.titleTr + if (option == layer) " ✓" else "") },
+                        onClick = {
+                            layerMenu.value = false
+                            scope.launch { layerPreferences.choose(option) }
+                        },
+                    )
+                }
+            }
+        }
         Text(
             when {
                 route != null -> "OpenFreeMap • rota çizgisi (sahada doğrulanmadı)"
@@ -217,7 +261,7 @@ fun OnlineMap(
             },
             color = Color.White,
             fontSize = 14.sp,
-            modifier = Modifier.align(Alignment.TopStart)
+            modifier = Modifier.align(Alignment.TopCenter)
                 .background(Color(0xC9000000)).padding(8.dp),
         )
         if (weatherSummary.isNotBlank()) {

@@ -240,6 +240,7 @@ fun MapHero(
                         onStopSelected = { selectedStation = it },
                         onLoadFailed = { mapFailed = true },
                         onStyleReady = { mapFailed = false },
+                        canChangeLayer = allowRetry,
                     )
                 }
                 if (mapFailed) {
