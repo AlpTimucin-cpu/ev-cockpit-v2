@@ -41,8 +41,7 @@ import app.evcockpit.obd.ObdViewModel
 import app.evcockpit.obd.ManualSocStore
 import app.evcockpit.navigation.NavigationViewModel
 import app.evcockpit.navigation.PlaceAutocompleteViewModel
-import app.evcockpit.weather.OpenMeteoRouteWeather
-import app.evcockpit.weather.OpenMeteoWeatherLogic
+import app.evcockpit.weather.RouteHourlyWeatherViewModel
 import app.evcockpit.passenger.PassengerPlayerModel
 import app.evcockpit.location.SpeedSelector
 import app.evcockpit.integration.MolaOpenContract
@@ -114,11 +113,12 @@ class MainActivity : ComponentActivity() {
                 val obdViewModel: ObdViewModel = viewModel()
                 val navViewModel: NavigationViewModel = viewModel()
                 val placeSearchModel: PlaceAutocompleteViewModel = viewModel()
+                val routeWeatherModel: RouteHourlyWeatherViewModel = viewModel()
                 val passengerModel: PassengerPlayerModel = viewModel()
                 val plannerModel: PlannerViewModel = viewModel()
                 val driveModel: DriveModeViewModel = viewModel()
                 val molaModel: MolaLinkViewModel = viewModel()
-                App(obdViewModel, navViewModel, placeSearchModel, passengerModel, plannerModel,
+                App(obdViewModel, navViewModel, placeSearchModel, routeWeatherModel, passengerModel, plannerModel,
                     driveModel, molaModel, displayPreferences, darkTheme, keepScreenOn, openRequest)
             }
         }
@@ -128,6 +128,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     placeSearchModel: PlaceAutocompleteViewModel,
+    routeWeatherModel: RouteHourlyWeatherViewModel,
     passengerModel: PassengerPlayerModel, plannerModel: PlannerViewModel,
     driveModel: DriveModeViewModel,
     molaModel: MolaLinkViewModel,
@@ -165,15 +166,10 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
     val gps by vm.gps.collectAsStateWithLifecycle()
     val gpsFresh = drive.gpsFresh
     val navState by navVm.state.collectAsStateWithLifecycle()
-    val weatherProvider = remember { OpenMeteoRouteWeather() }
-    var weatherSummary by remember { mutableStateOf("Hava: rota hesaplanmadı") }
+    val weatherSummary by routeWeatherModel.summary.collectAsStateWithLifecycle()
     LaunchedEffect(navState.route) {
-        val route = navState.route
-        weatherSummary = if (route == null) "Hava: rota hesaplanmadı" else try {
-            OpenMeteoWeatherLogic.summary(weatherProvider.forecast(route))
-        } catch (_: Exception) {
-            "Hava: servis erişimi yok — DOĞRULANMADI"
-        }
+        // Only ViewModel/repository makes the network call, not this Composable.
+        routeWeatherModel.refresh(navState.route)
     }
     val voiceState by navVm.voice.collectAsStateWithLifecycle()
     var shareError by remember { mutableStateOf<String?>(null) }
@@ -349,6 +345,7 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 onClearDestinationSelection = navVm::clearDestinationSelection,
                 onSelectAlternative = navVm::selectAlternative,
                 searchVm = placeSearchModel,
+                routeWeather = weatherSummary,
                 onClear = navVm::clear,
             )
             3 -> PlannerScreen(
