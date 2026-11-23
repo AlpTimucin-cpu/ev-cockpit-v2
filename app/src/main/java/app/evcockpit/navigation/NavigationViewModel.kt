@@ -20,7 +20,13 @@ data class RouteUiState(
     val route: NavigationRoute? = null,
     val destination: GeoPoint? = null,
     val busy: Boolean = false,
-    val message: String = "Rota hesaplamak için GPS aç, hedefi seç ve kendi HeiGIT anahtarını gir.",
+    val message: String = "Nereden – nereye noktalarını seç ve rota hesapla.",
+    val origin: GeoPoint? = null,  // null means current fresh GPS
+    val originLabel: String = "Konumum (GPS)",
+    val destinationLabel: String = "",
+    val alternatives: List<NavigationRoute> = emptyList(),
+    val activeAlternativeIndex: Int = 0,
+    val alternativesNote: String = "Rota seçenekleri henüz hesaplanmadı.",
 )
 
 /** No hidden or automatic network requests. The user explicitly requests routing. */
@@ -116,45 +122,100 @@ class NavigationViewModel(application: Application) : AndroidViewModel(applicati
         val destination = try {
             GeoPoint(lat ?: Double.NaN, lon ?: Double.NaN)
         } catch (_: IllegalArgumentException) {
-            mutable.value = RouteUiState(message = "Hedef enlem ve boylam geçersiz.")
+            mutable.value = mutable.value.copy(
+                route = null, alternatives = emptyList(),
+                message = "Hedef enlem ve boylam geçersiz.")
             return
         }
+        val previous = mutable.value
         val gps = app.locationRepository.state.value
-        if (!gps.isFresh(SystemClock.elapsedRealtime()) || gps.point == null ||
-            (gps.accuracyMeters != null && gps.accuracyMeters > 100f)
-        ) {
-            mutable.value = RouteUiState(
-                destination = destination,
-                message = "Gerçek ve yeterince hassas konum yok; GPS takibini açıp konum bekle.",
-            )
+        val gpsValid = gps.point != null &&
+            gps.isFresh(SystemClock.elapsedRealtime()) &&
+            (gps.accuracyMeters == null || gps.accuracyMeters <= 100f)
+        val start = previous.origin ?: gps.point.takeIf { gpsValid }
+        if (start == null) {
+            mutable.value = previous.copy(
+                destination = destination, route = null, alternatives = emptyList(),
+                message = "Başlangıç seç veya GPS'i etkinleştir. Konum alınamadı.")
+            return
+        }
+        if (start == destination) {
+            mutable.value = previous.copy(
+                message = "Başlangıç ve hedef aynı; farklı bir yer seç.")
             return
         }
 
         deliveredCues.clear()
         speaker?.stop()
-        mutable.value = RouteUiState(destination = destination, busy = true, message = "Rota isteniyor...")
+        mutable.value = previous.copy(
+            destination = destination, route = null, alternatives = emptyList(),
+            busy = true, message = "Gerçek rota seçenekleri hesaplanıyor...")
         viewModelScope.launch {
             try {
-                val userKey = keys.read()
+                val key = keys.read()
                     ?: throw RouteServiceException("HeiGIT API anahtarı yok. Ayarlar'dan gir.")
-                val route = provider.calculate(gps.point, destination, userKey)
-                mutable.value = RouteUiState(
-                    route = route,
-                    destination = destination,
-                    message = "Son hesaplanan rota: openrouteservice (trafik dahil değil, sahada doğrulanmadı)",
-                )
+                val options = provider.calculateAlternatives(start, destination, key)
+                val attempted = OrsAlternativePolicy.eligible(start, destination)
+                mutable.value = mutable.value.copy(
+                    route = options.first(), alternatives = options,
+                    activeAlternativeIndex = 0,
+                    alternativesNote = OrsAlternativePolicy.label(options.size, attempted),
+                    busy = false,
+                    message = "openrouteservice güzergâhları yüklendi; trafik ve canlı yol durumu yok.")
             } catch (error: RouteServiceException) {
-                mutable.value = RouteUiState(
-                    destination = destination,
-                    message = error.message ?: "Rota hizmeti kullanılamıyor.",
-                )
+                mutable.value = mutable.value.copy(
+                    route = null, alternatives = emptyList(), busy = false,
+                    message = error.message ?: "Rota hizmeti kullanılamıyor.")
             } catch (_: Exception) {
-                mutable.value = RouteUiState(
-                    destination = destination,
-                    message = "Rota alınamadı. İnternet, konum, anahtar ve servis erişimini kontrol et.",
-                )
+                mutable.value = mutable.value.copy(
+                    route = null, alternatives = emptyList(), busy = false,
+                    message = "Rota alınamadı. İnternet, başlangıç, hedef ve anahtarı kontrol et.")
             }
         }
+    }
+
+    fun selectOrigin(point: GeoPoint, name: String) {
+        if (mutable.value.busy) return
+        deliveredCues.clear()
+        speaker?.stop()
+        mutable.value = mutable.value.copy(
+            origin = point, originLabel = name.take(140),
+            route = null, alternatives = emptyList(), activeAlternativeIndex = 0,
+            message = "Başlangıç seçildi: ${name.take(80)}. Hedef seçip hesapla.")
+    }
+
+    fun useGpsOrigin() {
+        if (mutable.value.busy) return
+        deliveredCues.clear()
+        speaker?.stop()
+        mutable.value = mutable.value.copy(
+            origin = null, originLabel = "Konumum (GPS)",
+            route = null, alternatives = emptyList(), activeAlternativeIndex = 0,
+            message = "Başlangıç GPS'e ayarlandı; GPS kapalıysa rota hesaplanamaz.")
+    }
+
+    fun clearDestinationSelection() {
+        if (mutable.value.busy) return
+        mutable.value = mutable.value.copy(
+            destination = null, destinationLabel = "",
+            route = null, alternatives = emptyList(), activeAlternativeIndex = 0,
+            message = "Hedef için adres önerilerinden bir yer seç.",
+        )
+    }
+
+    fun selectNamedDestination(point: GeoPoint, name: String) {
+        selectDestination(point)
+        mutable.value = mutable.value.copy(destinationLabel = name.take(140))
+    }
+
+    fun selectAlternative(index: Int) {
+        val options = mutable.value.alternatives
+        if (mutable.value.busy || index !in options.indices) return
+        deliveredCues.clear()
+        speaker?.stop()
+        mutable.value = mutable.value.copy(
+            route = options[index], activeAlternativeIndex = index,
+            message = "Güzergâh ${index + 1} seçildi • süre/mesafe TAHMİN, trafik yok.")
     }
 
     /** Explicit user action: fetch actual waypoint route; no auto-OBD recalculation. */
@@ -200,8 +261,9 @@ class NavigationViewModel(application: Application) : AndroidViewModel(applicati
         if (mutable.value.busy) return
         deliveredCues.clear()
         speaker?.stop()
-        mutable.value = RouteUiState(
-            destination = point,
+        mutable.value = mutable.value.copy(
+            route = null, destination = point, destinationLabel = "Haritadan seçilen nokta",
+            alternatives = emptyList(), activeAlternativeIndex = 0,
             message = "Haritada hedef seçildi. Rota sekmesinde Rota hesapla düğmesine bas.",
         )
     }

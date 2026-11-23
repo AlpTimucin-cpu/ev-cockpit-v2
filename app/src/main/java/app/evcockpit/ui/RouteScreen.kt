@@ -5,8 +5,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import app.evcockpit.navigation.DestinationsStore
 import app.evcockpit.navigation.SavedDestination
-import app.evcockpit.navigation.PhotonGeocoder
 import app.evcockpit.navigation.PhotonPlace
+import app.evcockpit.navigation.PlaceAutocompleteViewModel
+import app.evcockpit.navigation.PlaceField
 import app.evcockpit.navigation.GeoPoint
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
@@ -48,17 +49,19 @@ fun RouteScreen(
     onSpeakNextManeuver: () -> Unit,
     onCalculate: (String, String) -> Unit,
     onSelectDestination: (GeoPoint) -> Unit,
+    onSelectNamedDestination: (GeoPoint, String) -> Unit,
+    onSelectOrigin: (GeoPoint, String) -> Unit,
+    onUseGpsOrigin: () -> Unit,
+    onClearDestinationSelection: () -> Unit,
+    onSelectAlternative: (Int) -> Unit,
+    searchVm: PlaceAutocompleteViewModel,
     onClear: () -> Unit,
 ) {
     val ctx = LocalContext.current
     val store = remember(ctx) { DestinationsStore(ctx.applicationContext) }
     val saved by store.entries.collectAsState(initial = emptyList())
-    val geocoder = remember { PhotonGeocoder() }
+    val searchUi by searchVm.state.collectAsState()
     val scope = rememberCoroutineScope()
-    var searchText by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<PhotonPlace>>(emptyList()) }
-    var searchMessage by remember { mutableStateOf("Adres arama: manuel tetiklenir; Photon demo hizmeti, DOĞRULANMADI") }
-    var searching by remember { mutableStateOf(false) }
     var advanced by remember { mutableStateOf(false) }
     var targetError by remember { mutableStateOf<String?>(null) }
     var latitude by remember { mutableStateOf("") }
@@ -87,32 +90,115 @@ fun RouteScreen(
     ) {
         Text("Rota: openrouteservice • Türkçe manevralar • canlı trafik YOK")
         Text(state.message)
-        Text("Başlangıç: GPS • ${gps.status}")
-        Text("Varış: " + if (state.destination == null) "Önce adres/favori/haritadan hedef seç"
-            else "Hedef seçildi — haritada doğrula")
-        Text("Adres arama — Photon / komoot (kısıtlı demo; arama metnin sağlayıcıya gider)")
-        OutlinedTextField(value = searchText, onValueChange = { searchText = it },
-            label = { Text("Adres veya yer adı (otomatik arama yok)") },
-            singleLine = true, modifier = Modifier.fillMaxWidth())
-        Button(enabled = !searching && searchText.trim().length >= 3, onClick = {
-            searching = true
-            scope.launch {
-                try {
-                    searchResults = geocoder.search(searchText)
-                    searchMessage = if (searchResults.isEmpty()) "Sonuç yok" else
-                        "Sonuçlar: " + searchResults.size + " — doğruluğu haritada kontrol et"
-                } catch (_: Exception) {
-                    searchMessage = "Arama başarısız veya çok sık istek; 10 saniye sonra dene."
-                } finally { searching = false }
-            }
-        }) { Text("Adresi ara") }
-        Text(searchMessage)
-        searchResults.forEach { item ->
+        Text("NEREDEN → NEREYE", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
+        Text("Başlangıç: ${state.originLabel}" +
+            if (state.origin == null) " • ${gps.status}" else " • MANUEL SEÇİM")
+        OutlinedTextField(
+            value = searchUi.originText,
+            onValueChange = {
+                onUseGpsOrigin()
+                searchVm.onTextChanged(PlaceField.ORIGIN, it)
+            },
+            label = { Text("Nereden? Şehir, ilçe, adres") },
+            placeholder = { Text("Örn. Kayseri veya Antalya Otogar") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (searchUi.searchingOrigin) Text("Başlangıç önerileri aranıyor…")
+        else Text(searchUi.originStatus)
+        searchUi.originResults.forEach { suggestion ->
             OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
-                onSelectDestination(item.point)
-                scope.launch { store.save(SavedDestination("RECENT", item.label, item.point)) }
-            }) { Text(item.label) }
+                searchVm.selected(PlaceField.ORIGIN, suggestion)
+                onSelectOrigin(suggestion.point, suggestion.label)
+            }) { Text("↗ " + suggestion.label) }
         }
+        OutlinedButton(onClick = {
+            searchVm.useGpsOrigin()
+            onUseGpsOrigin()
+        }) { Text("Başlangıç için mevcut GPS konumumu kullan") }
+
+        Text("Hedef: " + (state.destinationLabel.ifBlank {
+            if (state.destination == null) "Henüz seçilmedi" else "Haritadan seçilen yer"
+        }))
+        OutlinedTextField(
+            value = searchUi.destinationText,
+            onValueChange = {
+                onClearDestinationSelection()
+                searchVm.onTextChanged(PlaceField.DESTINATION, it)
+            },
+            label = { Text("Nereye? Şehir, adres, otel veya yer") },
+            placeholder = { Text("Örn. Antalya, Konyaaltı, otel adı") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (searchUi.searchingDestination) Text("Hedef önerileri aranıyor…")
+        else Text(searchUi.destinationStatus)
+        searchUi.destinationResults.forEach { suggestion ->
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                searchVm.selected(PlaceField.DESTINATION, suggestion)
+                onSelectNamedDestination(suggestion.point, suggestion.label)
+                scope.launch {
+                    store.save(SavedDestination("RECENT", suggestion.label, suggestion.point))
+                }
+            }) { Text("● " + suggestion.label) }
+        }
+        Text("Yazarken öneri: Open-Meteo şehirler + Photon adresleri (ücretsiz, hız sınırlı). " +
+            "Girdiler arama sağlayıcılarına gönderilir; adresi haritada kontrol et.")
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(enabled = state.destination != null, onClick = {
+                state.destination?.let { point ->
+                    scope.launch { store.save(SavedDestination("HOME", "Ev", point)) }
+                }
+            }) { Text("Ev olarak kaydet") }
+            Button(enabled = state.destination != null, onClick = {
+                state.destination?.let { point ->
+                    scope.launch { store.save(SavedDestination("WORK", "İş", point)) }
+                }
+            }) { Text("İş olarak kaydet") }
+        }
+        saved.forEach { item ->
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                searchVm.selected(PlaceField.DESTINATION, PhotonPlace(item.label, item.point))
+                onSelectNamedDestination(item.point, item.label)
+            }) { Text((if (item.type == "HOME") "Ev" else if (item.type == "WORK") "İş"
+                else "Son hedef") + ": " + item.label) }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onToggleVoice) {
+                Text(if (voice.enabled) "Sesli tarifi kapat" else "Türkçe sesli tarifi aç")
+            }
+            OutlinedButton(onClick = onSpeakNextManeuver, enabled = voice.enabled) {
+                Text("Sıradaki manevrayı oku")
+            }
+        }
+        Text("Ses: ${voice.status} • Ses odağı: geçici MAY_DUCK")
+        OutlinedButton(onClick = { advanced = !advanced }) {
+            Text(if (advanced) "Gelişmiş koordinat girişini gizle" else
+                "Gelişmiş: hedef koordinatı gir")
+        }
+        if (advanced) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = latitude, onValueChange = { latitude = it },
+                    label = { Text("Enlem") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f))
+                OutlinedTextField(value = longitude, onValueChange = { longitude = it },
+                    label = { Text("Boylam") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f))
+            }
+            OutlinedButton(onClick = {
+                val parsed = RouteTargetValidator.parse(latitude, longitude)
+                if (parsed == null) targetError = "Geçersiz koordinat (-90..90 / -180..180)"
+                else {
+                    targetError = null
+                    onSelectNamedDestination(parsed, "Manuel koordinat")
+                }
+            }) { Text("Gelişmiş hedefi seç") }
+        }
+        targetError?.let { Text(it) }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = state.destination != null, onClick = {
                 state.destination?.let { point ->
@@ -176,6 +262,21 @@ fun RouteScreen(
             OutlinedButton(onClick = onClear) { Text("Rotayı temizle") }
         }
         if (route != null) {
+            Text("GÜZERGÂH SEÇENEKLERİ", style =
+                androidx.compose.material3.MaterialTheme.typography.titleMedium)
+            Text(state.alternativesNote)
+            state.alternatives.forEachIndexed { index, candidate ->
+                val selected = index == state.activeAlternativeIndex
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onSelectAlternative(index) },
+                ) {
+                    Text((if (selected) "✓ " else "") + "Rota ${index + 1} • " +
+                        "%.1f km".format(candidate.distanceMeters / 1000.0) + " • " +
+                        "~%.0f dk".format(candidate.durationSeconds / 60.0) +
+                        " • TAHMİN / trafik yok")
+                }
+            }
             Text("Son rota: %.1f km • yaklaşık %.0f dk (trafiksiz)".format(
                 route.distanceMeters / 1000.0, route.durationSeconds / 60.0))
             Text("Rota çizgisi noktaları: ${route.geometry.size} • sağlayıcı: ${route.provider}")
