@@ -1575,6 +1575,10 @@ object OsrmResponseParser {
             val item = coordinates.getJSONArray(index)
             GeoPoint(item.getDouble(1), item.getDouble(0))
         }
+        // Manevra koordinatlarının çoğu rota geometrisinin birebir noktasıdır.
+        // Hash indeks sayesinde uzun şehirler arası rotada her manevrada tüm yolu taramayız.
+        val pointIndexes = positions.indices.groupBy { positions[it] }
+        var lastManeuverIndex = 0
         val instructions = buildList {
             val legs = route.optJSONArray("legs")
             if (legs != null) {
@@ -1588,9 +1592,12 @@ object OsrmResponseParser {
                         val point = runCatching {
                             GeoPoint(location.getDouble(1), location.getDouble(0))
                         }.getOrNull() ?: continue
-                        val nearest = positions.indices.minByOrNull {
-                            RouteDistance.haversine(positions[it], point)
-                        } ?: continue
+                        val nearest = pointIndexes[point]
+                            ?.firstOrNull { it >= lastManeuverIndex }
+                            ?: positions.indices.minByOrNull {
+                                RouteDistance.haversine(positions[it], point)
+                            } ?: continue
+                        lastManeuverIndex = nearest
                         val type = maneuver.optString("type")
                         val modifier = maneuver.optString("modifier")
                         val roadName = step.optString("name", "").trim()
@@ -2107,9 +2114,9 @@ fun RouteScreen(
     var minArrivalText by remember { mutableStateOf("15") }
     var inputError by remember { mutableStateOf<String?>(null) }
     val minimumArrival = minArrivalText.trim().replace(',', '.').toDoubleOrNull()
-        ?.takeIf { it in 0.0..100.0 } ?: 15.0
-
-    val position = state.route?.takeIf { rememberGpsFreshness(gps) && gps.point != null }
+        ?.takeIf { it.isFinite() && it in 0.0..100.0 }
+    val gpsFresh = rememberGpsFreshness(gps)
+    val position = state.route?.takeIf { gpsFresh && gps.point != null }
         ?.let { route -> gps.point?.let { RouteProgress.locate(route, it) } }
 
     Column(
@@ -2238,6 +2245,10 @@ fun RouteScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth(),
         )
+        if (minimumArrival == null) {
+            Text("Minimum varış yüzdesi 0–100 arasında olmalı. Ön hesap yapılmayacak.",
+                color = MaterialTheme.colorScheme.error)
+        }
         inputError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2269,7 +2280,7 @@ fun RouteScreen(
             state.alternatives.forEachIndexed { index, candidate ->
                 val selected = index == state.activeAlternativeIndex
                 val preview = RouteAlternativePreview.calculate(
-                    candidate, vehicleProfile, socPct, minimumArrival)
+                    candidate, vehicleProfile, socPct, minimumArrival ?: Double.NaN)
                 OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(5.dp)) {
