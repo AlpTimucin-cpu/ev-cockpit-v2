@@ -141,6 +141,9 @@ fun PlannerScreen(
                     style=MaterialTheme.typography.bodySmall)
             }
         }
+        if (success != null) {
+            TripChargeCostPanel(success, state.request)
+        }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             Button(onClick={vm.plan(navigation,soc,options,profile)},enabled=!busy,
                 modifier=Modifier.weight(1f).heightIn(min=48.dp)) {
