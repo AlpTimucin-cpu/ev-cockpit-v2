@@ -203,57 +203,6 @@ fun RouteScreen(
         }
         targetError?.let { Text(it) }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = state.destination != null, onClick = {
-                state.destination?.let { point ->
-                    scope.launch { store.save(SavedDestination("HOME", "Ev", point)) }
-                }
-            }) { Text("Ev olarak kaydet") }
-            Button(enabled = state.destination != null, onClick = {
-                state.destination?.let { point ->
-                    scope.launch { store.save(SavedDestination("WORK", "İş", point)) }
-                }
-            }) { Text("İş olarak kaydet") }
-        }
-        saved.forEach { item ->
-            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
-                onSelectDestination(item.point)
-            }) { Text((if (item.type == "HOME") "Ev" else if (item.type == "WORK") "İş"
-                else "Son hedef") + ": " + item.label) }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onToggleVoice) {
-                Text(if (voice.enabled) "Sesli tarifi kapat" else "Türkçe sesli tarifi aç")
-            }
-            OutlinedButton(onClick = onSpeakNextManeuver, enabled = voice.enabled) {
-                Text("Sıradaki manevrayı oku")
-            }
-        }
-        Text("Ses: ${voice.status} • Ses odağı: geçici MAY_DUCK")
-        OutlinedButton(onClick = { advanced = !advanced }) {
-            Text(if (advanced) "Gelişmiş koordinat girişini gizle" else "Gelişmiş: koordinat gir")
-        }
-        if (advanced) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = latitude, onValueChange = { latitude = it },
-                    label = { Text("Enlem") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f))
-                OutlinedTextField(value = longitude, onValueChange = { longitude = it },
-                    label = { Text("Boylam") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f))
-            }
-            OutlinedButton(onClick = {
-                val parsed = RouteTargetValidator.parse(latitude, longitude)
-                if (parsed == null) targetError = "Geçersiz koordinat (-90..90 / -180..180)"
-                else {
-                    targetError = null
-                    onSelectDestination(parsed)
-                }
-            }) { Text("Gelişmiş hedefi seç") }
-        }
-        targetError?.let { Text(it) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = !state.busy && state.destination != null, onClick = {
                 state.destination?.let { point ->
                     onCalculate(point.latitude.toString(), point.longitude.toString())
