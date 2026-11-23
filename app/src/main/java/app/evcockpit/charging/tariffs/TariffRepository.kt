@@ -180,10 +180,10 @@ object TariffResolver {
         }
         if (overridePrice != null) {
             val age = runCatching {
-                java.time.temporal.ChronoUnit.DAYS.between(LocalDate.parse(override.updatedAt), now)
+                java.time.temporal.ChronoUnit.DAYS.between(LocalDate.parse(override?.updatedAt.orEmpty()), now)
             }.getOrDefault(Long.MAX_VALUE)
             return DisplayTariff(overridePrice, kind, "Manuel kullanıcı girişi",
-                override.updatedAt, age !in 0L..14L)
+                override?.updatedAt, age !in 0L..14L)
         }
         val price = matched.price(kind)
         return DisplayTariff(price, kind,
