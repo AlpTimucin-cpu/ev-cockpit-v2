@@ -40,6 +40,7 @@ import app.evcockpit.obd.SafeTestReportExporter
 import app.evcockpit.obd.ObdViewModel
 import app.evcockpit.obd.ManualSocStore
 import app.evcockpit.navigation.NavigationViewModel
+import app.evcockpit.navigation.PlaceAutocompleteViewModel
 import app.evcockpit.weather.OpenMeteoRouteWeather
 import app.evcockpit.weather.OpenMeteoWeatherLogic
 import app.evcockpit.passenger.PassengerPlayerModel
@@ -112,11 +113,12 @@ class MainActivity : ComponentActivity() {
             CockpitTheme(dark = darkTheme) {
                 val obdViewModel: ObdViewModel = viewModel()
                 val navViewModel: NavigationViewModel = viewModel()
+                val placeSearchModel: PlaceAutocompleteViewModel = viewModel()
                 val passengerModel: PassengerPlayerModel = viewModel()
                 val plannerModel: PlannerViewModel = viewModel()
                 val driveModel: DriveModeViewModel = viewModel()
                 val molaModel: MolaLinkViewModel = viewModel()
-                App(obdViewModel, navViewModel, passengerModel, plannerModel,
+                App(obdViewModel, navViewModel, placeSearchModel, passengerModel, plannerModel,
                     driveModel, molaModel, displayPreferences, darkTheme, keepScreenOn, openRequest)
             }
         }
@@ -125,6 +127,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
+    placeSearchModel: PlaceAutocompleteViewModel,
     passengerModel: PassengerPlayerModel, plannerModel: PlannerViewModel,
     driveModel: DriveModeViewModel,
     molaModel: MolaLinkViewModel,
@@ -340,6 +343,12 @@ private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
                 onSpeakNextManeuver = navVm::testNextManeuver,
                 onCalculate = navVm::calculate,
                 onSelectDestination = navVm::selectDestination,
+                onSelectNamedDestination = navVm::selectNamedDestination,
+                onSelectOrigin = navVm::selectOrigin,
+                onUseGpsOrigin = navVm::useGpsOrigin,
+                onClearDestinationSelection = navVm::clearDestinationSelection,
+                onSelectAlternative = navVm::selectAlternative,
+                searchVm = placeSearchModel,
                 onClear = navVm::clear,
             )
             3 -> PlannerScreen(
