@@ -235,7 +235,7 @@ fun MapHeroPane(
                     ) { actions() }
                 } else {
                     Row(
-                        Modifier.align(Alignment.BottomStart)
+                        Modifier.align(Alignment.TopStart)
                             .padding(t.spaceXS),
                         horizontalArrangement = Arrangement.spacedBy(t.spaceXS),
                     ) { actions() }
@@ -283,15 +283,6 @@ fun MapHeroPane(
                     )
                 }
 
-                Text(
-                    "Türkiye genel görünümü • GPS değil",
-                    color = t.text,
-                    fontSize = t.tinyText,
-                    modifier = Modifier.align(Alignment.BottomEnd)
-                        .padding(t.spaceXS)
-                        .background(t.mutedScrim, t.cornerSmall)
-                        .padding(t.spaceXS),
-                )
             }
 
             // Doğrudan harita üstüne çizilmez: uzun maliyet bilgisi satır atlayabilir.
@@ -300,6 +291,11 @@ fun MapHeroPane(
                     .padding(t.spaceS),
                 verticalArrangement = Arrangement.spacedBy(t.spaceS),
             ) {
+                Text(
+                    "Türkiye genel haritası • GPS konumu değil",
+                    color = t.secondary,
+                    fontSize = t.tinyText,
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(t.spaceM)) {
                     MapSummaryValue(
                         "Varış (tahmini)",
