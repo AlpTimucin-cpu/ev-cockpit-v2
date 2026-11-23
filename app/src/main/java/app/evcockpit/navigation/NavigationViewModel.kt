@@ -194,6 +194,15 @@ class NavigationViewModel(application: Application) : AndroidViewModel(applicati
             message = "Başlangıç GPS'e ayarlandı; GPS kapalıysa rota hesaplanamaz.")
     }
 
+    fun clearDestinationSelection() {
+        if (mutable.value.busy) return
+        mutable.value = mutable.value.copy(
+            destination = null, destinationLabel = "",
+            route = null, alternatives = emptyList(), activeAlternativeIndex = 0,
+            message = "Hedef için adres önerilerinden bir yer seç.",
+        )
+    }
+
     fun selectNamedDestination(point: GeoPoint, name: String) {
         selectDestination(point)
         mutable.value = mutable.value.copy(destinationLabel = name.take(140))
