@@ -26,6 +26,11 @@ data class NavigationRoute(
 interface RouteProvider {
     suspend fun calculate(start: GeoPoint, destination: GeoPoint, userApiKey: String): NavigationRoute
 
+    /** Actual provider alternatives; one real route is valid when alternatives are unavailable. */
+    suspend fun calculateAlternatives(
+        start: GeoPoint, destination: GeoPoint, userApiKey: String,
+    ): List<NavigationRoute> = listOf(calculate(start, destination, userApiKey))
+
     /** User-triggered via-route; ORS implementation supports up to 50 waypoints. */
     suspend fun calculateVia(waypoints: List<GeoPoint>, userApiKey: String): NavigationRoute {
         require(waypoints.size in 2..50) { "Rota en az 2, en fazla 50 nokta içerir." }
