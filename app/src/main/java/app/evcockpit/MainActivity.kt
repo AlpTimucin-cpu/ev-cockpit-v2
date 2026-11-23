@@ -1,5 +1,6 @@
 package app.evcockpit
 
+import dagger.hilt.android.AndroidEntryPoint
 import android.Manifest
 import android.content.Intent
 import android.provider.Settings
@@ -76,6 +77,7 @@ import kotlinx.coroutines.launch
 
 private data class ExternalOpenRequest(val generation: Int = 0, val tab: Int? = null)
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val externalOpenRequest = MutableStateFlow(ExternalOpenRequest())
 
