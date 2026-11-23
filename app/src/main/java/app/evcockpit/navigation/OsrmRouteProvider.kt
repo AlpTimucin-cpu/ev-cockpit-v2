@@ -117,6 +117,10 @@ object OsrmResponseParser {
             val item = coordinates.getJSONArray(index)
             GeoPoint(item.getDouble(1), item.getDouble(0))
         }
+        // Manevra koordinatlarının çoğu rota geometrisinin birebir noktasıdır.
+        // Hash indeks sayesinde uzun şehirler arası rotada her manevrada tüm yolu taramayız.
+        val pointIndexes = positions.indices.groupBy { positions[it] }
+        var lastManeuverIndex = 0
         val instructions = buildList {
             val legs = route.optJSONArray("legs")
             if (legs != null) {
@@ -130,9 +134,12 @@ object OsrmResponseParser {
                         val point = runCatching {
                             GeoPoint(location.getDouble(1), location.getDouble(0))
                         }.getOrNull() ?: continue
-                        val nearest = positions.indices.minByOrNull {
-                            RouteDistance.haversine(positions[it], point)
-                        } ?: continue
+                        val nearest = pointIndexes[point]
+                            ?.firstOrNull { it >= lastManeuverIndex }
+                            ?: positions.indices.minByOrNull {
+                                RouteDistance.haversine(positions[it], point)
+                            } ?: continue
+                        lastManeuverIndex = nearest
                         val type = maneuver.optString("type")
                         val modifier = maneuver.optString("modifier")
                         val roadName = step.optString("name", "").trim()
