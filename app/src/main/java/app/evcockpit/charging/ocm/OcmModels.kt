@@ -98,11 +98,11 @@ object OcmParser {
     }
 }
 
-/** 25–30 km aralıklı çağrılar; kapsama tamamlığı ve sorgu üst sınırı açıkça bildirilir. */
+/** ~26 km aralıklı, 14 km yarıçaplı çağrılar; 22 bölgeden sonrası açıkça kısmi. */
 data class OcmSamplingPlan(val points: List<GeoPoint>, val incomplete: Boolean)
 object OcmCorridor {
-    const val MAX_CALLS = 18
-    const val RADIUS_KM = 9.0
+    const val MAX_CALLS = 22
+    const val RADIUS_KM = 14.0
 
     fun sample(geometry: List<GeoPoint>): OcmSamplingPlan {
         require(geometry.size >= 2)
