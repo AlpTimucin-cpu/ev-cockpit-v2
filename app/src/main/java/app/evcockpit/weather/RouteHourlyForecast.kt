@@ -164,11 +164,16 @@ class OpenMeteoHourlyRouteClient {
                 return@withContext emptyList()
             val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
                 // We reject oversized documents instead of parsing unlimited remote data.
-                val buffer = CharArray(RouteHourlyForecastPolicy.MAX_RESPONSE_CHARS + 1)
-                val count = reader.read(buffer)
-                if (count < 0 || count > RouteHourlyForecastPolicy.MAX_RESPONSE_CHARS)
-                    return@withContext emptyList()
-                String(buffer, 0, count)
+                val builder = StringBuilder()
+                val buffer = CharArray(8_192)
+                while (true) {
+                    val count = reader.read(buffer)
+                    if (count < 0) break
+                    if (builder.length + count > RouteHourlyForecastPolicy.MAX_RESPONSE_CHARS)
+                        return@withContext emptyList()
+                    builder.append(buffer, 0, count)
+                }
+                builder.toString()
             }
             RouteHourlyForecastPolicy.parse(raw, samples)
         } finally {
