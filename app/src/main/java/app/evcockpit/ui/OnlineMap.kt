@@ -39,6 +39,7 @@ import org.maplibre.android.annotations.Polyline
 import org.maplibre.android.annotations.PolylineOptions
 import org.maplibre.android.annotations.IconFactory
 import app.evcockpit.planner.charging.ChargerCandidate
+import app.evcockpit.charging.ocm.OcmStation
 import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
@@ -75,6 +76,9 @@ fun OnlineMap(
     onStyleReady: () -> Unit = {},
     canChangeLayer: Boolean = true,
     alternativeRoutes: List<NavigationRoute> = emptyList(),
+    ocmStations: List<OcmStation> = emptyList(),
+    onOcmStationSelected: (OcmStation) -> Unit = {},
+    focusedOcmStation: OcmStation? = null,
 ) {
     val context = LocalContext.current
     val layerPreferences = remember(context) { MapLayerPreferences(context) }
@@ -95,6 +99,8 @@ fun OnlineMap(
     val chosenDestination = rememberUpdatedState(onSelectDestination)
     val chosenStop = rememberUpdatedState(onStopSelected)
     val displayedStops = rememberUpdatedState(stopMarkers)
+    val displayedOcmStations = rememberUpdatedState(ocmStations)
+    val chosenOcmStation = rememberUpdatedState(onOcmStationSelected)
     val mapFailureCallback = rememberUpdatedState(onLoadFailed)
     val mapReadyCallback = rememberUpdatedState(onStyleReady)
     val mapView = remember(context) {
@@ -116,7 +122,16 @@ fun OnlineMap(
                         abs(it.latitude - marker.position.latitude) < 0.00001 &&
                         abs(it.longitude - marker.position.longitude) < 0.00001
                     }
-                    if(found!=null) { chosenStop.value(found);true } else false
+                    if (found != null) {
+                        chosenStop.value(found)
+                        true
+                    } else {
+                        val ocm = displayedOcmStations.value.firstOrNull {
+                            abs(it.point.latitude - marker.position.latitude) < 0.00001 &&
+                            abs(it.point.longitude - marker.position.longitude) < 0.00001
+                        }
+                        if (ocm != null) { chosenOcmStation.value(ocm); true } else false
+                    }
                 }
                 mapStyleApplied.value = chosenStyleUrl.value
                 map.setStyle(chosenStyleUrl.value) {
@@ -180,6 +195,13 @@ fun OnlineMap(
                 LatLng(focusedStop.latitude,focusedStop.longitude),12.0))
         }
     }
+    LaunchedEffect(loadedMap, focusedOcmStation) {
+        if (loadedMap != null && focusedOcmStation != null) {
+            followCamera = false
+            loadedMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                LatLng(focusedOcmStation.point.latitude, focusedOcmStation.point.longitude), 13.0))
+        }
+    }
     val gpsFresh = rememberGpsFreshness(gps)
     // Takip kapalıyken de 2B/3B değişimi mevcut harita merkezinde uygulanır.
     LaunchedEffect(loadedMap, tiltedCamera, northUp) {
@@ -223,13 +245,14 @@ fun OnlineMap(
         }
     }
     LaunchedEffect(loadedMap, route, alternativeRoutes, destination, stopMarkers,
-        gps.point, gpsFresh) {
+        ocmStations, gps.point, gpsFresh) {
         val currentMap = loadedMap ?: return@LaunchedEffect
         var currentLine: Polyline? = null
         var passedLine: Polyline? = null
         var currentMarker: Marker? = null
         val chargingMarkers = mutableListOf<Marker>()
         val secondaryLines = mutableListOf<Polyline>()
+        val ocmPins = mutableListOf<Marker>()
         try {
             // Alternatifler soluk; yalnız seçilen güzergâh canlı yeşildir.
             alternativeRoutes.filter { it != route }.take(2).forEach { alternative ->
@@ -277,6 +300,30 @@ fun OnlineMap(
                         .title("Seçilen hedef"),
                 )
             }
+            ocmStations.take(250).forEach { station ->
+                // Pin renklendirmesi rapor edilen istasyon gücünü gösterir; canlı durum DEĞİL.
+                val fill = when {
+                    station.powerKw == null -> android.graphics.Color.GRAY
+                    station.powerKw >= 150.0 -> android.graphics.Color.rgb(173, 90, 225)
+                    station.hasDc || station.powerKw >= 43.0 ->
+                        android.graphics.Color.rgb(17, 205, 180)
+                    station.hasAc -> android.graphics.Color.rgb(65, 157, 238)
+                    else -> android.graphics.Color.GRAY
+                }
+                val bitmap = Bitmap.createBitmap(42, 42, Bitmap.Config.ARGB_8888)
+                val draw = AndroidCanvas(bitmap)
+                val brush = Paint(Paint.ANTI_ALIAS_FLAG)
+                brush.color = android.graphics.Color.WHITE
+                draw.drawCircle(21f, 21f, 20f, brush)
+                brush.color = fill
+                draw.drawCircle(21f, 21f, 16f, brush)
+                val icon = IconFactory.getInstance(context).fromBitmap(bitmap)
+                ocmPins += currentMap.addMarker(MarkerOptions()
+                    .position(LatLng(station.point.latitude, station.point.longitude))
+                    .title(station.name.take(100))
+                    .snippet("${station.powerGroup} • doluluk bilinmiyor")
+                    .icon(icon))
+            }
             stopMarkers.forEach { station ->
                 val color=PlannerMarkerPolicy.color(station)
                 val bitmap=Bitmap.createBitmap(44,44,Bitmap.Config.ARGB_8888)
@@ -298,6 +345,7 @@ fun OnlineMap(
             passedLine?.let { currentMap.removePolyline(it) }
             currentMarker?.let { currentMap.removeMarker(it) }
             chargingMarkers.forEach { currentMap.removeMarker(it) }
+            ocmPins.forEach { currentMap.removeMarker(it) }
             secondaryLines.forEach { currentMap.removePolyline(it) }
         }
     }
