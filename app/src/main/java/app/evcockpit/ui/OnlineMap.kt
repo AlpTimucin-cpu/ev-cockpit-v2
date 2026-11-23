@@ -179,6 +179,19 @@ fun OnlineMap(
         }
     }
     val gpsFresh = rememberGpsFreshness(gps)
+    // Takip kapalıyken de 2B/3B değişimi mevcut harita merkezinde uygulanır.
+    LaunchedEffect(loadedMap, tiltedCamera, northUp) {
+        val map = loadedMap ?: return@LaunchedEffect
+        if (followCamera) return@LaunchedEffect
+        val current = map.cameraPosition
+        val camera = CameraPosition.Builder()
+            .target(current.target)
+            .zoom(current.zoom)
+            .bearing(if (northUp) 0.0 else current.bearing)
+            .tilt(if (tiltedCamera) 45.0 else 0.0)
+            .build()
+        map.animateCamera(CameraUpdateFactory.newCameraPosition(camera))
+    }
     // Takip isteğe bağlıdır; GPS güncel değilse kamera sahte konuma gitmez.
     // GNSS course hareket yönüdür; pusula okumak gibi yorumlanmaz.
     LaunchedEffect(loadedMap, gps.point, gpsFresh, gps.courseDegrees,
