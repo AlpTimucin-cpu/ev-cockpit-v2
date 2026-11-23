@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.ClipData
 import android.content.ClipboardManager
 import app.evcockpit.ui.NightlyUpdatePanel
+import app.evcockpit.ui.finalhmi.MapFirstDashboardActivity
 import android.os.Build
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -75,6 +76,13 @@ fun RouteSettingsScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text("Araç profili — VW ID.4 Pure 52 kWh (TAHMİN / DOĞRULANMADI)")
+        OutlinedButton(
+            onClick = {
+                context.startActivity(Intent(context, MapFirstDashboardActivity::class.java))
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("F1 — yeni harita ağırlıklı ekranı önizle (DEMO)") }
+        Text("Önizleme ayrı ekranda açılır. Eski rota, OBD ve şarj menüleri korunur.")
         Text("İhtiyatlı varsayılan DC: " + vehicleProfile.maxDcKw.value.toInt() +
             " kW • model yılı, batarya sıcaklığı ve SoC sonucu değiştirir.")
         Text("Kayıtlı ekran gözlemi: " +
