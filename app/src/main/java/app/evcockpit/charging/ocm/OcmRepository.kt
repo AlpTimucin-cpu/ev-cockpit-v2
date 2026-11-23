@@ -45,6 +45,9 @@ class OcmKeyStore(context: Context) {
     suspend fun clear() { app.ocmSettings.edit { it.remove(field) } }
 }
 
+class OcmAccessException(message: String) : Exception(message)
+class OcmRateLimitException(message: String) : Exception(message)
+
 interface OcmTransport {
     suspend fun nearby(point: GeoPoint, apiKey: String, radiusKm: Double): List<OcmStation>
 }
@@ -78,8 +81,8 @@ class OcmHttpTransport : OcmTransport {
                     }
                     OcmParser.parse(raw)
                 }
-                401, 403 -> error("OCM anahtarı reddedildi; hesabındaki anahtarı kontrol et.")
-                429 -> error("Open Charge Map istek sınırı aşıldı.")
+                401, 403 -> throw OcmAccessException("OCM anahtarı reddedildi; hesabındaki anahtarı kontrol et.")
+                429 -> throw OcmRateLimitException("Open Charge Map istek sınırı aşıldı.")
                 else -> error("OCM hizmetine erişilemiyor (HTTP $status).")
             }
         } finally { conn.disconnect() }
@@ -103,6 +106,7 @@ class OcmRepository(
         val all = linkedMapOf<Long, OcmStation>()
         var failures = 0
         var truncated = false
+        var blocked: String? = null
         for ((index, p) in sampling.points.withIndex()) {
             if (index > 0) delayCall(1_200L)
             try {
@@ -114,6 +118,14 @@ class OcmRepository(
                 }
             } catch (cancel: CancellationException) {
                 throw cancel
+            } catch (blockedApi: OcmAccessException) {
+                failures++
+                blocked = "OCM anahtarı geçersiz; devam eden istekler durduruldu."
+                break
+            } catch (rateLimit: OcmRateLimitException) {
+                failures++
+                blocked = "OCM kota sınırı; diğer istekler iptal edildi."
+                break
             } catch (_: Exception) {
                 // Diğer sorgular başarısız olsa da başarılı kısımları göster.
                 failures++
@@ -121,6 +133,7 @@ class OcmRepository(
         }
         val complete = failures == 0 && !sampling.incomplete && !truncated
         val status = when {
+            blocked != null -> blocked
             all.isEmpty() && failures > 0 ->
                 "Şarj verisi alınamadı. API anahtarı, kota ve interneti kontrol et."
             !complete ->
