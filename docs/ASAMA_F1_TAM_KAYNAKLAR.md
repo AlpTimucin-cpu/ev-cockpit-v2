@@ -607,6 +607,7 @@ fun FinalCockpitTheme(content: @Composable () -> Unit) {
 ```kotlin
 package app.evcockpit.ui.finalhmi
 
+import app.evcockpit.planner.model.VehicleProfile
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.time.Instant
@@ -826,7 +827,8 @@ object DemoDashboardMapper {
     fun map(nowEpochMs: Long): DashboardUiState {
         fun <T> demo(value: T): StampedValue<T> =
             StampedValue(value, DashboardOrigin.DEMO, nowEpochMs)
-        val capacity = 52.0 // Yalnız F1 DEMO araca özgü örnek; gerçek mod profil deposunu kullanır.
+        // Demo bile mevcut tek araç profilinin varsayılanını kullanır, kapasiteyi sabitlemez.
+        val capacity = VehicleProfile.defaults().capacityAtSohKwh
         val soc = 74.0
         val consumption = 17.2
         return DashboardUiState(
@@ -836,8 +838,8 @@ object DemoDashboardMapper {
             outdoorTemperatureC = demo(18.0),
             speedKmh = demo(83.0),
             socPercent = demo(soc),
-            estimatedRangeKm = demo(
-                DashboardMath.estimatedRangeKm(soc, capacity, consumption) ?: 0.0),
+            estimatedRangeKm = DashboardMath.estimatedRangeKm(soc, capacity, consumption)
+                ?.let(::demo) ?: StampedValue(),
             consumptionKwhPer100Km = demo(consumption),
             powerKw = demo(21.0),
             arrivalMinutes = demo(88.0),
@@ -1219,6 +1221,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 
 /**
@@ -1278,7 +1281,11 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
                     InfoMetric("Anlık güç",
                         power?.let { DashboardFormat.oneDecimal(it) + " kW" } ?: "— kW",
                         Modifier.weight(1f),
-                        valueIsRegeneration = power != null && power < 0.0)
+                        valueColor = when {
+                            power == null -> t.text
+                            power < 0.0 -> t.regenerate
+                            else -> t.traction
+                        })
                 }
             }
         }
@@ -1290,7 +1297,7 @@ private fun InfoMetric(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    valueIsRegeneration: Boolean = false,
+    valueColor: Color = CockpitDesignTokens.text,
 ) {
     val t = CockpitDesignTokens
     Column(
@@ -1300,7 +1307,7 @@ private fun InfoMetric(
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(label, color = t.secondary, fontSize = t.labelText, maxLines = 2)
-        Text(value, color = if (valueIsRegeneration) t.regenerate else t.text,
+        Text(value, color = valueColor,
             fontSize = t.titleText, maxLines = 2, fontWeight = FontWeight.SemiBold)
     }
 }
