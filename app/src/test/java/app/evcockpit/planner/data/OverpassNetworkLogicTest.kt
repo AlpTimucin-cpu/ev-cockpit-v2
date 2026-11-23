@@ -131,4 +131,32 @@ class OverpassNetworkLogicTest {
         dir.deleteRecursively()
         Unit
     }
+    @Test fun allOsmReturnedStationsAreRetainedBeforePlanFilters() = runBlocking {
+        val dir = Files.createTempDirectory("m8-all-stations").toFile()
+        try {
+            val json = """{"elements":[
+               {"type":"node","id":11,"lat":38.2,"lon":35.01,
+                "tags":{"amenity":"charging_station","name":"CCS2 A",
+                        "socket:type2_combo":"yes",
+                        "socket:type2_combo:output":"50 kW"}},
+               {"type":"node","id":12,"lat":38.3,"lon":35.03,
+                "tags":{"amenity":"charging_station","name":"Bilinmeyen B"}}
+            ]}"""
+            val network = object : OverpassTransport {
+                override suspend fun post(query: String) = OverpassResponse(200, json)
+            }
+            val result = OverpassRepository(network, ChargerCache(dir), sleep = {})
+                .search(route.take(2),
+                    filter = ChargerFilter(onlyOsmTaggedCcs2 = true))
+            assertFalse(result.incomplete)
+            assertEquals(1, result.chargers.size)
+            assertEquals(2, result.allCandidates.size)
+            assertTrue(result.allCandidates.any { it.name == "Bilinmeyen B" })
+            assertTrue(result.allCandidates.any {
+                it.confidence == ChargerConfidence.UNKNOWN })
+            assertFalse(result.allCandidates.any { it.powerKw.verified })
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
 }

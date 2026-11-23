@@ -62,6 +62,9 @@ class ChargerCache(
 data class ChargerQueryResult(
     val chargers:List<ChargerCandidate>,val fromStaleCache:Boolean,val incomplete:Boolean,
     val status:String,
+    /** All candidates actually returned by OSM and the user's local additions,
+     * before planner filters. This is NOT a complete national station registry. */
+    val allCandidates:List<ChargerCandidate> = emptyList(),
 )
 class OverpassRepository(
     private val transport:OverpassTransport,
@@ -130,6 +133,6 @@ class OverpassRepository(
                 missing->"ŞARJ VERİSİ EKSİK — plan sonucu DOĞRULANMADI"
                 stale->"ÖNBELLEK — güncel olmayabilir"
                 else->"OSM verisi — canlı doluluk/fiyat yok; DOĞRULANMADI"
-            })
+            }, allCandidates=merged)
     }
 }

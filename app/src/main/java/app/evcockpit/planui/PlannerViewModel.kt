@@ -36,6 +36,7 @@ data class PlannerUiState(
     val route:NavigationRoute?=null,
     val request:PlanRequest?=null,
     val candidates:List<ChargerCandidate> = emptyList(),
+    val allCandidateStations:List<ChargerCandidate> = emptyList(),
     val solverElapsedMs:Long?=null,
     val verification:RouteVerification?=null,
     val stationStatus:String="Şarj verisi henüz aranmadı",
@@ -190,7 +191,8 @@ class PlannerViewModel(application:Application):AndroidViewModel(application) {
                     extra=saved)
                 mutable.value=mutable.value.copy(stage=PlannerStage.OPTIMIZING,
                     message=PlannerGuard.label(PlannerStage.OPTIMIZING),
-                    stationStatus=found.status,candidates=found.chargers)
+                    stationStatus=found.status,candidates=found.chargers,
+                    allCandidateStations=found.allCandidates)
                 val request=PlanRequest(sampled,vehicle,found.chargers,socPct,
                     socSource=soc.source,temperatureC=options.temperatureC,
                     hvac=options.hvac,minArrivalSoc=options.minArrivalSoc,

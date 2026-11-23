@@ -62,6 +62,7 @@ fun PlannerScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
     var showPlanMap by remember{mutableStateOf(true)}
+    var showAllStationsOnMap by remember { mutableStateOf(true) }
     var highlightedStation by remember{mutableStateOf<ChargerCandidate?>(null)}
     var selectedSaved by remember{mutableStateOf<StoredPlan?>(null)}
     var saveStatus by remember{mutableStateOf("")}
@@ -300,17 +301,43 @@ fun PlannerScreen(
             Text("En yakın tahmini ulaşılabilir nokta: "+
                 ("%.1f km".format(failed.nearestReachableKm)))
         }
+        if (state.allCandidateStations.isNotEmpty() ||
+            state.stationStatus != "Şarj verisi henüz aranmadı") {
+            CorridorChargerList(
+                allCandidates = state.allCandidateStations,
+                stationStatus = state.stationStatus,
+                selectedStationIds = success?.stops?.map { it.charger.id }?.toSet()
+                    ?: emptySet(),
+                onFocusStation = { chosen ->
+                    highlightedStation = chosen
+                    showPlanMap = true
+                },
+            )
+        }
         if(success!=null) {
             OutlinedButton(onClick={showPlanMap=!showPlanMap}) {
                 Text(if(showPlanMap)"Şarj haritasını gizle" else "Şarj duraklarını haritada göster")
             }
             if(showPlanMap) {
+                OutlinedButton(onClick={showAllStationsOnMap=!showAllStationsOnMap}) {
+                    Text(if(showAllStationsOnMap)
+                        "Harita: bütün dönen OSM adayları (en çok 100 işaret)"
+                        else "Harita: yalnız planlanan şarj durakları")
+                }
+                if(showAllStationsOnMap && state.allCandidateStations.size >
+                    CorridorStationPolicy.MAX_MAP_MARKERS) {
+                    Text("Harita performansı için yalnız ilk " +
+                        CorridorStationPolicy.MAX_MAP_MARKERS + " aday işaretli; " +
+                        "tam dönen liste aşağıdaki kartlarda.")
+                }
                 OnlineMap(modifier=Modifier.fillMaxWidth().height(275.dp),
                     route=state.route,
                     destination=state.route?.geometry?.lastOrNull(),
                     gps=gps,onSelectDestination=onSelectDestination,
                     weatherSummary="İstasyon verisi TAHMİN • güncellik DOĞRULANMADI",
-                    stopMarkers=success.stops.map{it.charger},
+                    stopMarkers=if(showAllStationsOnMap)
+                        CorridorStationPolicy.mapMarkers(state.allCandidateStations)
+                    else success.stops.map { it.charger },
                     onStopSelected={highlightedStation=it},
                     focusedStop=highlightedStation)
                 Text("Harita: yeşil OSM CCS2 etiketli / sarı olası / gri bilinmiyor. " +
