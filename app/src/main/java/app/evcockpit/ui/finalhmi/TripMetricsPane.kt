@@ -7,6 +7,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 
 /**
@@ -66,7 +67,11 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
                     InfoMetric("Anlık güç",
                         power?.let { DashboardFormat.oneDecimal(it) + " kW" } ?: "— kW",
                         Modifier.weight(1f),
-                        valueIsRegeneration = power != null && power < 0.0)
+                        valueColor = when {
+                            power == null -> t.text
+                            power < 0.0 -> t.regenerate
+                            else -> t.traction
+                        })
                 }
             }
         }
@@ -78,7 +83,7 @@ private fun InfoMetric(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    valueIsRegeneration: Boolean = false,
+    valueColor: Color = CockpitDesignTokens.text,
 ) {
     val t = CockpitDesignTokens
     Column(
@@ -88,7 +93,7 @@ private fun InfoMetric(
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(label, color = t.secondary, fontSize = t.labelText, maxLines = 2)
-        Text(value, color = if (valueIsRegeneration) t.regenerate else t.text,
+        Text(value, color = valueColor,
             fontSize = t.titleText, maxLines = 2, fontWeight = FontWeight.SemiBold)
     }
 }
