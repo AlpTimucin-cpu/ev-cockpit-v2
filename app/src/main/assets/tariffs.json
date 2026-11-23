@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "notice": "Bilinmeyen fiyatlar null'dır. Operatör resmî fiyatı doğrulanmadan tutar girmeyin.",
+  "attribution": "Operatörlerin yayımladığı tarifelerle doğrulanması gereken kullanıcı veri kataloğu; canlı fiyat API'si değildir.",
+  "operators": [
+    {
+      "id": "zes",
+      "operator": "ZES",
+      "aliases": [
+        "zes"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "esarj",
+      "operator": "Eşarj",
+      "aliases": [
+        "esarj"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "trugo",
+      "operator": "Trugo",
+      "aliases": [
+        "trugo"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "voltrun",
+      "operator": "Voltrun",
+      "aliases": [
+        "voltrun"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "sharz",
+      "operator": "Sharz",
+      "aliases": [
+        "sharz"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "tesla",
+      "operator": "Tesla",
+      "aliases": [
+        "tesla"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "powersarj",
+      "operator": "Powerşarj",
+      "aliases": [
+        "powersarj"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "rhg-enerturk",
+      "operator": "RHG Enertürk",
+      "aliases": [
+        "rhg enerturk"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    },
+    {
+      "id": "kilovati",
+      "operator": "Kilovati",
+      "aliases": [
+        "kilovati"
+      ],
+      "ac_tl_kwh": null,
+      "dc_tl_kwh": null,
+      "updated_at": null,
+      "source_url": null
+    }
+  ]
+}
