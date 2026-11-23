@@ -55,6 +55,7 @@ fun RouteScreen(
     onClearDestinationSelection: () -> Unit,
     onSelectAlternative: (Int) -> Unit,
     searchVm: PlaceAutocompleteViewModel,
+    routeWeather: String,
     onClear: () -> Unit,
 ) {
     val ctx = LocalContext.current
@@ -89,6 +90,8 @@ fun RouteScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("Rota: openrouteservice • Türkçe manevralar • canlı trafik YOK")
+        Text(routeWeather, style =
+            androidx.compose.material3.MaterialTheme.typography.bodyMedium)
         Text(state.message)
         Text("NEREDEN → NEREYE", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
         Text("Başlangıç: ${state.originLabel}" +
