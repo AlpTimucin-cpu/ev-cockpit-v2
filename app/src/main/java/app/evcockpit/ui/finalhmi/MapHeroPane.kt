@@ -1,7 +1,7 @@
 package app.evcockpit.ui.finalhmi
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -12,27 +12,27 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.evcockpit.ui.MapLayer
+import kotlinx.coroutines.delay
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 
-/**
- * F1: Gerçek MapLibre temel haritası (OpenFreeMap stil).
- * GPS, adres sorgusu, rota veya şarj verisiyle henüz BAĞLANTISI YOK.
- * Haritada rastgele rota, işaretçi ve trafik rengi çizilmez.
- */
+/** F1 yalnız temel haritayı açar; GPS, rota ve şarj istasyonu TAKLİDİ yapmaz. */
+private enum class MapLoadState { LOADING, READY, ERROR }
+
 @Composable
 fun MapHeroPane(
     state: DashboardUiState,
@@ -40,51 +40,73 @@ fun MapHeroPane(
     onOpenRouteTab: () -> Unit = {},
 ) {
     val t = CockpitDesignTokens
-    val preview = LocalInspectionMode.current
     val context = LocalContext.current
+    val inspection = LocalInspectionMode.current
     val owner = LocalLifecycleOwner.current
     var layer by remember { mutableStateOf(MapLayer.DARK) }
     var layerMenu by remember { mutableStateOf(false) }
-    val map = remember { mutableStateOf<MapLibreMap?>(null) }
+    var loadState by remember { mutableStateOf(MapLoadState.LOADING) }
+    var issue by remember { mutableStateOf<String?>(null) }
+    var fallbackUsed by remember { mutableStateOf(false) }
+    var requestVersion by remember { mutableIntStateOf(0) }
+    var map by remember { mutableStateOf<MapLibreMap?>(null) }
 
-    // F1'de mevcut MapLibre Android SDK'sını kullanıyoruz; kaynak ağ bağlantısı
-    // yalnız harita stil/karolarına aittir, araç veya kullanıcı GPS verisi gönderilmez.
-    val mapView = remember(context, preview) {
-        if (preview) null else {
+    // Harita görüntüsü F1'de gerçek bir ağ kaynağı kullanır.
+    // Yüklenmezse siyah ekranı başarı sanmayız; açıklama ve yeniden deneme sunarız.
+    val mapView = remember(context, inspection) {
+        if (inspection) null else {
             MapLibre.getInstance(context)
             MapView(context).apply {
                 onCreate(null)
-                getMapAsync { instance ->
-                    map.value = instance
-                    instance.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                        LatLng(39.0, 35.0), 5.2))
-                    instance.setStyle(MapLayer.DARK.styleUrl)
+                addOnDidFailLoadingMapListener(
+                    MapView.OnDidFailLoadingMapListener { _ ->
+                        if (!fallbackUsed && layer == MapLayer.DARK) {
+                            fallbackUsed = true
+                            issue = "Koyu harita yüklenemedi; Sokak katmanı denendi."
+                            layer = MapLayer.LIBERTY
+                        } else {
+                            loadState = MapLoadState.ERROR
+                            issue = "Harita veya karolar yüklenemedi. İnterneti denetle ya da tekrar dene."
+                        }
+                    },
+                )
+                getMapAsync { ready ->
+                    map = ready
+                    // Başlangıç Türkiye'ye genel bakış; kullanıcının GPS konumu DEĞİL.
+                    ready.moveCamera(CameraUpdateFactory.newLatLngZoom(
+                        LatLng(39.0, 35.0), 5.2,
+                    ))
                 }
             }
         }
     }
+
     DisposableEffect(owner, mapView) {
         if (mapView == null) return@DisposableEffect onDispose { }
         var started = false
         var resumed = false
-        val observer = LifecycleEventObserver { _, event ->
+        val listener = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> {
-                    if (!started) { mapView.onStart(); started = true }
+                Lifecycle.Event.ON_START -> if (!started) {
+                    mapView.onStart()
+                    started = true
                 }
-                Lifecycle.Event.ON_RESUME -> {
-                    if (!resumed) { mapView.onResume(); resumed = true }
+                Lifecycle.Event.ON_RESUME -> if (!resumed) {
+                    mapView.onResume()
+                    resumed = true
                 }
-                Lifecycle.Event.ON_PAUSE -> {
-                    if (resumed) { mapView.onPause(); resumed = false }
+                Lifecycle.Event.ON_PAUSE -> if (resumed) {
+                    mapView.onPause()
+                    resumed = false
                 }
-                Lifecycle.Event.ON_STOP -> {
-                    if (started) { mapView.onStop(); started = false }
+                Lifecycle.Event.ON_STOP -> if (started) {
+                    mapView.onStop()
+                    started = false
                 }
                 else -> Unit
             }
         }
-        owner.lifecycle.addObserver(observer)
+        owner.lifecycle.addObserver(listener)
         if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             mapView.onStart(); started = true
         }
@@ -92,165 +114,215 @@ fun MapHeroPane(
             mapView.onResume(); resumed = true
         }
         onDispose {
-            owner.lifecycle.removeObserver(observer)
+            owner.lifecycle.removeObserver(listener)
             if (resumed) mapView.onPause()
             if (started) mapView.onStop()
             mapView.onDestroy()
-            map.value = null
+            map = null
         }
     }
-    LaunchedEffect(layer, map.value) {
-        val active = map.value ?: return@LaunchedEffect
-        if (layer.styleUrl.isNotBlank()) active.setStyle(layer.styleUrl)
+
+    // Stil yükleme ASENKRON; callback gelmeden başarılı/boş harita demeyiz.
+    // Aynı stili getMapAsync + LaunchedEffect içinden iki kez yüklemekten kaçınılır.
+    LaunchedEffect(map, layer, requestVersion) {
+        val active = map ?: return@LaunchedEffect
+        if (layer.styleUrl.isBlank()) return@LaunchedEffect
+        loadState = MapLoadState.LOADING
+        if (!fallbackUsed) issue = null
+        active.setStyle(layer.styleUrl) {
+            loadState = MapLoadState.READY
+            // Yedek katmana geçildiyse uyarı kaybolmasın.
+            if (!fallbackUsed) issue = null
+        }
+        delay(15_000L)
+        if (loadState == MapLoadState.LOADING) {
+            loadState = MapLoadState.ERROR
+            issue = "Harita 15 saniye içinde açılamadı. Yeniden dene."
+        }
     }
 
     Surface(
         modifier = modifier,
         shape = t.corner,
         color = t.mapFallback,
-        border = androidx.compose.foundation.BorderStroke(t.cardOutlineWidth, t.outline),
+        border = BorderStroke(t.cardOutlineWidth, t.outline),
     ) {
-        Box(Modifier.fillMaxSize()) {
-            if (mapView != null) {
-                AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
-            } else {
-                Box(Modifier.fillMaxSize().background(t.mapFallback),
-                    contentAlignment = Alignment.Center) {
-                    Text("MapLibre önizleme alanı\nRota ve istasyon işaretçisi yok",
-                        color = t.secondary,
-                        fontSize = t.bodyText)
-                }
-            }
-
-            // Üstteki iki alan F1'de sahte adres sorgusu yapmaz; Rota sekmesine yönlendirir.
+        // F1 önceki sürümde özet haritanın üzerine biniyor, OSM atfı ile
+        // ve uzun fiyat etiketiyle çakışıyordu. Header/harita/özet ayrı alan.
+        Column(Modifier.fillMaxSize()) {
             Row(
-                Modifier.align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .background(t.mutedScrim)
+                Modifier.fillMaxWidth().background(t.panel)
                     .padding(t.spaceXS),
                 horizontalArrangement = Arrangement.spacedBy(t.spaceXS),
             ) {
-                OutlinedButton(
-                    onClick = onOpenRouteTab,
-                    modifier = Modifier.weight(1f).heightIn(min = t.target),
-                    shape = t.cornerSmall,
-                ) {
-                    Text("Nereden  —", color = t.text, fontSize = t.bodyText,
-                        maxLines = 1)
-                }
-                OutlinedButton(
-                    onClick = onOpenRouteTab,
-                    modifier = Modifier.weight(1f).heightIn(min = t.target),
-                    shape = t.cornerSmall,
-                ) {
-                    Text("Nereye  —", color = t.text, fontSize = t.bodyText,
-                        maxLines = 1)
-                }
-            }
-
-            // Gerçek manevra verisi F2'de bağlanacak; yoksa yön çizimi uydurulmaz.
-            if (state.maneuverText.value != null &&
-                state.maneuverText.timestampEpochMs != null) {
-                Surface(
-                    modifier = Modifier.align(Alignment.TopStart)
-                        .padding(top = t.mapSummaryHeight, start = t.spaceS),
-                    shape = t.cornerSmall,
-                    color = t.mutedScrim,
-                ) {
-                    Column(Modifier.padding(t.spaceS)) {
-                        Text("YÖNLENDİRME", color = t.accent, fontSize = t.labelText)
-                        Text(state.maneuverText.value ?: "—", color = t.text)
-                        Text(DashboardFormat.number(state.maneuverDistanceKm, " km sonra"),
-                            color = t.secondary, fontSize = t.bodyText)
+                listOf("Nereden  —", "Nereye  —").forEach { label ->
+                    OutlinedButton(
+                        onClick = onOpenRouteTab,
+                        modifier = Modifier.weight(1f).heightIn(min = t.target),
+                        shape = t.cornerSmall,
+                        contentPadding = PaddingValues(horizontal = t.spaceXS),
+                    ) {
+                        Text(label, color = t.text, fontSize = t.bodyText,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
 
-            Column(
-                Modifier.align(Alignment.CenterStart)
-                    .padding(t.spaceXS),
-                verticalArrangement = Arrangement.spacedBy(t.spaceXS),
+            BoxWithConstraints(
+                Modifier.fillMaxWidth().weight(1f).background(t.mapFallback),
             ) {
-                @Composable fun mapButton(
-                    symbol: String,
-                    description: String,
-                    enabled: Boolean,
-                    action: () -> Unit,
-                ) {
-                    OutlinedButton(
-                        onClick = action,
-                        enabled = enabled,
-                        contentPadding = PaddingValues(t.spaceXXS),
-                        shape = t.cornerSmall,
-                        modifier = Modifier.sizeIn(minWidth = t.target, minHeight = t.target)
-                            .semantics { contentDescription = description },
-                    ) { Text(symbol, color = if (enabled) t.text else t.secondary,
-                        fontSize = t.headText) }
-                }
-                mapButton("+", "Haritayı yakınlaştır", map.value != null) {
-                    map.value?.animateCamera(CameraUpdateFactory.zoomIn())
-                }
-                mapButton("−", "Haritayı uzaklaştır", map.value != null) {
-                    map.value?.animateCamera(CameraUpdateFactory.zoomOut())
-                }
-                mapButton("◎", "Konum (F3'te bağlanacak)", false) { }
-                Box {
-                    mapButton("▤", "Harita katmanını seç", true) { layerMenu = true }
-                    DropdownMenu(
-                        expanded = layerMenu,
-                        onDismissRequest = { layerMenu = false },
-                    ) {
-                        val options = listOf(
-                            "Sokak" to MapLayer.LIBERTY,
-                            "Uydu" to MapLayer.SATELLITE,
-                            "Arazi" to MapLayer.TOPOGRAPHIC,
-                            "Koyu" to MapLayer.DARK,
+                if (mapView != null) {
+                    AndroidView(
+                        factory = { mapView },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "MapLibre önizleme\nGerçek rota yüklenmedi",
+                            color = t.secondary, fontSize = t.bodyText,
                         )
-                        options.forEach { (title, option) ->
-                            DropdownMenuItem(
-                                text = { Text(if (option.styleUrl.isBlank())
-                                    "$title • API anahtarı F2" else title) },
-                                enabled = option.styleUrl.isNotBlank(),
-                                onClick = { layer = option; layerMenu = false },
-                                modifier = Modifier.heightIn(min = t.target),
-                            )
+                    }
+                }
+
+                val actions: @Composable () -> Unit = {
+                    MapToolButton("+", "Yakınlaştır", map != null) {
+                        map?.animateCamera(CameraUpdateFactory.zoomIn())
+                    }
+                    MapToolButton("−", "Uzaklaştır", map != null) {
+                        map?.animateCamera(CameraUpdateFactory.zoomOut())
+                    }
+                    MapToolButton("◎", "Konum (F3 aşamasında)", false) { }
+                    Box {
+                        MapToolButton("▤", "Harita katmanı", true) {
+                            layerMenu = true
+                        }
+                        DropdownMenu(
+                            expanded = layerMenu,
+                            onDismissRequest = { layerMenu = false },
+                        ) {
+                            listOf(
+                                "Sokak" to MapLayer.LIBERTY,
+                                "Uydu" to MapLayer.SATELLITE,
+                                "Arazi" to MapLayer.TOPOGRAPHIC,
+                                "Koyu" to MapLayer.DARK,
+                            ).forEach { (name, candidate) ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(if (candidate.styleUrl.isBlank())
+                                            "$name • F2'de etkinleşecek" else name)
+                                    },
+                                    enabled = candidate.styleUrl.isNotBlank(),
+                                    modifier = Modifier.heightIn(min = t.target),
+                                    onClick = {
+                                        layerMenu = false
+                                        fallbackUsed = false
+                                        issue = null
+                                        layer = candidate
+                                        requestVersion++
+                                    },
+                                )
+                            }
                         }
                     }
                 }
+                // Kısa yatay ve telefon haritasında dört dikey düğme tüm yolu kapatmaz.
+                if (maxHeight >= t.mapControlsVerticalMinHeight) {
+                    Column(
+                        Modifier.align(Alignment.CenterStart)
+                            .padding(t.spaceXS),
+                        verticalArrangement = Arrangement.spacedBy(t.spaceXS),
+                    ) { actions() }
+                } else {
+                    Row(
+                        Modifier.align(Alignment.BottomStart)
+                            .padding(t.spaceXS),
+                        horizontalArrangement = Arrangement.spacedBy(t.spaceXS),
+                    ) { actions() }
+                }
+
+                if (!inspection && loadState != MapLoadState.READY) {
+                    Surface(
+                        color = t.mutedScrim,
+                        shape = t.cornerSmall,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                            .padding(t.spaceS),
+                    ) {
+                        Column(
+                            Modifier.padding(t.spaceS),
+                            verticalArrangement = Arrangement.spacedBy(t.spaceXXS),
+                        ) {
+                            Text(
+                                if (loadState == MapLoadState.LOADING)
+                                    "Harita yükleniyor…" else "Harita gösterilemiyor",
+                                color = t.text, fontSize = t.bodyText,
+                            )
+                            if (loadState == MapLoadState.ERROR) {
+                                OutlinedButton(
+                                    onClick = {
+                                        issue = null
+                                        fallbackUsed = false
+                                        requestVersion++
+                                    },
+                                    modifier = Modifier.heightIn(min = t.target),
+                                ) { Text("Yeniden dene", fontSize = t.bodyText) }
+                            }
+                        }
+                    }
+                }
+
+                issue?.let { message ->
+                    Text(
+                        message,
+                        color = t.caution,
+                        fontSize = t.labelText,
+                        modifier = Modifier.align(Alignment.TopEnd)
+                            .padding(t.spaceXS)
+                            .background(t.mutedScrim, t.cornerSmall)
+                            .padding(t.spaceXS),
+                    )
+                }
+
+                Text(
+                    "Türkiye genel görünümü • GPS değil",
+                    color = t.text,
+                    fontSize = t.tinyText,
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .padding(t.spaceXS)
+                        .background(t.mutedScrim, t.cornerSmall)
+                        .padding(t.spaceXS),
+                )
             }
 
-            Text(
-                "Türkiye genel haritası • GPS konumu değil",
-                color = t.secondary,
-                fontSize = t.tinyText,
-                modifier = Modifier.align(Alignment.Center).background(t.mutedScrim)
-                    .padding(t.spaceXS),
-            )
-
-            // Harita altında tek yatay özet; fiyatı bilinmeyen durak asla 0 TL sayılmaz.
+            // Doğrudan harita üstüne çizilmez: uzun maliyet bilgisi satır atlayabilir.
             Column(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                    .background(t.mutedScrim)
-                    .padding(t.spaceXS),
-                verticalArrangement = Arrangement.spacedBy(t.spaceXXS),
+                Modifier.fillMaxWidth().background(t.panel)
+                    .padding(t.spaceS),
+                verticalArrangement = Arrangement.spacedBy(t.spaceS),
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(t.spaceS)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(t.spaceM)) {
                     MapSummaryValue(
-                        "Varış", DashboardFormat.number(state.arrivalMinutes, " dk"),
-                        Modifier.weight(1f))
+                        "Varış (tahmini)",
+                        DashboardFormat.number(state.arrivalMinutes, " dk"),
+                        Modifier.weight(1f),
+                    )
                     MapSummaryValue(
-                        "Kalan", DashboardFormat.number(state.remainingDistanceKm, " km"),
-                        Modifier.weight(1f))
+                        "Kalan mesafe",
+                        DashboardFormat.number(state.remainingDistanceKm, " km"),
+                        Modifier.weight(1f),
+                    )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(t.spaceS)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(t.spaceM)) {
                     MapSummaryValue(
                         "Varış SoC (tahmini)",
                         DashboardFormat.number(state.arrivalSocPercent, " %"),
-                        Modifier.weight(1f))
+                        Modifier.weight(1f),
+                    )
                     MapSummaryValue(
                         "Şarj ücreti (tahmini)",
                         state.chargeTotalLabel.value ?: "—",
-                        Modifier.weight(1f))
+                        Modifier.weight(1f),
+                    )
                 }
             }
         }
@@ -258,10 +330,39 @@ fun MapHeroPane(
 }
 
 @Composable
+private fun MapToolButton(
+    label: String,
+    description: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val t = CockpitDesignTokens
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(t.spaceXXS),
+        shape = t.cornerSmall,
+        modifier = Modifier.sizeIn(minWidth = t.target, minHeight = t.target)
+            .semantics { contentDescription = description },
+    ) {
+        Text(label, color = if (enabled) t.text else t.secondary,
+            fontSize = t.headText, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
 private fun MapSummaryValue(label: String, value: String, modifier: Modifier) {
     val t = CockpitDesignTokens
-    Column(modifier) {
-        Text(label, color = t.secondary, fontSize = t.labelText, maxLines = 1)
-        Text(value, color = t.text, fontSize = t.bodyText, maxLines = 1)
+    Column(
+        modifier,
+        verticalArrangement = Arrangement.spacedBy(t.spaceXXS),
+    ) {
+        Text(
+            label, color = t.secondary, fontSize = t.labelText, maxLines = 2,
+        )
+        Text(
+            value, color = t.text, fontSize = t.bodyText,
+            maxLines = 3, overflow = TextOverflow.Ellipsis,
+        )
     }
 }
