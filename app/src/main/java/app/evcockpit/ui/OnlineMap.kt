@@ -46,6 +46,7 @@ import kotlin.math.abs
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
 import app.evcockpit.navigation.GeoPoint
@@ -73,6 +74,7 @@ fun OnlineMap(
     onLoadFailed: () -> Unit = {},
     onStyleReady: () -> Unit = {},
     canChangeLayer: Boolean = true,
+    alternativeRoutes: List<NavigationRoute> = emptyList(),
 ) {
     val context = LocalContext.current
     val layerPreferences = remember(context) { MapLayerPreferences(context) }
@@ -207,13 +209,43 @@ fun OnlineMap(
             .build()
         map.animateCamera(CameraUpdateFactory.newCameraPosition(camera))
     }
-    LaunchedEffect(loadedMap, route, destination, stopMarkers, gps.point, gpsFresh) {
+    // Rota değiştiğinde kamera sadece GERÇEK seçilen yol geometrisini çerçeveler.
+    LaunchedEffect(loadedMap, route) {
+        val map = loadedMap ?: return@LaunchedEffect
+        val path = route?.geometry?.takeIf { it.size >= 2 } ?: return@LaunchedEffect
+        if (followCamera) return@LaunchedEffect
+        runCatching {
+            val bounds = LatLngBounds.Builder()
+            val step = (path.size / 1_000).coerceAtLeast(1)
+            path.filterIndexed { index, _ -> index % step == 0 || index == path.lastIndex }
+                .forEach { point -> bounds.include(LatLng(point.latitude, point.longitude)) }
+            map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds.build(), 72))
+        }
+    }
+    LaunchedEffect(loadedMap, route, alternativeRoutes, destination, stopMarkers,
+        gps.point, gpsFresh) {
         val currentMap = loadedMap ?: return@LaunchedEffect
         var currentLine: Polyline? = null
         var passedLine: Polyline? = null
         var currentMarker: Marker? = null
         val chargingMarkers = mutableListOf<Marker>()
+        val secondaryLines = mutableListOf<Polyline>()
         try {
+            // Alternatifler soluk; yalnız seçilen güzergâh canlı yeşildir.
+            alternativeRoutes.filter { it != route }.take(2).forEach { alternative ->
+                if (alternative.geometry.size >= 2) {
+                    val step = (alternative.geometry.size / 2_500).coerceAtLeast(1)
+                    val faint = alternative.geometry.filterIndexed { index, _ ->
+                        index % step == 0 || index == alternative.geometry.lastIndex
+                    }
+                    secondaryLines += currentMap.addPolyline(
+                        PolylineOptions()
+                            .addAll(faint.map { LatLng(it.latitude, it.longitude) })
+                            .color(android.graphics.Color.rgb(111, 129, 146))
+                            .width(5f),
+                    )
+                }
+            }
             if (route != null) {
                 val position = if (gpsFresh && gps.point != null)
                     RouteProgress.locate(route, gps.point) else null
@@ -266,6 +298,7 @@ fun OnlineMap(
             passedLine?.let { currentMap.removePolyline(it) }
             currentMarker?.let { currentMap.removeMarker(it) }
             chargingMarkers.forEach { currentMap.removeMarker(it) }
+            secondaryLines.forEach { currentMap.removePolyline(it) }
         }
     }
 
