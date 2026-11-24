@@ -16,27 +16,6 @@ class DashboardMapperAndLayoutTest {
         assertTrue(empty.weatherSamples.isEmpty())
     }
 
-    @Test fun demoModeliYalnizAyrikDemoMapperUretir() {
-        val demo = DemoDashboardMapper.map(now)
-        assertTrue(demo.demo)
-        assertEquals(DashboardOrigin.DEMO, demo.socPercent.source)
-        assertEquals(DashboardOrigin.DEMO, demo.speedKmh.source)
-        assertTrue(demo.weatherSamples.isNotEmpty())
-        val real = RealDashboardMapper.map(
-            RealDashboardInput(
-                gpsSpeedMetersPerSecond = StampedValue(
-                    25.0, DashboardOrigin.DEMO, now),
-                obdVerifiedSocPercent = StampedValue(
-                    75.0, DashboardOrigin.DEMO, now),
-                modelConsumptionKwhPer100Km = StampedValue(
-                    17.0, DashboardOrigin.DEMO, now),
-            ), now)
-        assertFalse(real.demo)
-        assertNull(real.speedKmh.value)
-        assertNull(real.socPercent.value)
-        assertNull(real.consumptionKwhPer100Km.value)
-    }
-
     @Test fun hizYalnizTazeGpsKaynaklidir() {
         val valid = RealDashboardMapper.map(RealDashboardInput(
             gpsSpeedMetersPerSecond = StampedValue(

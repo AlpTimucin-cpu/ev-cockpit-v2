@@ -1,45 +1,44 @@
 package app.evcockpit.ui
 
-import android.content.Intent
 import android.content.ClipData
 import android.content.ClipboardManager
-import app.evcockpit.ui.NightlyUpdatePanel
-import app.evcockpit.ui.finalhmi.MapFirstDashboardActivity
-import android.os.Build
+import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import android.os.Build
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.foundation.layout.Row
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
+import app.evcockpit.R
+import app.evcockpit.location.GpsSnapshot
 import app.evcockpit.navigation.EncryptedRouteKeyStore
 import app.evcockpit.obd.ManualSocInput
-import app.evcockpit.storage.VehicleProfileStore
-import app.evcockpit.planner.model.VehicleProfile
 import app.evcockpit.planner.model.SourcedValue
-import app.evcockpit.location.GpsSnapshot
+import app.evcockpit.planner.model.VehicleProfile
+import app.evcockpit.storage.VehicleProfileStore
+import app.evcockpit.ui.finalhmi.CockpitDesignTokens
 import kotlinx.coroutines.launch
 
+/**
+ * A0: Yeni F1 paletiyle beş açık bölüm. Her eski ayar kendi deposuna yazar;
+ * buradan F1 demo Activity'si veya eski PARK/ŞARJ ekranı açılmaz.
+ */
 @Composable
 fun RouteSettingsScreen(
     gps: GpsSnapshot,
@@ -52,231 +51,370 @@ fun RouteSettingsScreen(
     onClearManualSoc: () -> Unit,
     onStartGps: () -> Unit,
     onStopGps: () -> Unit,
+    onOpenObdTest: () -> Unit = {},
 ) {
+    val t = CockpitDesignTokens
     val context = LocalContext.current
-    val store = remember(context) { EncryptedRouteKeyStore(context) }
-    val configured by store.isConfigured.collectAsState(initial = false)
-    val mapTilerStore = remember(context) { MapTilerKeyStore(context) }
-    val mapTilerKey by mapTilerStore.key.collectAsState(initial = null)
-    var mapTilerInput by remember { mutableStateOf("") }
-    var mapTilerStatus by remember { mutableStateOf<String?>(null) }
-    val profileStore = remember(context) { VehicleProfileStore(context.applicationContext) }
-    val vehicleProfile by profileStore.profile.collectAsState(initial = VehicleProfile.defaults())
     val scope = rememberCoroutineScope()
-    var observedDcText by remember { mutableStateOf("") }
-    var observedDcError by remember { mutableStateOf<String?>(null) }
-    var input by remember { mutableStateOf("") }
-    var manualInput by remember { mutableStateOf("") }
-    var manualError by remember { mutableStateOf<String?>(null) }
-    var status by remember { mutableStateOf<String?>(null) }
+    val routeKeys = remember(context) { EncryptedRouteKeyStore(context) }
+    val orsConfigured by routeKeys.isConfigured.collectAsState(initial = false)
+    val mapTiler = remember(context) { MapTilerKeyStore(context) }
+    val mapTilerKey by mapTiler.key.collectAsState(initial = null)
+    val profileStore = remember(context) { VehicleProfileStore(context.applicationContext) }
+    val profile by profileStore.profile.collectAsState(initial = VehicleProfile.defaults())
     var compatibility by remember { mutableStateOf(DeviceCompatibilityDiagnostics.capture(context)) }
 
+    var mapTilerInput by remember { mutableStateOf("") }
+    var orsInput by remember { mutableStateOf("") }
+    var socInput by remember { mutableStateOf("") }
+    var dcInput by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf<String?>(null) }
+
     Column(
-        Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        Modifier.fillMaxSize().background(t.background)
+            .verticalScroll(rememberScrollState())
+            .padding(t.spaceM),
+        verticalArrangement = Arrangement.spacedBy(t.spaceM),
     ) {
-        Text("Araç profili — VW ID.4 Pure 52 kWh (TAHMİN / DOĞRULANMADI)")
-        OutlinedButton(
-            onClick = {
-                context.startActivity(Intent(context, MapFirstDashboardActivity::class.java))
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("F1 — yeni harita ağırlıklı ekranı önizle (DEMO)") }
-        Text("Önizleme ayrı ekranda açılır. Eski rota, OBD ve şarj menüleri korunur.")
-        Text("İhtiyatlı varsayılan DC: " + vehicleProfile.maxDcKw.value.toInt() +
-            " kW • model yılı, batarya sıcaklığı ve SoC sonucu değiştirir.")
-        Text("Kayıtlı ekran gözlemi: " +
-            (vehicleProfile.observedDcKw?.value?.let { "%.1f kW".format(it) } ?: "yok"))
-        OutlinedTextField(value = observedDcText,
-            onValueChange = { observedDcText = it },
-            label = { Text("Araç ekranında gördüğüm gerçek azami şarj gücü (kW)") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth())
-        Button(onClick = {
-            val v = observedDcText.trim().replace(',', '.').toDoubleOrNull()
-            if (v == null || !v.isFinite() || v !in 1.0..350.0) {
-                observedDcError = "1–350 kW arası bir araç ekranı gözlemi girin."
-            } else {
-                observedDcError = null
-                scope.launch {
-                    profileStore.save(vehicleProfile.copy(observedDcKw =
-                        SourcedValue(v, "KULLANICI ARAÇ EKRANI GÖZLEMİ", false,
-                            "Tek oturum değeri; gerçek fiziksel azami DC DOĞRULANMADI")))
-                }
-                observedDcText = ""
+        SettingsSection(
+            stringResource(R.string.a0_connections),
+            stringResource(R.string.a0_connections_desc),
+        ) {
+            SettingsAction(stringResource(R.string.a0_obd_open), onClick = onOpenObdTest)
+            SettingsNote(stringResource(R.string.a0_obd_note))
+            Text(
+                stringResource(R.string.a0_gps_status, gps.status),
+                color = t.text, fontSize = t.bodyText,
+            )
+            Text(
+                stringResource(R.string.a0_gps_accuracy,
+                    gps.accuracyMeters?.toInt()?.toString()
+                        ?: context.getString(R.string.a0_location_unknown),
+                    gps.provider ?: context.getString(R.string.a0_provider_unknown)),
+                color = t.secondary, fontSize = t.labelText,
+            )
+            SettingsAction(stringResource(R.string.a0_gps_start), onClick = onStartGps)
+            SettingsAction(stringResource(R.string.a0_gps_stop),
+                onClick = onStopGps, outlined = true)
+            SettingsNote(stringResource(R.string.a0_gps_permission))
+            SettingsNote(stringResource(R.string.a0_compat_header))
+            SettingsNote(compatibility.safeReport())
+            SettingsAction(stringResource(R.string.a0_compat_refresh), outlined = true) {
+                compatibility = DeviceCompatibilityDiagnostics.capture(context)
             }
-        }) { Text("Gözlemi kaydet (tahmini eğriyi ölçekle)") }
-        OutlinedButton(onClick = {
-            scope.launch { profileStore.save(vehicleProfile.copy(observedDcKw = null)) }
-        }, enabled = vehicleProfile.observedDcKw != null) { Text("Gözlemi sil") }
-        OutlinedButton(onClick = {
-            scope.launch { profileStore.reset() }
-        }) { Text("Araç profili varsayılanına dön") }
-        observedDcError?.let { Text(it) }
-        Text("Gözlem şarj eğrisini oransal ölçekler; sürekli/garanti edilen güç değildir. " +
-            "Model ve telefon üzerinde şarj tahmini DOĞRULANMADI.")
-        Text("Manuel batarya SoC (OBD yanıt vermezse)")
-        Text("Kayıtlı manuel SoC: " +
-            (manualSocPct?.let { "%.1f %%".format(it) } ?: "yok"))
-        OutlinedTextField(
-            value = manualInput, onValueChange = { manualInput = it },
-            label = { Text("Gösterge SoC (%) — 0-100") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Button(onClick = {
-            val soc = ManualSocInput.parse(manualInput)
-            if (soc == null) {
-                manualError = "0 ile 100 arasında geçerli SoC girin."
-            } else {
-                onSaveManualSoc(soc)
-                manualError = null
-                manualInput = ""
+            SettingsAction(stringResource(R.string.a0_compat_copy), outlined = true) {
+                val clipboard = context.getSystemService(ClipboardManager::class.java)
+                message = if (clipboard != null) {
+                    clipboard.setPrimaryClip(ClipData.newPlainText(
+                        context.getString(R.string.a0_compat_clipboard_name),
+                        compatibility.safeReport()))
+                    context.getString(R.string.a0_compat_copy_ok)
+                } else context.getString(R.string.a0_compat_copy_fail)
             }
-        }) { Text("Manuel SoC kaydet") }
-        OutlinedButton(onClick = onClearManualSoc, enabled = manualSocPct != null) {
-            Text("Manuel SoC sil")
+            if (!compatibility.preciseLocationGranted)
+                SettingsNote(stringResource(R.string.a0_gps_precise))
+            SettingsNote(BackgroundSettingsGuide.explanation(
+                Build.MANUFACTURER, Build.DISPLAY, Build.FINGERPRINT))
+            SettingsAction(stringResource(R.string.a0_battery_settings), outlined = true) {
+                message = context.getString(
+                    if (BackgroundSettingsGuide.openBatteryOptimizationSettings(context))
+                        R.string.a0_battery_opened else R.string.a0_battery_error)
+            }
+            SettingsAction(stringResource(R.string.a0_autostart_settings), outlined = true) {
+                message = context.getString(
+                    if (BackgroundSettingsGuide.openAutostartOrAppDetails(context))
+                        R.string.a0_autostart_opened else R.string.a0_autostart_error)
+            }
+            SettingsNote(stringResource(R.string.a0_sys_settings_note))
         }
-        manualError?.let { Text(it) }
-        Text("OBD SoC yanıt verirse öncelik OBD'dedir; PID ölçeği doğrulanmadı etiketi korunur.")
-        Text("Harita katmanları: sokak / açık / koyu ücretsiz; uydu ve topo için MapTiler anahtarı.")
-        Text("MapTiler anahtarı: " +
-            if (mapTilerKey.isNullOrBlank()) "kayıtlı değil" else "cihaza şifreli kaydedildi")
-        OutlinedTextField(
-            value = mapTilerInput,
-            onValueChange = { mapTilerInput = it.take(256) },
-            label = { Text("Kendi MapTiler API anahtarın (uydu ve topo)") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Button(enabled = mapTilerInput.isNotBlank(), onClick = {
-            scope.launch {
-                try {
-                    mapTilerStore.save(mapTilerInput)
-                    mapTilerInput = ""
-                    mapTilerStatus = "Anahtar kaydedildi; uydu/topo artık harita katmanından seçilebilir."
-                } catch (_: Exception) {
-                    mapTilerStatus = "Anahtar kaydedilemedi; biçimini veya cihaz güvenliğini kontrol et."
+
+        SettingsSection(
+            stringResource(R.string.a0_vehicle),
+            stringResource(R.string.a0_vehicle_desc),
+        ) {
+            SettingsNote(stringResource(R.string.a0_dc_default,
+                profile.maxDcKw.value.toInt()))
+            SettingsNote(stringResource(R.string.a0_dc_observed,
+                profile.observedDcKw?.value?.let { DashboardNumber(it) }
+                    ?: context.getString(R.string.a0_none)))
+            SettingsInput(
+                value = dcInput,
+                onChange = { dcInput = it },
+                label = stringResource(R.string.a0_dc_label),
+                keyboardType = KeyboardType.Decimal,
+            )
+            SettingsAction(stringResource(R.string.a0_dc_save)) {
+                val kw = dcInput.trim().replace(',', '.').toDoubleOrNull()
+                if (kw == null || !kw.isFinite() || kw !in 1.0..350.0)
+                    message = context.getString(R.string.a0_dc_invalid)
+                else {
+                    val updated = profile.copy(
+                        observedDcKw = SourcedValue(
+                            kw, "KULLANICI ARAÇ EKRANI GÖZLEMİ",
+                            false, "Tek oturum; azami DC şarj gücü doğrulanmadı"))
+                    scope.launch {
+                        try {
+                            profileStore.save(updated)
+                            dcInput = ""
+                            message = null
+                        } catch (_: Exception) {
+                            message = context.getString(R.string.a0_dc_invalid)
+                        }
+                    }
                 }
             }
-        }) { Text("MapTiler anahtarını şifreli kaydet") }
-        if (!mapTilerKey.isNullOrBlank()) {
-            OutlinedButton(onClick = {
+            SettingsAction(
+                stringResource(R.string.a0_dc_clear), outlined = true,
+                enabled = profile.observedDcKw != null,
+            ) {
+                scope.launch { profileStore.save(profile.copy(observedDcKw = null)) }
+            }
+            SettingsAction(
+                stringResource(R.string.a0_dc_reset), outlined = true,
+            ) {
+                scope.launch { profileStore.reset() }
+            }
+            SettingsNote(stringResource(R.string.a0_dc_note))
+            SettingsNote(stringResource(R.string.a0_manual_soc))
+            SettingsNote(stringResource(R.string.a0_manual_current,
+                manualSocPct?.let { DashboardNumber(it) }
+                    ?: context.getString(R.string.a0_none)))
+            SettingsInput(
+                value = socInput,
+                onChange = { socInput = it },
+                label = stringResource(R.string.a0_soc_label),
+                keyboardType = KeyboardType.Decimal,
+            )
+            SettingsAction(stringResource(R.string.a0_soc_save)) {
+                val parsed = ManualSocInput.parse(socInput)
+                if (parsed == null) {
+                    message = context.getString(R.string.a0_soc_invalid)
+                } else {
+                    onSaveManualSoc(parsed)
+                    socInput = ""
+                    message = null
+                }
+            }
+            SettingsAction(stringResource(R.string.a0_soc_clear),
+                enabled = manualSocPct != null, outlined = true,
+                onClick = onClearManualSoc)
+            SettingsNote(stringResource(R.string.a0_soc_note))
+        }
+
+        SettingsSection(
+            stringResource(R.string.a0_map),
+            stringResource(R.string.a0_map_desc),
+        ) {
+            SettingsNote(stringResource(R.string.a0_layers_note))
+            SettingsNote(stringResource(R.string.a0_maptiler_current,
+                context.getString(if (mapTilerKey.isNullOrBlank())
+                    R.string.a0_key_absent else R.string.a0_key_saved)))
+            SettingsInput(
+                value = mapTilerInput,
+                onChange = { mapTilerInput = it.take(256) },
+                label = stringResource(R.string.a0_maptiler_label),
+                keyboardType = KeyboardType.Password,
+                secret = true,
+            )
+            SettingsAction(stringResource(R.string.a0_maptiler_save),
+                enabled = mapTilerInput.isNotBlank()) {
                 scope.launch {
                     try {
-                        mapTilerStore.clear()
+                        mapTiler.save(mapTilerInput)
                         mapTilerInput = ""
-                        mapTilerStatus = "MapTiler anahtarı silindi."
+                        message = context.getString(R.string.a0_maptiler_saved)
                     } catch (_: Exception) {
-                        mapTilerStatus = "Anahtar silinemedi."
+                        message = context.getString(R.string.a0_maptiler_save_failed)
                     }
                 }
-            }) { Text("MapTiler anahtarını sil") }
-        }
-        mapTilerStatus?.let { Text(it) }
-        Text("Anahtar MapTiler karo isteklerinde sağlayıcıya gönderilir. " +
-            "Ücretsiz kullanım kotası sağlayıcı hesabına bağlıdır; karoların yüklenmesi garanti değil.")
-        Text("Görünüm: sabit koyu tema • dinamik renk kullanılmıyor.")
-        Row { Text("Ekranı açık tut"); Switch(checked = keepScreenOn, onCheckedChange = onKeepScreenOn) }
-        Text("Ekranı açık tut seçimi yalnız uygulama açıkken geçerlidir; telefon üzerinde DOĞRULANMADI.")
-        NightlyUpdatePanel()
-        Text("Konum: ${gps.status}")
-        Text("Hassasiyet: ${gps.accuracyMeters?.toInt()?.toString() ?: "--"} m • "
-            + (gps.provider ?: "Konum sağlayıcı yok"))
-        Button(onClick = onStartGps) { Text("GPS takibini başlat") }
-        OutlinedButton(onClick = onStopGps) { Text("GPS takibini durdur") }
-        Text("GPS izni bu düğmeyle istenir. Konum işlenmesi için görünür bildirimli konum servisi kullanılır.")
-        Text("Arka plan servisleri için pil / otomatik başlatma ayarları")
-        Text(BackgroundSettingsGuide.explanation(
-            Build.MANUFACTURER, Build.DISPLAY, Build.FINGERPRINT))
-        Text("Telefon / ROM uyumluluk durumu (yerel; hassas kimlik verisi yok)")
-        Text(compatibility.safeReport())
-        OutlinedButton(onClick = {
-            compatibility = DeviceCompatibilityDiagnostics.capture(context)
-        }) { Text("İzin ve sistem durumunu yenile") }
-        OutlinedButton(onClick = {
-            val clipboard = context.getSystemService(ClipboardManager::class.java)
-            if (clipboard != null) {
-                clipboard.setPrimaryClip(ClipData.newPlainText(
-                    "ID.4 uyumluluk özeti", compatibility.safeReport()))
-                status = "Kimlik ve konum içermeyen uyumluluk özeti panoya kopyalandı."
-            } else {
-                status = "Pano kullanılamıyor; rapor ekranda görüntüleniyor."
             }
-        }) { Text("Güvenli uyumluluk özetini kopyala") }
-        if (!compatibility.preciseLocationGranted) {
-            Text("Hassas konum izni yok: GPS başlangıçlı rota ve yeniden planlama " +
-                "kullanılamayabilir. Sistem konum izninde 'Kesin' seçimini kontrol edin.")
-        }
-        OutlinedButton(onClick = {
-            status = if (BackgroundSettingsGuide.openBatteryOptimizationSettings(context)) {
-                "Pil optimizasyonu sistem sayfası istendi; ayarı kendiniz kontrol edin."
-            } else "Pil optimizasyonu ayarı açılamadı; telefon Ayarlar'dan açın."
-        }) { Text("Pil optimizasyonu ayarlarını aç") }
-        OutlinedButton(onClick = {
-            status = if (BackgroundSettingsGuide.openAutostartOrAppDetails(context)) {
-                "Otomatik başlatma / uygulama bilgileri sayfası istendi."
-            } else "Otomatik başlatma ayarı açılamadı; telefon Ayarlar'dan açın."
-        }) { Text("Otomatik başlatma / uygulama ayarları") }
-        Text("Bu düğmeler izni değiştirmez, yalnızca sistem sayfasını açar. " +
-            "Arka planda sorunsuz çalışma DOĞRULANMADI.")
-        Text("Rota servisi: openrouteservice (HeiGIT)")
-        Text("API anahtarı: " + if (configured) "kayıtlı (doğrulanmadı)" else "kayıtlı değil")
-        Text("Anahtarını kendi HeiGIT hesabından oluştur. Bu uygulama anahtar üretmez.")
-        OutlinedButton(onClick = {
-            try {
-                context.startActivity(
-                    Intent(Intent.ACTION_VIEW, Uri.parse("https://account.heigit.org/")),
-                )
-            } catch (_: Exception) {
-                status = "Hesap sayfası açılamadı."
-            }
-        }) { Text("HeiGIT hesap sayfasını aç") }
-        OutlinedTextField(
-            value = input,
-            onValueChange = { input = it },
-            label = { Text("Kendi API anahtarın") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Button(
-            onClick = {
+            SettingsAction(stringResource(R.string.a0_maptiler_clear),
+                enabled = !mapTilerKey.isNullOrBlank(), outlined = true) {
                 scope.launch {
                     try {
-                        store.save(input)
-                        input = "" // Remove plaintext from Compose state immediately.
-                        status = "Anahtar Android Keystore + DataStore ile şifreli kaydedildi."
+                        mapTiler.clear()
+                        mapTilerInput = ""
+                        message = context.getString(R.string.a0_maptiler_cleared)
                     } catch (_: Exception) {
-                        status = "Anahtar kaydedilemedi; geçerliliği ve cihaz güvenlik ayarlarını kontrol et."
+                        message = context.getString(R.string.a0_maptiler_clear_failed)
                     }
                 }
-            },
-            enabled = input.isNotBlank(),
-        ) { Text("Anahtarı şifreli kaydet") }
-        if (configured) {
-            OutlinedButton(onClick = {
+            }
+            SettingsNote(stringResource(R.string.a0_maptiler_note))
+            SettingsNote(stringResource(R.string.a0_ors_name))
+            SettingsNote(stringResource(R.string.a0_ors_current,
+                context.getString(if (orsConfigured)
+                    R.string.a0_key_saved else R.string.a0_key_absent)))
+            SettingsAction(stringResource(R.string.a0_ors_web), outlined = true) {
+                try {
+                    context.startActivity(Intent(Intent.ACTION_VIEW,
+                        Uri.parse("https://account.heigit.org/")))
+                } catch (_: Exception) {
+                    message = context.getString(R.string.a0_ors_web_failed)
+                }
+            }
+            SettingsInput(
+                value = orsInput, onChange = { orsInput = it },
+                label = stringResource(R.string.a0_ors_key_label),
+                keyboardType = KeyboardType.Password, secret = true,
+            )
+            SettingsAction(stringResource(R.string.a0_ors_save),
+                enabled = orsInput.isNotBlank()) {
                 scope.launch {
                     try {
-                        store.clear()
-                        input = ""
-                        status = "Kaydedilmiş anahtar silindi."
+                        routeKeys.save(orsInput)
+                        orsInput = ""
+                        message = context.getString(R.string.a0_ors_saved)
                     } catch (_: Exception) {
-                        status = "Anahtar silinemedi."
+                        message = context.getString(R.string.a0_ors_save_failed)
                     }
                 }
-            }) { Text("Kaydedilmiş anahtarı sil") }
+            }
+            SettingsAction(stringResource(R.string.a0_ors_clear),
+                enabled = orsConfigured, outlined = true) {
+                scope.launch {
+                    try {
+                        routeKeys.clear()
+                        orsInput = ""
+                        message = context.getString(R.string.a0_ors_cleared)
+                    } catch (_: Exception) {
+                        message = context.getString(R.string.a0_ors_clear_failed)
+                    }
+                }
+            }
+            SettingsNote(stringResource(R.string.a0_ors_note))
         }
-        status?.let { Text(it) }
-        Text("Gizlilik: veri dosyasına yalnızca AES-GCM şifreli içerik yazılır. "
-            + "Android Keystore anahtarı dışarı aktarılmaz. "
-            + "Telefonun ele geçirilmesine karşı mutlak güvenlik garantisi yoktur.")
-        Text("Anahtarın doğruluğu ancak HeiGIT isteğiyle test edilebilir; "
-            + "API kotası ve servis erişilebilirliği sağlayıcıya bağlıdır.")
+
+        SettingsSection(
+            stringResource(R.string.a0_units),
+            stringResource(R.string.a0_units_desc),
+        ) {
+            SettingsNote(stringResource(R.string.a0_units_speed))
+            SettingsNote(stringResource(R.string.a0_units_energy))
+            SettingsNote(stringResource(R.string.a0_units_cost))
+            SettingsSwitch(
+                stringResource(R.string.a0_keep_screen),
+                stringResource(R.string.a0_keep_screen_desc),
+                keepScreenOn, onKeepScreenOn,
+            )
+            SettingsSwitch(
+                stringResource(R.string.a0_theme_pref),
+                stringResource(R.string.a0_theme_pref_desc),
+                darkTheme, onDarkTheme,
+            )
+        }
+
+        SettingsSection(
+            stringResource(R.string.a0_about),
+            stringResource(R.string.a0_about_desc),
+        ) {
+            SettingsNote(stringResource(R.string.a0_privacy))
+            SettingsNote(stringResource(R.string.a0_privacy_note))
+            SettingsNote(stringResource(R.string.a0_credit))
+            SettingsNote(stringResource(R.string.a0_a0_state))
+            Text(stringResource(R.string.a0_nightly),
+                color = t.text, fontSize = t.titleText,
+                fontWeight = FontWeight.SemiBold)
+            NightlyUpdatePanel()
+        }
+
+        message?.let { Surface(color = t.panelRaised, shape = t.cornerSmall) {
+            Text(it, color = t.secondary,
+                modifier = Modifier.padding(t.spaceM), fontSize = t.bodyText)
+        } }
+    }
+}
+
+private fun DashboardNumber(number: Double): String =
+    java.lang.String.format(java.util.Locale.forLanguageTag("tr-TR"), "%.1f", number)
+
+@Composable
+private fun SettingsSection(
+    title: String, subtitle: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val t = CockpitDesignTokens
+    Surface(
+        color = t.panel, shape = t.corner,
+        border = BorderStroke(t.cardOutlineWidth, t.outline),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(t.spaceL),
+            verticalArrangement = Arrangement.spacedBy(t.spaceS),
+        ) {
+            Text(title, color = t.text, fontSize = t.headText,
+                fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = t.secondary, fontSize = t.labelText)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsNote(text: String) {
+    val t = CockpitDesignTokens
+    Text(text, color = t.secondary, fontSize = t.bodyText,
+        modifier = Modifier.fillMaxWidth())
+}
+
+@Composable
+private fun SettingsAction(
+    label: String,
+    outlined: Boolean = false,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val t = CockpitDesignTokens
+    if (outlined) {
+        OutlinedButton(onClick = onClick, enabled = enabled,
+            shape = t.cornerSmall,
+            modifier = Modifier.fillMaxWidth().heightIn(min = t.target)) {
+            Text(label, fontSize = t.bodyText)
+        }
+    } else {
+        Button(onClick = onClick, enabled = enabled,
+            shape = t.cornerSmall,
+            modifier = Modifier.fillMaxWidth().heightIn(min = t.target)) {
+            Text(label, fontSize = t.bodyText)
+        }
+    }
+}
+
+@Composable
+private fun SettingsInput(
+    value: String, onChange: (String) -> Unit,
+    label: String, keyboardType: KeyboardType,
+    secret: Boolean = false,
+) {
+    val t = CockpitDesignTokens
+    OutlinedTextField(
+        value = value, onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = true,
+        visualTransformation = if (secret)
+            PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        shape = t.cornerSmall,
+        modifier = Modifier.fillMaxWidth().heightIn(min = t.target),
+    )
+}
+
+@Composable
+private fun SettingsSwitch(
+    label: String, explanation: String, checked: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    val t = CockpitDesignTokens
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = t.target),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(t.spaceM),
+    ) {
+        Column(Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(t.spaceXXS)) {
+            Text(label, color = t.text, fontSize = t.bodyText)
+            Text(explanation, color = t.secondary, fontSize = t.labelText)
+        }
+        Switch(checked = checked, onCheckedChange = onChange)
     }
 }

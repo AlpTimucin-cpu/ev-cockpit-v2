@@ -13,8 +13,8 @@ android {
         applicationId = "app.evcockpit"
         minSdk = 28
         targetSdk = 35
-        versionCode = 50
-        versionName = "0.6.3-F1-ui-polish2"
+        versionCode = 51
+        versionName = "0.7.0"
         val ciSha = (System.getenv("GITHUB_SHA") ?: "unknown")
             .take(40).replace(Regex("[^0-9a-f]"), "")
         buildConfigField("String", "CI_COMMIT", "\"$ciSha\"")
@@ -47,6 +47,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material3:material3-window-size-class")
+    // A0: NavHost sekme geçmişi; Apache-2.0, AAR ~1,2 MB (paket boyutu CI ile ölçülür).
+    implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")

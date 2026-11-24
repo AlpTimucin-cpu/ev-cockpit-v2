@@ -101,7 +101,12 @@ fun ObdTestScreen(
                 Text("Ayrı tanı logunu paylaş")
             }
             diagnosisFilePath?.let { Text("Tanı kaydı: " + it, fontSize = 10.sp) }
-            OutlinedButton(onClick = onDemo, modifier = Modifier.fillMaxWidth()) { Text("Demo verisi") }
+            // A0: Üretim derlemesinde sahte OBD gösterme eylemi bulunmaz.
+            if (app.evcockpit.BuildConfig.DEBUG) {
+                OutlinedButton(onClick = onDemo, modifier = Modifier.fillMaxWidth()) {
+                    Text("DEMO — gerçek araç verisi değil")
+                }
+            }
             OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Bağlantıyı kes") }
             OutlinedButton(onClick = onShareLog, modifier = Modifier.fillMaxWidth()) {
                 Text("OBD logunu paylaş")
