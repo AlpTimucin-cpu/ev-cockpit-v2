@@ -1,404 +1,279 @@
 package app.evcockpit
 
-import dagger.hilt.android.AndroidEntryPoint
 import android.Manifest
 import android.content.Intent
-import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.WindowManager
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.DisposableEffect
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.evcockpit.obd.ObdLogShare
-import app.evcockpit.obd.SafeTestReportExporter
-import app.evcockpit.obd.ObdViewModel
-import app.evcockpit.obd.ManualSocStore
 import app.evcockpit.navigation.NavigationViewModel
 import app.evcockpit.navigation.PlaceAutocompleteViewModel
-import app.evcockpit.weather.RouteHourlyWeatherViewModel
-import app.evcockpit.passenger.PassengerPlayerModel
-import app.evcockpit.location.SpeedSelector
-import app.evcockpit.integration.MolaOpenContract
-import kotlinx.coroutines.flow.MutableStateFlow
-import app.evcockpit.ui.PassengerVideoScreen
-import app.evcockpit.ui.RouteScreen
-import app.evcockpit.ui.PlannerScreen
+import app.evcockpit.obd.ManualSocStore
+import app.evcockpit.obd.ObdLogShare
+import app.evcockpit.obd.ObdViewModel
+import app.evcockpit.obd.SafeTestReportExporter
 import app.evcockpit.planui.PlannerViewModel
-import app.evcockpit.ui.tesla.TeslaDashboardScreen
-import app.evcockpit.ui.tesla.TeslaAction
-import app.evcockpit.ui.tesla.DriveMode
-import app.evcockpit.ui.tesla.DriveModeViewModel
-import app.evcockpit.ui.tesla.DriveModePolicy
-import app.evcockpit.integration.MolaLinkViewModel
-import app.evcockpit.integration.MolaStatus
-import app.evcockpit.ui.tesla.MolaLaunchCard
-import app.evcockpit.ui.tesla.DashboardGuidancePolicy
-import app.evcockpit.ui.tesla.GuidanceAction
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import app.evcockpit.ui.tesla.SafeSocSelection
-import app.evcockpit.storage.VehicleProfileStore
-import app.evcockpit.planner.model.VehicleProfile
 import app.evcockpit.planner.model.PlanResult
-import app.evcockpit.ui.ObdTestScreen
-import app.evcockpit.ui.RouteSettingsScreen
-import app.evcockpit.ui.CockpitTheme
-import app.evcockpit.ui.CockpitTabs
+import app.evcockpit.planner.model.VehicleProfile
+import app.evcockpit.storage.VehicleProfileStore
 import app.evcockpit.ui.DisplayPreferences
+import app.evcockpit.ui.ObdTestScreen
+import app.evcockpit.ui.PlannerScreen
+import app.evcockpit.ui.RouteScreen
+import app.evcockpit.ui.RouteSettingsScreen
+import app.evcockpit.ui.finalhmi.CockpitDesignTokens
+import app.evcockpit.ui.finalhmi.FinalCockpitTheme
+import app.evcockpit.ui.finalhmi.FinalDashboardTab
+import app.evcockpit.ui.finalhmi.MapFirstDashboardScreen
+import app.evcockpit.ui.finalhmi.MapFirstDashboardViewModel
+import app.evcockpit.ui.tesla.DriveModeViewModel
+import app.evcockpit.ui.tesla.SafeSocSelection
+import app.evcockpit.weather.RouteHourlyWeatherViewModel
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-private data class ExternalOpenRequest(val generation: Int = 0, val tab: Int? = null)
-
+/**
+ * A0: Tek ana Activity, NavHost başlangıcı HARİTA / F1.
+ * Mola, medya ve eski PARK / ŞARJ arayüzü bu gezinmede bulunmaz.
+ * OBD, GPS, rota, planlama depoları ve DataStore aynı kalır.
+ */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private val externalOpenRequest = MutableStateFlow(ExternalOpenRequest())
-
-    private fun acceptOpenIntent(value: Intent?) {
-        if (value?.action != Intent.ACTION_VIEW) return
-        val target = MolaOpenContract.tabFor(value.dataString) ?: return
-        val previous = externalOpenRequest.value
-        externalOpenRequest.value = ExternalOpenRequest(previous.generation + 1, target)
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        acceptOpenIntent(intent)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        acceptOpenIntent(intent)
         setContent {
-            val openRequest by externalOpenRequest.collectAsState()
-            val displayPreferences = remember { DisplayPreferences(applicationContext) }
-            val darkTheme by displayPreferences.darkTheme.collectAsState(
-                initial = true,
-            )
-            val keepScreenOn by displayPreferences.keepScreenOn.collectAsState(
-                initial = false,
-            )
+            val displayPrefs = remember { DisplayPreferences(applicationContext) }
+            val keepScreenOn by displayPrefs.keepScreenOn.collectAsStateWithLifecycle(false)
+            val darkPref by displayPrefs.darkTheme.collectAsStateWithLifecycle(true)
             DisposableEffect(keepScreenOn) {
-                if (keepScreenOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                onDispose { /* next effect handles updates; Activity teardown clears the flag */ }
+                if (keepScreenOn)
+                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                onDispose { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
             }
-            CockpitTheme(dark = darkTheme) {
-                val obdViewModel: ObdViewModel = viewModel()
-                val navViewModel: NavigationViewModel = viewModel()
-                val placeSearchModel: PlaceAutocompleteViewModel = viewModel()
-                val routeWeatherModel: RouteHourlyWeatherViewModel = viewModel()
-                val passengerModel: PassengerPlayerModel = viewModel()
-                val plannerModel: PlannerViewModel = viewModel()
-                val driveModel: DriveModeViewModel = viewModel()
-                val molaModel: MolaLinkViewModel = viewModel()
-                App(obdViewModel, navViewModel, placeSearchModel, routeWeatherModel, passengerModel, plannerModel,
-                    driveModel, molaModel, displayPreferences, darkTheme, keepScreenOn, openRequest)
+
+            val f1: MapFirstDashboardViewModel = viewModel()
+            val dashboard by f1.state.collectAsStateWithLifecycle()
+            val obd: ObdViewModel = viewModel()
+            val nav: NavigationViewModel = viewModel()
+            val search: PlaceAutocompleteViewModel = viewModel()
+            val planner: PlannerViewModel = viewModel()
+            val weather: RouteHourlyWeatherViewModel = viewModel()
+            val drive: DriveModeViewModel = viewModel()
+            val scope = rememberCoroutineScope()
+
+            val obdState by obd.state.collectAsStateWithLifecycle()
+            val gps by obd.gps.collectAsStateWithLifecycle()
+            val obdLog by obd.log.collectAsStateWithLifecycle()
+            val logFilePath by obd.logFilePath.collectAsStateWithLifecycle()
+            val diagnosisPath by obd.diagnosisFilePath.collectAsStateWithLifecycle()
+            val diagnosisSummary by obd.diagnosisSummary.collectAsStateWithLifecycle()
+            val devices by obd.devices.collectAsStateWithLifecycle()
+            val obdMessage by obd.message.collectAsStateWithLifecycle()
+            val driveState by drive.state.collectAsStateWithLifecycle()
+            val navState by nav.state.collectAsStateWithLifecycle()
+            val voiceState by nav.voice.collectAsStateWithLifecycle()
+            val weatherSummary by weather.summary.collectAsStateWithLifecycle()
+            val planState by planner.state.collectAsStateWithLifecycle()
+
+            val manualStore = remember { ManualSocStore(applicationContext) }
+            val manualSoc by manualStore.socPct.collectAsStateWithLifecycle(null)
+            val profileStore = remember { VehicleProfileStore(applicationContext) }
+            val profile by profileStore.profile.collectAsStateWithLifecycle(
+                VehicleProfile.defaults())
+            val socReading = SafeSocSelection.select(obdState, manualSoc, driveState)
+            var diagnosisError by remember { mutableStateOf<String?>(null) }
+
+            LaunchedEffect(navState.route) {
+                // İstek yalnız mevcut ViewModel'de yapılır; ekran G/Ç işlemez.
+                weather.refresh(navState.route)
+            }
+
+            // İzinler yalnız ilgili kullanıcı eylemiyle istenir; açılışta izin yağmuru yok.
+            val gpsPermission = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions(),
+            ) { result ->
+                if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                    result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+                ) obd.startGps() else obd.denyGps()
+            }
+            val bluetoothPermission = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions(),
+            ) { _ -> obd.refreshBonded() }
+
+            val openDiagnostics: () -> Unit = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    bluetoothPermission.launch(
+                        arrayOf(Manifest.permission.BLUETOOTH_CONNECT))
+                } else {
+                    obd.refreshBonded()
+                }
+            }
+
+            FinalCockpitTheme {
+                MapFirstDashboardScreen(
+                    state = dashboard,
+                    onDemoChange = f1::showDemo,
+                    demoAvailable = f1.demoAvailable,
+                    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
+                    tabContent = { tab, openDiagnosticRoute ->
+                        when (tab) {
+                            FinalDashboardTab.ROTA -> RouteScreen(
+                                state = navState,
+                                gps = gps,
+                                socPct = socReading.pct,
+                                socSource = socReading.source,
+                                vehicleProfile = profile,
+                                voice = voiceState,
+                                onToggleVoice = nav::toggleVoice,
+                                onSpeakNextManeuver = nav::testNextManeuver,
+                                onCalculate = nav::calculateSelected,
+                                onSelectDestination = nav::selectDestination,
+                                onSelectNamedDestination = nav::selectNamedDestination,
+                                onSelectOrigin = nav::selectOrigin,
+                                onUseGpsOrigin = nav::useGpsOrigin,
+                                onClearDestinationSelection = nav::clearDestinationSelection,
+                                onSelectAlternative = nav::selectAlternative,
+                                onManualSoc = { value ->
+                                    scope.launch { manualStore.save(value) }
+                                },
+                                searchVm = search,
+                                routeWeather = weatherSummary,
+                                onClear = nav::clear,
+                            )
+                            FinalDashboardTab.SARJ -> PlannerScreen(
+                                vm = planner,
+                                navigation = navState.route,
+                                soc = socReading,
+                                gps = gps,
+                                onOpenRoute = {
+                                    // Bu sekme zaten F1 kabuğunda; yönlendirme
+                                    // harita üstündeki Nereden/Nereye ile yapılır.
+                                },
+                                onOpenSettings = { /* Ayarlar alt sekmeden açılır. */ },
+                                onNavigate = { stops, destination ->
+                                    nav.navigateVia(stops, destination)
+                                },
+                                onSelectDestination = nav::selectDestination,
+                            )
+                            FinalDashboardTab.ENERJI -> A0EnergyPlaceholder()
+                            FinalDashboardTab.AYARLAR -> RouteSettingsScreen(
+                                gps = gps,
+                                darkTheme = darkPref,
+                                keepScreenOn = keepScreenOn,
+                                onDarkTheme = { value ->
+                                    scope.launch { displayPrefs.setDarkTheme(value) }
+                                },
+                                onKeepScreenOn = { value ->
+                                    scope.launch { displayPrefs.setKeepScreenOn(value) }
+                                },
+                                manualSocPct = manualSoc,
+                                onSaveManualSoc = { value ->
+                                    scope.launch { manualStore.save(value) }
+                                },
+                                onClearManualSoc = {
+                                    scope.launch { manualStore.clear() }
+                                },
+                                onStartGps = {
+                                    gpsPermission.launch(arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                                    ))
+                                },
+                                onStopGps = obd::stopGps,
+                                onOpenObdTest = {
+                                    openDiagnostics()
+                                    openDiagnosticRoute()
+                                },
+                            )
+                            else -> Unit // HARİTA, NavHost'un ilk hedefidir.
+                        }
+                    },
+                    diagnosticContent = {
+                        ObdTestScreen(
+                            state = obdState,
+                            log = obdLog,
+                            logFilePath = logFilePath,
+                            diagnosisFilePath = diagnosisPath,
+                            diagnosisSummary = diagnosisSummary,
+                            devices = devices,
+                            message = diagnosisError ?: obdMessage,
+                            onRefresh = obd::refreshBonded,
+                            onConnect = obd::connect,
+                            onDiagnose = obd::diagnose,
+                            onExportTestReport = { note ->
+                                diagnosisError = null
+                                scope.launch {
+                                    try {
+                                        val file = withContext(Dispatchers.IO) {
+                                            SafeTestReportExporter.create(
+                                                this@MainActivity, diagnosisSummary,
+                                                obdLog.takeLast(200), note)
+                                        }
+                                        ObdLogShare.launch(this@MainActivity, file)
+                                    } catch (_: Exception) {
+                                        diagnosisError = "OBD test raporu paylaşılamadı."
+                                    }
+                                }
+                            },
+                            onShareDiagnosis = {
+                                if (!ObdLogShare.launch(this@MainActivity, diagnosisPath))
+                                    diagnosisError = "Tanı günlüğü bulunamadı."
+                            },
+                            onDemo = {
+                                // OBD testindeki örnek değerler hiçbir zaman üretimde açılmaz.
+                                if (BuildConfig.DEBUG) obd.startDemo()
+                            },
+                            onStop = obd::stop,
+                            onShareLog = {
+                                if (!ObdLogShare.launch(this@MainActivity, logFilePath))
+                                    diagnosisError = "Paylaşılacak günlük bulunamadı."
+                            },
+                            onOpenBluetoothSettings = {
+                                try {
+                                    startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+                                } catch (_: Exception) {
+                                    diagnosisError = "Bluetooth ayarları açılamadı."
+                                }
+                            },
+                        )
+                    },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun App(vm: ObdViewModel, navVm: NavigationViewModel,
-    placeSearchModel: PlaceAutocompleteViewModel,
-    routeWeatherModel: RouteHourlyWeatherViewModel,
-    passengerModel: PassengerPlayerModel, plannerModel: PlannerViewModel,
-    driveModel: DriveModeViewModel,
-    molaModel: MolaLinkViewModel,
-    displayPreferences: DisplayPreferences,
-    darkTheme: Boolean, keepScreenOn: Boolean,
-    openRequest: ExternalOpenRequest) {
-    val context = LocalContext.current
-    val molaState by molaModel.state.collectAsStateWithLifecycle()
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, molaModel) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) molaModel.refresh()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
-            molaModel.refresh()
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-    val vehicleProfileStore = remember(context) { VehicleProfileStore(context.applicationContext) }
-    val vehicleProfile by vehicleProfileStore.profile.collectAsStateWithLifecycle(
-        initialValue = VehicleProfile.defaults())
-    val planUi by plannerModel.state.collectAsStateWithLifecycle()
-    val manualStore = remember(context) { ManualSocStore(context.applicationContext) }
-    val manualSoc by manualStore.socPct.collectAsStateWithLifecycle(initialValue = null)
-    val saveScope = rememberCoroutineScope()
-    val state by vm.state.collectAsStateWithLifecycle()
-    val drive by driveModel.state.collectAsStateWithLifecycle()
-    val socReading = SafeSocSelection.select(state, manualSoc, drive)
-    val logs by vm.log.collectAsStateWithLifecycle()
-    val logPath by vm.logFilePath.collectAsStateWithLifecycle()
-    val diagnosisPath by vm.diagnosisFilePath.collectAsStateWithLifecycle()
-    val diagnosisSummary by vm.diagnosisSummary.collectAsStateWithLifecycle()
-    val devices by vm.devices.collectAsStateWithLifecycle()
-    val message by vm.message.collectAsStateWithLifecycle()
-    val gps by vm.gps.collectAsStateWithLifecycle()
-    val gpsFresh = drive.gpsFresh
-    val navState by navVm.state.collectAsStateWithLifecycle()
-    val weatherSummary by routeWeatherModel.summary.collectAsStateWithLifecycle()
-    LaunchedEffect(navState.route) {
-        // Only ViewModel/repository makes the network call, not this Composable.
-        routeWeatherModel.refresh(navState.route)
-    }
-    val voiceState by navVm.voice.collectAsStateWithLifecycle()
-    var shareError by remember { mutableStateOf<String?>(null) }
-    var tab by remember { mutableIntStateOf(0) }
-    var showMolaCard by remember { mutableStateOf(false) }
-    LaunchedEffect(drive.mode) {
-        if (drive.mode != DriveMode.PARKED) showMolaCard = false
-    }
-    LaunchedEffect(openRequest.generation) {
-        openRequest.tab?.let { requested ->
-            if (DriveModePolicy.allowedTab(requested, drive.mode)) tab = requested
+private fun A0EnergyPlaceholder() {
+    val t = CockpitDesignTokens
+    Surface(
+        color = t.panel, shape = t.corner,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Column(
+            Modifier.padding(t.spaceXL),
+            verticalArrangement = Arrangement.spacedBy(t.spaceM),
+        ) {
+            Text("Enerji", color = t.text, fontSize = t.headText)
+            Text("Henüz doğrulanmış bir yolculuk enerji kaydı bulunmuyor.",
+                color = t.secondary, fontSize = t.bodyText)
+            Text("Mevcut enerji ve şarj hesapları Şarj sekmesindeki gelişmiş planlayıcıda korunuyor.",
+                color = t.secondary, fontSize = t.bodyText)
         }
     }
-    LaunchedEffect(drive.mode, tab) {
-        val mustClose = (drive.mode == DriveMode.DRIVING && tab in setOf(3,4,5)) ||
-            (drive.mode != DriveMode.PARKED && tab == 4)
-        if (mustClose) {
-            passengerModel.pause()
-            tab = 0
-        }
-    }
-
-    val permissions = remember {
-        buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                add(Manifest.permission.BLUETOOTH_CONNECT)
-            } else {
-                add(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }.toTypedArray()
-    }
-
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { vm.refreshBonded() }
-    LaunchedEffect(vm) { launcher.launch(permissions) }
-
-    val gpsPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { results ->
-        if (results[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        ) vm.startGps() else vm.denyGps()
-    }
-
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-        .windowInsetsPadding(WindowInsets.safeDrawing)) {
-        if (tab != 0) CockpitTabs(selected = tab, onSelect = { selected ->
-            if (DriveModePolicy.allowedTab(selected, drive.mode)) tab = selected
-        })
-        when (tab) {
-            0 -> TeslaDashboardScreen(
-                s = state,
-                soc = socReading,
-                usableKwhAtSoh = vehicleProfile.capacityAtSohKwh,
-                gps = gps,
-                gpsFresh = gpsFresh,
-                navigation = navState,
-                plan = (planUi.plan as? PlanResult.Success).takeIf {
-                    planUi.route == navState.route
-                },
-                driveMode = drive,
-                weatherSummary = weatherSummary,
-                onSelectDestination = navVm::selectDestination,
-                molaInstalled = molaState.status == MolaStatus.READY ||
-                    molaState.status == MolaStatus.CANNOT_LAUNCH,
-                guidance = DashboardGuidancePolicy.evaluate(
-                    state, socReading, gps, gpsFresh, navState,
-                    planUi.plan.takeIf { planUi.route == navState.route }),
-                onGuidanceAction = { action ->
-                    if (drive.mode != DriveMode.DRIVING) when (action) {
-                        GuidanceAction.NONE -> Unit
-                        GuidanceAction.SETTINGS -> tab = 5
-                        GuidanceAction.LOCATION_PERMISSION -> gpsPermissionLauncher.launch(
-                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION))
-                        GuidanceAction.OBD_TEST -> tab = 1
-                        GuidanceAction.ROUTE -> tab = 2
-                        GuidanceAction.PLAN -> tab = 3
-                    }
-                },
-                onAction = { action ->
-                    when (action) {
-                        TeslaAction.ROTA -> tab = 2
-                        TeslaAction.PLAN -> tab = 3
-                        TeslaAction.MEDYA, TeslaAction.VIDEO -> tab = 4
-                        TeslaAction.MOLA -> {
-                            if (drive.mode == DriveMode.PARKED) {
-                                molaModel.refresh()
-                                showMolaCard = true
-                            }
-                        }
-                        TeslaAction.AYARLAR -> tab = 5
-                    }
-                },
-            )
-            1 -> ObdTestScreen(
-                state = state,
-                log = logs,
-                logFilePath = logPath,
-                diagnosisFilePath = diagnosisPath,
-                diagnosisSummary = diagnosisSummary,
-                devices = devices,
-                message = shareError ?: message,
-                onRefresh = vm::refreshBonded,
-                onConnect = vm::connect,
-                onDiagnose = vm::diagnose,
-                onExportTestReport = { carScannerNote ->
-                    shareError = null
-                    val lastLogs = logs.takeLast(200)
-                    val lastSummary = diagnosisSummary
-                    saveScope.launch {
-                        try {
-                            val path = withContext(Dispatchers.IO) {
-                                SafeTestReportExporter.create(context, lastSummary, lastLogs, carScannerNote)
-                            }
-                            ObdLogShare.launch(context, path)
-                        } catch (error: Exception) {
-                            shareError = "Test raporu dışa aktarılamadı: " +
-                                error.javaClass.simpleName
-                        }
-                    }
-                },
-                onShareDiagnosis = {
-                    shareError = null
-                    try {
-                        if (!ObdLogShare.launch(context, diagnosisPath)) {
-                            shareError = "Tanı logu bulunamadı."
-                        }
-                    } catch (error: Exception) {
-                        shareError = "Tanı logu paylaşılamadı: " +
-                            error.javaClass.simpleName
-                    }
-                },
-                onDemo = vm::startDemo,
-                onStop = vm::stop,
-                onShareLog = {
-                    shareError = null
-                    try {
-                        if (!ObdLogShare.launch(context, logPath)) {
-                            shareError = "Paylaşılacak kayıt henüz oluşturulmadı."
-                        }
-                    } catch (error: Exception) {
-                        shareError = "Kayıt paylaşılamadı: ${error.message ?: "Bilinmeyen hata"}"
-                    }
-                },
-                onOpenBluetoothSettings = {
-                    shareError = null
-                    try {
-                        context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
-                    } catch (error: Exception) {
-                        shareError = "Bluetooth ayarları açılamadı: ${error.message ?: "Bilinmeyen hata"}"
-                    }
-                },
-            )
-            2 -> RouteScreen(
-                state = navState,
-                gps = gps,
-                socPct = socReading.pct,
-                socSource = socReading.source,
-                vehicleProfile = vehicleProfile,
-                voice = voiceState,
-                onToggleVoice = navVm::toggleVoice,
-                onSpeakNextManeuver = navVm::testNextManeuver,
-                onCalculate = navVm::calculateSelected,
-                onSelectDestination = navVm::selectDestination,
-                onSelectNamedDestination = navVm::selectNamedDestination,
-                onSelectOrigin = navVm::selectOrigin,
-                onUseGpsOrigin = navVm::useGpsOrigin,
-                onClearDestinationSelection = navVm::clearDestinationSelection,
-                onSelectAlternative = navVm::selectAlternative,
-                onManualSoc = { value -> saveScope.launch { manualStore.save(value) } },
-                searchVm = placeSearchModel,
-                routeWeather = weatherSummary,
-                onClear = navVm::clear,
-            )
-            3 -> PlannerScreen(
-                vm = plannerModel, navigation = navState.route, soc = socReading,
-                onOpenRoute = { tab = 2 }, onOpenSettings = { tab = 5 },
-                onNavigate = { stops, destination ->
-                    navVm.navigateVia(stops,destination)
-                    tab = 2
-                },
-                gps = gps,
-                onSelectDestination = navVm::selectDestination,
-            )
-            4 -> PassengerVideoScreen(
-                vm = passengerModel,
-                gps = gps,
-                route = navState.route,
-                destination = navState.destination,
-                speedKmh = SpeedSelector.select(
-                    obdConnected = state.connected && drive.obdSpeedFresh, demo = state.demo,
-                    obdKmh = state.speedKmh, gpsKmh = gps.speedKmh,
-                    gpsFresh = gpsFresh).kmh,
-                onSelectDestination = navVm::selectDestination,
-            )
-            else -> RouteSettingsScreen(
-                gps = gps,
-                darkTheme = darkTheme,
-                keepScreenOn = keepScreenOn,
-                onDarkTheme = { value -> saveScope.launch { displayPreferences.setDarkTheme(value) } },
-                onKeepScreenOn = { value -> saveScope.launch { displayPreferences.setKeepScreenOn(value) } },
-                manualSocPct = manualSoc,
-                onSaveManualSoc = { value -> saveScope.launch { manualStore.save(value) } },
-                onClearManualSoc = { saveScope.launch { manualStore.clear() } },
-                onStartGps = {
-                    gpsPermissionLauncher.launch(
-                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-                    )
-                },
-                onStopGps = vm::stopGps,
-            )
-        }
-    }
-    if (showMolaCard && drive.mode == DriveMode.PARKED) {
-        MolaLaunchCard(
-            state = molaState,
-            onOpen = molaModel::openMola,
-            onInstallGuide = molaModel::openInstallGuide,
-            onAppSettings = molaModel::openSettings,
-            onRefresh = molaModel::refresh,
-            onDismiss = { showMolaCard = false },
-        )
-    }
-
 }
