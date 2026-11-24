@@ -9,14 +9,16 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Görünümden bağımsız zamanlayıcı ve Demo/Boş geçişi.
- * Demo, ayrı mapper ile yalnız bellekte oluşturulur; kayıt/OBD servisine gönderilmez.
+ * A0: İlk açılış GERÇEK boş durumdur, sahte telemetri gösterilmez.
+ * Demo yalnız debug kaynak setindeki ayrı sağlayıcıdan, kullanıcı açarsa gelir.
  */
 class MapFirstDashboardViewModel : ViewModel() {
     private val repository = DashboardRepository()
-    private val mutable = MutableStateFlow(DemoDashboardMapper.map(System.currentTimeMillis()))
+    private val mutable = MutableStateFlow(
+        RealDashboardMapper.map(repository.realInputs.value, System.currentTimeMillis()))
     val state: StateFlow<DashboardUiState> = mutable
-    private var showDemo = true
+    val demoAvailable: Boolean = BuildTypeDemoProvider.available
+    private var showDemo: Boolean = false
 
     init {
         viewModelScope.launch {
@@ -28,13 +30,17 @@ class MapFirstDashboardViewModel : ViewModel() {
     }
 
     fun showDemo(enabled: Boolean) {
-        showDemo = enabled
+        showDemo = demoAvailable && enabled
         refresh()
     }
 
     private fun refresh() {
         val now = System.currentTimeMillis()
-        mutable.value = if (showDemo) DemoDashboardMapper.map(now)
-            else RealDashboardMapper.map(repository.realInputs.value, now)
+        mutable.value = if (showDemo) {
+            BuildTypeDemoProvider.state(now)
+                ?: RealDashboardMapper.map(repository.realInputs.value, now)
+        } else {
+            RealDashboardMapper.map(repository.realInputs.value, now)
+        }
     }
 }
