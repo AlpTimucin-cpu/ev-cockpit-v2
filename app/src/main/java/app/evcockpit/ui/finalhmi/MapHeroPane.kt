@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -13,6 +14,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.toArgb
+import android.view.Gravity
+import kotlin.math.roundToInt
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.maps.Style
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -75,6 +82,16 @@ fun MapHeroPane(
                     },
                 )
                 getMapAsync { ready ->
+                    // Logo ve bilgi atfı haritanın iki ayrı alt köşesinde görünür kalır.
+                    // MapLibre kenar boşluğu PIXEL ister, dp'yi yalnız burada çeviririz.
+                    val marginPx = (t.mapAttributionSafeInset.value *
+                        context.resources.displayMetrics.density).roundToInt()
+                    ready.uiSettings.apply {
+                        setLogoGravity(Gravity.BOTTOM or Gravity.START)
+                        setAttributionGravity(Gravity.BOTTOM or Gravity.END)
+                        setLogoMargins(marginPx, 0, 0, marginPx)
+                        setAttributionMargins(0, 0, marginPx, marginPx)
+                    }
                     map = ready
                     // Başlangıç Türkiye'ye genel bakış; kullanıcının GPS konumu DEĞİL.
                     ready.moveCamera(CameraUpdateFactory.newLatLngZoom(
@@ -133,7 +150,10 @@ fun MapHeroPane(
         if (layer.styleUrl.isBlank()) return@LaunchedEffect
         loadState = MapLoadState.LOADING
         if (!fallbackUsed) issue = null
-        active.setStyle(layer.styleUrl) {
+        active.setStyle(layer.styleUrl) { style ->
+            if (layer == MapLayer.DARK) {
+                applyDarkRoadContrast(style)
+            }
             loadState = MapLoadState.READY
             // Yedek katmana geçildiyse uyarı kaybolmasın.
             if (!fallbackUsed) issue = null
@@ -189,60 +209,60 @@ fun MapHeroPane(
                     }
                 }
 
-                val actions: @Composable () -> Unit = {
-                    MapToolButton("+", "Yakınlaştır", map != null) {
-                        map?.animateCamera(CameraUpdateFactory.zoomIn())
-                    }
-                    MapToolButton("−", "Uzaklaştır", map != null) {
-                        map?.animateCamera(CameraUpdateFactory.zoomOut())
-                    }
-                    MapToolButton("◎", "Konum (F3 aşamasında)", false) { }
-                    Box {
-                        MapToolButton("▤", "Harita katmanı", true) {
-                            layerMenu = true
+                // Kısa harita: 48dp × 3 düğme, tek satır ve SAĞ üst köşe.
+                // F3 konum eylemi devre dışı olduğundan kısa moddan çıkarılır.
+                // Bu yerleşim Ankara gibi merkez harita etiketlerini örtmez.
+                if (maxHeight < t.mapControlsVerticalMinHeight) {
+                    Row(
+                        Modifier.align(Alignment.TopEnd)
+                            .padding(horizontal = t.mapControlSpacing)
+                            .background(t.mutedScrim, t.cornerSmall),
+                        horizontalArrangement = Arrangement.spacedBy(t.mapControlSpacing),
+                    ) {
+                        MapToolButton("+", "Yakınlaştır", map != null, compact = true) {
+                            map?.animateCamera(CameraUpdateFactory.zoomIn())
                         }
-                        DropdownMenu(
-                            expanded = layerMenu,
-                            onDismissRequest = { layerMenu = false },
-                        ) {
-                            listOf(
-                                "Sokak" to MapLayer.LIBERTY,
-                                "Uydu" to MapLayer.SATELLITE,
-                                "Arazi" to MapLayer.TOPOGRAPHIC,
-                                "Koyu" to MapLayer.DARK,
-                            ).forEach { (name, candidate) ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(if (candidate.styleUrl.isBlank())
-                                            "$name • F2'de etkinleşecek" else name)
-                                    },
-                                    enabled = candidate.styleUrl.isNotBlank(),
-                                    modifier = Modifier.heightIn(min = t.target),
-                                    onClick = {
-                                        layerMenu = false
-                                        fallbackUsed = false
-                                        issue = null
-                                        layer = candidate
-                                        requestVersion++
-                                    },
-                                )
-                            }
+                        MapToolButton("−", "Uzaklaştır", map != null, compact = true) {
+                            map?.animateCamera(CameraUpdateFactory.zoomOut())
                         }
+                        MapLayerSelectButton(
+                            compact = true,
+                            layerMenu = layerMenu,
+                            onMenuChange = { layerMenu = it },
+                            onChoose = { candidate ->
+                                fallbackUsed = false
+                                issue = null
+                                layer = candidate
+                                requestVersion++
+                            },
+                        )
                     }
-                }
-                // Kısa yatay ve telefon haritasında dört dikey düğme tüm yolu kapatmaz.
-                if (maxHeight >= t.mapControlsVerticalMinHeight) {
+                } else {
                     Column(
                         Modifier.align(Alignment.CenterStart)
-                            .padding(t.spaceXS),
+                            .padding(t.spaceXS)
+                            .background(t.mutedScrim, t.cornerSmall),
                         verticalArrangement = Arrangement.spacedBy(t.spaceXS),
-                    ) { actions() }
-                } else {
-                    Row(
-                        Modifier.align(Alignment.TopStart)
-                            .padding(t.spaceXS),
-                        horizontalArrangement = Arrangement.spacedBy(t.spaceXS),
-                    ) { actions() }
+                    ) {
+                        MapToolButton("+", "Yakınlaştır", map != null) {
+                            map?.animateCamera(CameraUpdateFactory.zoomIn())
+                        }
+                        MapToolButton("−", "Uzaklaştır", map != null) {
+                            map?.animateCamera(CameraUpdateFactory.zoomOut())
+                        }
+                        MapToolButton("◎", "Konum (F3 aşamasında)", false) { }
+                        MapLayerSelectButton(
+                            compact = false,
+                            layerMenu = layerMenu,
+                            onMenuChange = { layerMenu = it },
+                            onChoose = { candidate ->
+                                fallbackUsed = false
+                                issue = null
+                                layer = candidate
+                                requestVersion++
+                            },
+                        )
+                    }
                 }
 
                 if (!inspection && loadState != MapLoadState.READY) {
@@ -329,24 +349,95 @@ fun MapHeroPane(
     }
 }
 
+/**
+ * 48dp kompakt dokunma hedefi, 56dp standart hedef.
+ * Dış yarı saydam kaplamayla karanlık karo üstünde de okunabilir.
+ */
 @Composable
 private fun MapToolButton(
     label: String,
     description: String,
     enabled: Boolean,
+    compact: Boolean = false,
     onClick: () -> Unit,
 ) {
     val t = CockpitDesignTokens
+    val targetSize = if (compact) t.mapControlTouchTarget else t.target
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = t.mutedScrim,
+            disabledContainerColor = t.mutedScrim,
+        ),
         contentPadding = PaddingValues(t.spaceXXS),
-        shape = t.cornerSmall,
-        modifier = Modifier.sizeIn(minWidth = t.target, minHeight = t.target)
+        shape = if (compact) t.mapControlVisualRadius else t.cornerSmall,
+        modifier = Modifier.size(targetSize)
             .semantics { contentDescription = description },
     ) {
         Text(label, color = if (enabled) t.text else t.secondary,
             fontSize = t.headText, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun MapLayerSelectButton(
+    compact: Boolean,
+    layerMenu: Boolean,
+    onMenuChange: (Boolean) -> Unit,
+    onChoose: (MapLayer) -> Unit,
+) {
+    val t = CockpitDesignTokens
+    Box {
+        MapToolButton(
+            "▤", "Harita katmanı", true, compact = compact,
+        ) { onMenuChange(true) }
+        DropdownMenu(
+            expanded = layerMenu,
+            onDismissRequest = { onMenuChange(false) },
+        ) {
+            listOf(
+                "Sokak" to MapLayer.LIBERTY,
+                "Uydu" to MapLayer.SATELLITE,
+                "Arazi" to MapLayer.TOPOGRAPHIC,
+                "Koyu" to MapLayer.DARK,
+            ).forEach { (name, candidate) ->
+                DropdownMenuItem(
+                    text = {
+                        Text(if (candidate.styleUrl.isBlank())
+                            "$name • F2'de etkinleşecek" else name)
+                    },
+                    enabled = candidate.styleUrl.isNotBlank(),
+                    modifier = Modifier.heightIn(min = t.target),
+                    onClick = {
+                        onMenuChange(false)
+                        onChoose(candidate)
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * OpenFreeMap DARK stilinin doğrulanan iki yol katmanında sınırlı renk iyileştirmesi.
+ * Kaynak stil URL'si ve başka katmanlar değişmez. Stil yeniden yüklenince sıfırlanır.
+ * Stil üreticisi katman adını değiştirirse sessizce atlanır.
+ */
+private fun applyDarkRoadContrast(style: Style) {
+    val t = CockpitDesignTokens
+    runCatching {
+        (style.getLayer("highway_major_subtle") as? LineLayer)
+            ?.setProperties(PropertyFactory.lineColor(t.mapRoadMajorContrast.toArgb()))
+    }
+    runCatching {
+        (style.getLayer("highway_minor") as? LineLayer)
+            ?.setProperties(PropertyFactory.lineColor(t.mapRoadMinorContrast.toArgb()))
+    }
+    // Türkiye genel açılış kamerası zoom 5,2: bu katman yalnız zoom < 6'da var.
+    runCatching {
+        (style.getLayer("highway_motorway_subtle") as? LineLayer)
+            ?.setProperties(PropertyFactory.lineColor(t.mapRoadMinorContrast.toArgb()))
     }
 }
 

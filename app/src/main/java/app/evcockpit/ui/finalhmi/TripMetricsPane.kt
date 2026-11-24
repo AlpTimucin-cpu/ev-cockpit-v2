@@ -2,7 +2,9 @@ package app.evcockpit.ui.finalhmi
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,12 +50,29 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
                 }
                 val soc = state.socPercent.value?.takeIf { it.isFinite() &&
                     it in 0.0..100.0 }
-                LinearProgressIndicator(
-                    progress = { ((soc ?: 0.0) / 100.0).toFloat() },
-                    modifier = Modifier.fillMaxWidth().height(t.spaceXS),
-                    color = if (soc == null) t.neutralTrack else t.accent,
-                    trackColor = t.neutralTrack,
-                )
+                val fraction = batteryFillFraction(soc)
+                // Material3 LinearProgressIndicator'ın sağ uçtaki stop noktası
+                // kullanıcıya hedef SoC gibi görünüyordu. Tek, oransal çubuk.
+                Box(
+                    Modifier.fillMaxWidth()
+                        .height(t.batteryBarHeight)
+                        .clip(t.cornerTiny)
+                        .background(t.neutralTrack)
+                        .semantics {
+                            contentDescription = if (soc == null)
+                                "Batarya seviyesi bilinmiyor"
+                            else "Batarya seviyesi yüzde ${DashboardFormat.whole(soc)}" +
+                                if (state.demo) ", örnek veri" else ""
+                        },
+                ) {
+                    if (fraction != null && fraction > 0f) {
+                        Box(
+                            Modifier.fillMaxWidth(fraction)
+                                .fillMaxHeight()
+                                .background(t.accent),
+                        )
+                    }
+                }
                 if (soc == null) {
                     Text("Batarya seviyesi: —", color = t.secondary,
                         fontSize = t.labelText)
@@ -90,10 +109,15 @@ private fun InfoMetric(
         modifier.background(t.panelRaised, t.cornerSmall)
             .heightIn(min = t.metricCardMinHeight)
             .padding(t.spaceS),
-        verticalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(t.spaceXS),
     ) {
-        Text(label, color = t.secondary, fontSize = t.labelText, maxLines = 2)
+        Text(label, color = t.secondary, fontSize = t.labelText)
         Text(value, color = valueColor,
-            fontSize = t.titleText, maxLines = 2, fontWeight = FontWeight.SemiBold)
+            fontSize = t.titleText, fontWeight = FontWeight.SemiBold)
     }
 }
+
+/** Pil göstergesi ile yazılı SoC aynı ve yalnız geçerli yüzdeyle doludur. */
+internal fun batteryFillFraction(socPercent: Double?): Float? =
+    socPercent?.takeIf { it.isFinite() && it in 0.0..100.0 }
+        ?.div(100.0)?.toFloat()

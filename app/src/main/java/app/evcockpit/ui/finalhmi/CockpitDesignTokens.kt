@@ -53,10 +53,19 @@ object CockpitDesignTokens {
     val compactMapHeight = 312.dp
     val wideWeatherHeight = 112.dp
     val speedCardMinHeight = 116.dp
-    val metricCardMinHeight = 88.dp
+    val metricCardMinHeight = 72.dp
     val chargingCardMinHeight = 140.dp
     val mapSummaryHeight = 116.dp
     val mapControlsVerticalMinHeight = 280.dp
+    // Kısa haritada sağ üstte üç düğme; 48dp asgari erişilebilir dokunma hedefi.
+    val mapControlTouchTarget = 48.dp
+    val mapControlVisualRadius = RoundedCornerShape(10.dp)
+    val mapControlSpacing = 4.dp
+    val mapAttributionSafeInset = 12.dp
+    val mapRoadMajorContrast = Color(0xFF435160)
+    val mapRoadMinorContrast = Color(0xFF303940)
+    val weatherSampleMinWidth = 128.dp
+    val batteryBarHeight = 6.dp
     val mapBorderRadius = 18.dp
     val mapAttributionPadding = 4.dp
 
