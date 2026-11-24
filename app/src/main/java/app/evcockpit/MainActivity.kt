@@ -130,7 +130,7 @@ class MainActivity : ComponentActivity() {
                     onDemoChange = f1::showDemo,
                     demoAvailable = f1.demoAvailable,
                     modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
-                    tabContent = { tab, openDiagnosticRoute ->
+                    tabContent = { tab, openDiagnosticRoute, navigateToTab ->
                         when (tab) {
                             FinalDashboardTab.ROTA -> RouteScreen(
                                 state = navState,
@@ -160,13 +160,11 @@ class MainActivity : ComponentActivity() {
                                 navigation = navState.route,
                                 soc = socReading,
                                 gps = gps,
-                                onOpenRoute = {
-                                    // Bu sekme zaten F1 kabuğunda; yönlendirme
-                                    // harita üstündeki Nereden/Nereye ile yapılır.
-                                },
-                                onOpenSettings = { /* Ayarlar alt sekmeden açılır. */ },
+                                onOpenRoute = { navigateToTab(FinalDashboardTab.ROTA) },
+                                onOpenSettings = { navigateToTab(FinalDashboardTab.AYARLAR) },
                                 onNavigate = { stops, destination ->
                                     nav.navigateVia(stops, destination)
+                                    navigateToTab(FinalDashboardTab.ROTA)
                                 },
                                 onSelectDestination = nav::selectDestination,
                             )
