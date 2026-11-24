@@ -38,4 +38,48 @@ class F1UiPolishTest {
         assertNull(batteryFillFraction(Double.NaN))
         assertNull(batteryFillFraction(Double.POSITIVE_INFINITY))
     }
+    @Test fun hava393DpUcOrnekEsitHucresindeKirpilmadanYerlesir() {
+        val t = CockpitDesignTokens
+        assertEquals(WeatherLayoutMode.EQUAL_WEIGHT,
+            weatherLayoutMode(345f, 3, t.spaceS.value, t.weatherCellMinWidth.value))
+        assertEquals(WeatherLayoutMode.EQUAL_WEIGHT,
+            weatherLayoutMode(318f, 3, t.spaceS.value, t.weatherCellMinWidth.value))
+    }
+
+    @Test fun hava360DpBuyukMinHucreKaydirmayaGecer() {
+        assertEquals(WeatherLayoutMode.SCROLL,
+            weatherLayoutMode(318f, 3, 9f, 128f))
+        assertEquals(WeatherLayoutMode.SCROLL,
+            weatherLayoutMode(200f, 3, 9f, 96f))
+    }
+
+    @Test fun havaDortVeBesOrnekteTelefondaKaydirir() {
+        val t = CockpitDesignTokens
+        assertEquals(WeatherLayoutMode.SCROLL,
+            weatherLayoutMode(345f, 4, t.spaceS.value, t.weatherCellMinWidth.value))
+        assertEquals(WeatherLayoutMode.SCROLL,
+            weatherLayoutMode(345f, 5, t.spaceS.value, t.weatherCellMinWidth.value))
+    }
+
+    @Test fun havaSifirBirVeGecersizOlculer() {
+        assertEquals(WeatherLayoutMode.EQUAL_WEIGHT,
+            weatherLayoutMode(0f, 0, 9f, 96f))
+        assertEquals(WeatherLayoutMode.EQUAL_WEIGHT,
+            weatherLayoutMode(100f, 1, 9f, 96f))
+        assertEquals(WeatherLayoutMode.SCROLL,
+            weatherLayoutMode(Float.NaN, 3, 9f, 96f))
+    }
+
+    @Test fun karanlikYolKontrastEslestirmesiSafVeTekil() {
+        val specs = F1DarkRoadContrast.mappings
+        assertTrue(specs.isNotEmpty())
+        assertEquals(specs.size, specs.map { it.layerId }.distinct().size)
+        assertEquals(CockpitDesignTokens.mapRoadMajorContrast,
+            specs.first { it.layerId == "highway_major_subtle" }.color)
+        assertEquals(CockpitDesignTokens.mapRoadMinorContrast,
+            specs.first { it.layerId == "highway_minor" }.color)
+        assertEquals(CockpitDesignTokens.mapRoadMinorContrast,
+            specs.first { it.layerId == "highway_motorway_subtle" }.color)
+    }
+
 }

@@ -15,7 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import android.view.Gravity
+import android.util.Log
+import app.evcockpit.BuildConfig
 import kotlin.math.roundToInt
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
@@ -71,9 +75,16 @@ fun MapHeroPane(
                 onCreate(null)
                 addOnDidFailLoadingMapListener(
                     MapView.OnDidFailLoadingMapListener { _ ->
-                        if (!fallbackUsed && layer == MapLayer.DARK) {
+                        f1MapLog("Yükleme hatası: katman=${layer.id}, " +
+                            "durum=$loadState, yedek=$fallbackUsed")
+                        if (loadState == MapLoadState.READY) {
+                            // Stil zaten başarılıyken geçici karo hatası,
+                            // DARK stilini sebepsiz yere LIBERTY'ye çevirmemeli.
+                            f1MapLog("Stil hazır; geçici karo hatasında yedek geçiş yok.")
+                        } else if (!fallbackUsed && layer == MapLayer.DARK) {
                             fallbackUsed = true
                             issue = "Koyu harita yüklenemedi; Sokak katmanı denendi."
+                            f1MapLog("DARK → LIBERTY yedek geçişi")
                             layer = MapLayer.LIBERTY
                         } else {
                             loadState = MapLoadState.ERROR
@@ -147,19 +158,33 @@ fun MapHeroPane(
     // Aynı stili getMapAsync + LaunchedEffect içinden iki kez yüklemekten kaçınılır.
     LaunchedEffect(map, layer, requestVersion) {
         val active = map ?: return@LaunchedEffect
-        if (layer.styleUrl.isBlank()) return@LaunchedEffect
+        // Lambda, değişken Compose state'ini geç çağrıldığı anda okumamalı.
+        val requestedLayer = layer
+        val requestedVersion = requestVersion
+        if (requestedLayer.styleUrl.isBlank()) return@LaunchedEffect
+        f1MapLog("Stil isteği: katman=${requestedLayer.id}, " +
+            "sürüm=$requestedVersion, yedek=$fallbackUsed")
         loadState = MapLoadState.LOADING
         if (!fallbackUsed) issue = null
-        active.setStyle(layer.styleUrl) { style ->
-            if (layer == MapLayer.DARK) {
-                applyDarkRoadContrast(style)
+        active.setStyle(requestedLayer.styleUrl) { style ->
+            if (requestedLayer != layer || requestedVersion != requestVersion) {
+                f1MapLog("Eski stil callback yok sayıldı: ${requestedLayer.id}, " +
+                    "aktif=${layer.id}, sürüm=$requestedVersion/$requestVersion")
+            } else {
+                val changed = if (requestedLayer == MapLayer.DARK)
+                    applyDarkRoadContrast(style) else emptyList()
+                f1MapLog("Stil hazır: ${requestedLayer.id}, " +
+                    "yedek=$fallbackUsed, kontrast=${changed.joinToString()}")
+                loadState = MapLoadState.READY
+                // DARK → LIBERTY otomatik yedek uyarısı korunur.
+                if (!fallbackUsed) issue = null
             }
-            loadState = MapLoadState.READY
-            // Yedek katmana geçildiyse uyarı kaybolmasın.
-            if (!fallbackUsed) issue = null
         }
         delay(15_000L)
-        if (loadState == MapLoadState.LOADING) {
+        // Önceki isteğin timer'ı yeni isteğe hata yazmasın.
+        if (layer == requestedLayer && requestVersion == requestedVersion &&
+            loadState == MapLoadState.LOADING) {
+            f1MapLog("Stil zaman aşımı: ${requestedLayer.id}")
             loadState = MapLoadState.ERROR
             issue = "Harita 15 saniye içinde açılamadı. Yeniden dene."
         }
@@ -420,25 +445,36 @@ private fun MapLayerSelectButton(
 }
 
 /**
- * OpenFreeMap DARK stilinin doğrulanan iki yol katmanında sınırlı renk iyileştirmesi.
- * Kaynak stil URL'si ve başka katmanlar değişmez. Stil yeniden yüklenince sıfırlanır.
- * Stil üreticisi katman adını değiştirirse sessizce atlanır.
+ * Kontrast eşlemesi saf veridir: katman ID'si ve renk yalnız token dosyasından.
+ * OpenFreeMap sunucusunun stil JSON'u değiştirilmez.
  */
-private fun applyDarkRoadContrast(style: Style) {
-    val t = CockpitDesignTokens
-    runCatching {
-        (style.getLayer("highway_major_subtle") as? LineLayer)
-            ?.setProperties(PropertyFactory.lineColor(t.mapRoadMajorContrast.toArgb()))
+internal data class F1RoadContrastSpec(val layerId: String, val color: Color)
+
+internal object F1DarkRoadContrast {
+    val mappings: List<F1RoadContrastSpec> get() = listOf(
+        F1RoadContrastSpec(
+            "highway_major_subtle", CockpitDesignTokens.mapRoadMajorContrast),
+        F1RoadContrastSpec(
+            "highway_minor", CockpitDesignTokens.mapRoadMinorContrast),
+        F1RoadContrastSpec(
+            "highway_motorway_subtle", CockpitDesignTokens.mapRoadMinorContrast),
+    )
+}
+
+/** Sadece gerçekten bulunan ve güncellenen LineLayer ID'lerini döndürür. */
+private fun applyDarkRoadContrast(style: Style): List<String> =
+    F1DarkRoadContrast.mappings.mapNotNull { spec ->
+        runCatching {
+            val line = style.getLayer(spec.layerId) as? LineLayer
+                ?: return@runCatching null
+            line.setProperties(PropertyFactory.lineColor(spec.color.toArgb()))
+            spec.layerId
+        }.getOrNull()
     }
-    runCatching {
-        (style.getLayer("highway_minor") as? LineLayer)
-            ?.setProperties(PropertyFactory.lineColor(t.mapRoadMinorContrast.toArgb()))
-    }
-    // Türkiye genel açılış kamerası zoom 5,2: bu katman yalnız zoom < 6'da var.
-    runCatching {
-        (style.getLayer("highway_motorway_subtle") as? LineLayer)
-            ?.setProperties(PropertyFactory.lineColor(t.mapRoadMinorContrast.toArgb()))
-    }
+
+/** Yalnız DEBUG derlemesinde katman/fallback/kontrast tanısı. */
+private fun f1MapLog(message: String) {
+    if (BuildConfig.DEBUG) Log.d("F1Map", message)
 }
 
 @Composable

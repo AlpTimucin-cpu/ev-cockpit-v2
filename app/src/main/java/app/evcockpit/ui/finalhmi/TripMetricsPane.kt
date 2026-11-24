@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.Alignment
 
 /**
  * Hız yalnız doğrulanmış GPS metre/saniye verisinden gelir;
@@ -36,17 +37,20 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
             border = androidx.compose.foundation.BorderStroke(t.cardOutlineWidth, t.outline)) {
             Column(Modifier.padding(t.spaceS),
                 verticalArrangement = Arrangement.spacedBy(t.spaceS)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(t.spaceS)) {
+                Row(
+                    Modifier.height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(t.spaceS),
+                ) {
                     InfoMetric("Batarya" + when (state.socPercent.source) {
                         DashboardOrigin.MANUAL -> " (manuel)"
                         DashboardOrigin.MODEL -> " (tahmini)"
                         DashboardOrigin.DEMO -> " (DEMO)"
                         else -> ""
                     }, DashboardFormat.number(state.socPercent, " %"),
-                        Modifier.weight(1f))
+                        Modifier.weight(1f).fillMaxHeight())
                     InfoMetric("Menzil (tahmini)",
                         DashboardFormat.number(state.estimatedRangeKm, " km"),
-                        Modifier.weight(1f))
+                        Modifier.weight(1f).fillMaxHeight())
                 }
                 val soc = state.socPercent.value?.takeIf { it.isFinite() &&
                     it in 0.0..100.0 }
@@ -77,15 +81,18 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
                     Text("Batarya seviyesi: —", color = t.secondary,
                         fontSize = t.labelText)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(t.spaceS)) {
+                Row(
+                    Modifier.height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(t.spaceS),
+                ) {
                     InfoMetric("Tüketim (tahmini)",
                         state.consumptionKwhPer100Km.value?.takeIf { it.isFinite() }
                             ?.let { DashboardFormat.oneDecimal(it) + " kWh/100 km" }
-                            ?: "— kWh/100 km", Modifier.weight(1f))
+                            ?: "— kWh/100 km", Modifier.weight(1f).fillMaxHeight())
                     val power = state.powerKw.value?.takeIf { it.isFinite() }
                     InfoMetric("Anlık güç",
                         power?.let { DashboardFormat.oneDecimal(it) + " kW" } ?: "— kW",
-                        Modifier.weight(1f),
+                        Modifier.weight(1f).fillMaxHeight(),
                         valueColor = when {
                             power == null -> t.text
                             power < 0.0 -> t.regenerate
@@ -109,7 +116,8 @@ private fun InfoMetric(
         modifier.background(t.panelRaised, t.cornerSmall)
             .heightIn(min = t.metricCardMinHeight)
             .padding(t.spaceS),
-        verticalArrangement = Arrangement.spacedBy(t.spaceXS),
+        verticalArrangement = Arrangement.spacedBy(
+            t.spaceXS, Alignment.CenterVertically),
     ) {
         Text(label, color = t.secondary, fontSize = t.labelText)
         Text(value, color = valueColor,
