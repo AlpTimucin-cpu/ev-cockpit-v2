@@ -6,11 +6,11 @@ import androidx.compose.ui.graphics.toArgb
 import app.evcockpit.domain.nav.PolylineGeometry
 import app.evcockpit.domain.nav.WgsPoint
 import app.evcockpit.ui.finalhmi.CockpitDesignTokens
-import com.mapbox.geojson.Feature
-import com.mapbox.geojson.FeatureCollection
-import com.mapbox.geojson.LineString
-import com.mapbox.geojson.Point
-import com.mapbox.geojson.Polygon
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.Point
+import org.maplibre.geojson.Polygon
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.FillLayer
