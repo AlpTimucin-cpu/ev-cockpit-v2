@@ -53,7 +53,7 @@ fun MapFirstDashboardScreen(
     onDemoChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     demoAvailable: Boolean = false,
-    tabContent: @Composable (FinalDashboardTab, () -> Unit) -> Unit = { tab, _ ->
+    tabContent: @Composable (FinalDashboardTab, () -> Unit, (FinalDashboardTab) -> Unit) -> Unit = { tab, _, _ ->
         A0UnconnectedTab(tab)
     },
     diagnosticContent: @Composable () -> Unit = {
@@ -65,7 +65,8 @@ fun MapFirstDashboardScreen(
     val backEntry by controller.currentBackStackEntryAsState()
     val selected = FinalDashboardTab.entries.firstOrNull {
         it.name == backEntry?.destination?.route
-    } ?: FinalDashboardTab.AYARLAR
+    } ?: if (backEntry?.destination?.route == A0_DIAGNOSTIC_ROUTE)
+        FinalDashboardTab.AYARLAR else FinalDashboardTab.HARITA
     val navigateTab: (FinalDashboardTab) -> Unit = { destination ->
         controller.navigate(destination.name) {
             popUpTo(controller.graph.findStartDestination().id) { saveState = true }
@@ -146,11 +147,11 @@ fun MapFirstDashboardScreen(
                 FinalDashboardTab.entries.filter { it != FinalDashboardTab.HARITA }
                     .forEach { destination ->
                         composable(destination.name) {
-                            tabContent(destination) {
+                            tabContent(destination, {
                                 controller.navigate(A0_DIAGNOSTIC_ROUTE) {
                                     launchSingleTop = true
                                 }
-                            }
+                            }, navigateTab)
                         }
                     }
                 composable(A0_DIAGNOSTIC_ROUTE) {
