@@ -28,6 +28,7 @@ data class OverlayVehicle(
     val bearingDegrees: Double? = null,
     val accuracyMeters: Double? = null,
     val timestampEpochMs: Long,
+    val speedMetersPerSecond: Double? = null,
 )
 
 data class OverlayModel(
