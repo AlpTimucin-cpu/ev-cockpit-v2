@@ -43,7 +43,7 @@ jobs:
       - name: Compile unsigned release and verify debug demo exclusion
         run: |
           set -euo pipefail
-          gradle :app:assembleRelease --stacktrace
+          gradle :app:testReleaseUnitTest :app:assembleRelease --stacktrace
           APK='app/build/outputs/apk/release/app-release-unsigned.apk'
           test -s "$APK"
           if unzip -p "$APK" 'classes*.dex' | strings | grep -q 'DemoDashboardMapper'; then
