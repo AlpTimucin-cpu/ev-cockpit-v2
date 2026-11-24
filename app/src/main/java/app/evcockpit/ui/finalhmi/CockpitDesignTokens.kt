@@ -58,6 +58,35 @@ object CockpitDesignTokens {
     val mapSummaryHeight = 116.dp
     val mapControlsVerticalMinHeight = 280.dp
     // Kısa haritada sağ üstte üç düğme; 48dp asgari erişilebilir dokunma hedefi.
+    // A0b/C2: harita GeoJSON katman ve çizim değerleri tek kaynaktan.
+    val routeAltColor = Color(0xFF8292A8)
+    val routeCasingColor = Color(0xFF102033)
+    val stationAcColor = Color(0xFF4FA0EF)
+    val stationDc50Color = Color(0xFF20BFA4)
+    val stationDc100Color = Color(0xFFAA76E6)
+    val stationDc150Color = Color(0xFFDA83D9)
+    val vehicleAccuracyFill = Color(0x331677FF)
+    val startPinColor = Color(0xFF25CF8F)
+    val finishPinColor = Color(0xFFFFB364)
+    val weatherIconColor = caution
+    val routeSelectedWidth = 6.dp
+    val routeCasingWidth = 9.dp
+    val routeAlternativeWidth = 5.dp
+    val stationMarkerSize = 42.dp
+    val vehicleMarkerSize = 34.dp
+    val endpointMarkerSize = 36.dp
+    val weatherMarkerSize = 30.dp
+    val mapLabelSize = 12.sp
+    val mapMarkerSelectedScale = 1.3f
+    const val maxAlternativeOverlayRoutes = 3
+    const val accuracyCircleVertices = 64
+    const val maxOverlayStations = 250
+    const val maxOverlayWeatherAlerts = 120
+    const val overlayMaxSampledRoutePoints = 2500
+    const val overlaySimplificationToleranceMeters = 12.0
+    const val overlayCarHeadingFreezeMetersPerSecond = 1.5
+    const val overlayMaxPositionHz = 2.0
+    const val cameraAnimationMs = 300
     val mapControlTouchTarget = 48.dp
     val mapControlVisualRadius = RoundedCornerShape(10.dp)
     val mapControlSpacing = 4.dp
