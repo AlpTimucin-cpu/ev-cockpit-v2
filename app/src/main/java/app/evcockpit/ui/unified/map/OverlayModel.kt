@@ -39,6 +39,7 @@ data class OverlayModel(
     val origin: OverlayPoint? = null,
     val destination: OverlayPoint? = null,
     val vehicle: OverlayVehicle? = null,
+    val zoomLevel: Double? = null,
 ) {
     val hasAnyGeometry: Boolean get() =
         selectedRoute.isNotEmpty() || alternativeRoutes.isNotEmpty() ||
