@@ -87,6 +87,9 @@ data class UnifiedUiState(
     val exitRequested: Boolean = false,
 ) {
     val currentRoute: RouteModel?
-        get() = (routes as? Loadable.Ready)?.value
-            ?.getOrNull((mode as? SheetMode.RoutePreview)?.selected ?: 0)
+        get() = when (val snapshot = routes) {
+            is Loadable.Ready -> snapshot.value.getOrNull(
+                (mode as? SheetMode.RoutePreview)?.selected ?: 0)
+            else -> null
+        }
 }
