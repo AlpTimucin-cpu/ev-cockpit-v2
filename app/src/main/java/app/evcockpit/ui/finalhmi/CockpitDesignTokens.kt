@@ -87,6 +87,22 @@ object CockpitDesignTokens {
     const val overlayCarHeadingFreezeMetersPerSecond = 1.5
     const val overlayMaxPositionHz = 2.0
     const val cameraAnimationMs = 300
+    // C3: üç duraklı ekran; Android dp alanı çalışma anında ölçülür.
+    val sheetPeekHeight = 120.dp
+    const val sheetHalfFraction = 0.45f
+    val sheetCorner = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    val sheetHandleWidth = 42.dp
+    val sheetHandleHeight = 5.dp
+    val sheetHandleTouchHeight = 48.dp
+    val sheetHandleColor = outline
+    val sheetAnchorMinGap = 24.dp
+    val sheetVelocityThreshold = 125.dp
+    const val sheetPositionalThresholdFraction = 0.5f
+    val sheetContentPadding = 16.dp
+    val searchBarHeight = 56.dp
+    val searchBarCorner = RoundedCornerShape(18.dp)
+    val sheetDefaultFullTopInset = 8.dp
+    val panelCardSpacing = 9.dp
     val mapControlTouchTarget = 48.dp
     val mapControlVisualRadius = RoundedCornerShape(10.dp)
     val mapControlSpacing = 4.dp
