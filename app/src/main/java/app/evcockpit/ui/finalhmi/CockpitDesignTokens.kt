@@ -64,7 +64,12 @@ object CockpitDesignTokens {
     val mapAttributionSafeInset = 12.dp
     val mapRoadMajorContrast = Color(0xFF435160)
     val mapRoadMinorContrast = Color(0xFF303940)
-    val weatherSampleMinWidth = 128.dp
+    // 393dp telefonda 3 örnek yan yana; 4+ örnekte eşik aşılıyorsa kaydır.
+    val weatherCellMinWidth = 96.dp
+    // Kaydırılabilir kart içinde uzun Türkçe uyarı metni satır kırabilsin.
+    val weatherScrollCellWidth = 144.dp
+    val weatherScrollFadeWidth = 20.dp
+    val transparent = Color.Transparent
     val batteryBarHeight = 6.dp
     val mapBorderRadius = 18.dp
     val mapAttributionPadding = 4.dp
