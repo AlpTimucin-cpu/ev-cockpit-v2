@@ -50,6 +50,7 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
                 }
                 val soc = state.socPercent.value?.takeIf { it.isFinite() &&
                     it in 0.0..100.0 }
+                val fraction = batteryFillFraction(soc)
                 // Material3 LinearProgressIndicator'ın sağ uçtaki stop noktası
                 // kullanıcıya hedef SoC gibi görünüyordu. Tek, oransal çubuk.
                 Box(
@@ -64,9 +65,9 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
                                 if (state.demo) ", örnek veri" else ""
                         },
                 ) {
-                    if (soc != null && soc > 0.0) {
+                    if (fraction != null && fraction > 0f) {
                         Box(
-                            Modifier.fillMaxWidth((soc / 100.0).toFloat())
+                            Modifier.fillMaxWidth(fraction)
                                 .fillMaxHeight()
                                 .background(t.accent),
                         )
@@ -115,3 +116,8 @@ private fun InfoMetric(
             fontSize = t.titleText, fontWeight = FontWeight.SemiBold)
     }
 }
+
+/** Pil göstergesi ile yazılı SoC aynı ve yalnız geçerli yüzdeyle doludur. */
+internal fun batteryFillFraction(socPercent: Double?): Float? =
+    socPercent?.takeIf { it.isFinite() && it in 0.0..100.0 }
+        ?.div(100.0)?.toFloat()
