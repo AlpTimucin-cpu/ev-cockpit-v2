@@ -37,6 +37,7 @@ import app.evcockpit.ui.finalhmi.FinalCockpitTheme
 import app.evcockpit.ui.finalhmi.FinalDashboardTab
 import app.evcockpit.ui.finalhmi.MapFirstDashboardScreen
 import app.evcockpit.ui.finalhmi.MapFirstDashboardViewModel
+import app.evcockpit.ui.unified.map.ProvideSharedMapHost
 import app.evcockpit.ui.tesla.DriveModeViewModel
 import app.evcockpit.ui.tesla.SafeSocSelection
 import app.evcockpit.weather.RouteHourlyWeatherViewModel
@@ -125,7 +126,8 @@ class MainActivity : ComponentActivity() {
             }
 
             FinalCockpitTheme {
-                MapFirstDashboardScreen(
+                ProvideSharedMapHost {
+                    MapFirstDashboardScreen(
                     state = dashboard,
                     onDemoChange = f1::showDemo,
                     demoAvailable = f1.demoAvailable,
@@ -250,7 +252,8 @@ class MainActivity : ComponentActivity() {
                             },
                         )
                     },
-                )
+                    )
+                }
             }
         }
     }
