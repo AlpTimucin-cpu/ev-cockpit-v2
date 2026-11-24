@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntrinsicSize
+import androidx.compose.ui.Alignment
 
 /**
  * Hız yalnız doğrulanmış GPS metre/saniye verisinden gelir;
