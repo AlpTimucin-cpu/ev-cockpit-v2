@@ -48,7 +48,9 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
-import org.maplibre.android.maps.MapView
+import app.evcockpit.ui.unified.map.LocalSharedMapHost
+import app.evcockpit.ui.unified.map.MapHostViewport
+import app.evcockpit.ui.unified.map.MapHostLoadState
 import org.maplibre.android.maps.MapLibreMap
 import app.evcockpit.navigation.GeoPoint
 import app.evcockpit.navigation.NavigationRoute
@@ -87,15 +89,11 @@ fun OnlineMap(
     val mapTilerKey by mapTilerStore.key.collectAsState(initial = null)
     val styleUrl = MapStyleResolver.url(layer, mapTilerKey)
         ?: MapLayer.DARK.styleUrl
-    val chosenStyleUrl = rememberUpdatedState(styleUrl)
     val scope = rememberCoroutineScope()
-    val mapStyleApplied = remember { mutableStateOf("") }
     var followCamera by remember { mutableStateOf(false) }
     var tiltedCamera by remember { mutableStateOf(false) }
     var northUp by remember { mutableStateOf(false) }
     val layerMenu = remember { mutableStateOf(false) }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val mapReady = remember { mutableStateOf<MapLibreMap?>(null) }
     val chosenDestination = rememberUpdatedState(onSelectDestination)
     val chosenStop = rememberUpdatedState(onStopSelected)
     val displayedStops = rememberUpdatedState(stopMarkers)
@@ -103,89 +101,53 @@ fun OnlineMap(
     val chosenOcmStation = rememberUpdatedState(onOcmStationSelected)
     val mapFailureCallback = rememberUpdatedState(onLoadFailed)
     val mapReadyCallback = rememberUpdatedState(onStyleReady)
-    val mapView = remember(context) {
-        MapLibre.getInstance(context)
-        MapView(context).apply {
-            onCreate(null)
-            addOnDidFailLoadingMapListener(
-                MapView.OnDidFailLoadingMapListener { _ ->
-                    mapFailureCallback.value()
-                },
-            )
-            getMapAsync { map ->
-                map.addOnMapLongClickListener { location ->
-                    chosenDestination.value(GeoPoint(location.latitude, location.longitude))
+
+    // Yalnızca MainActivity üzerindeki tek MapHost'un paylaşılan haritası.
+    // Ekranlar MapView oluşturmaz, lifecycle başlatmaz veya yok etmez.
+    val host = LocalSharedMapHost.current
+    val slot = remember { Any() }
+    val loadedMap = host?.readyMap?.takeIf { host.activeSlot === slot }
+
+    LaunchedEffect(host, layer, styleUrl) {
+        host?.requestStyle(layer, styleUrl)
+    }
+    LaunchedEffect(host?.loadState) {
+        if (host?.loadState == MapHostLoadState.ERROR) mapFailureCallback.value()
+    }
+    LaunchedEffect(loadedMap, host?.appliedStyleVersion) {
+        if (loadedMap != null) mapReadyCallback.value()
+    }
+
+    // Harita etkileşimleri ekrana özeldir ve panel terk edilince temizlenir.
+    DisposableEffect(loadedMap) {
+        val current = loadedMap ?: return@DisposableEffect onDispose { }
+        val longPress = MapLibreMap.OnMapLongClickListener { location ->
+            chosenDestination.value(GeoPoint(location.latitude, location.longitude))
+            true
+        }
+        current.addOnMapLongClickListener(longPress)
+        current.setOnMarkerClickListener { marker ->
+            val charger = displayedStops.value.firstOrNull {
+                abs(it.latitude - marker.position.latitude) < 0.00001 &&
+                abs(it.longitude - marker.position.longitude) < 0.00001
+            }
+            if (charger != null) {
+                chosenStop.value(charger)
+                true
+            } else {
+                val ocm = displayedOcmStations.value.firstOrNull {
+                    abs(it.point.latitude - marker.position.latitude) < 0.00001 &&
+                    abs(it.point.longitude - marker.position.longitude) < 0.00001
+                }
+                if (ocm != null) {
+                    chosenOcmStation.value(ocm)
                     true
-                }
-                map.setOnMarkerClickListener { marker ->
-                    val found = displayedStops.value.firstOrNull {
-                        abs(it.latitude - marker.position.latitude) < 0.00001 &&
-                        abs(it.longitude - marker.position.longitude) < 0.00001
-                    }
-                    if (found != null) {
-                        chosenStop.value(found)
-                        true
-                    } else {
-                        val ocm = displayedOcmStations.value.firstOrNull {
-                            abs(it.point.latitude - marker.position.latitude) < 0.00001 &&
-                            abs(it.point.longitude - marker.position.longitude) < 0.00001
-                        }
-                        if (ocm != null) { chosenOcmStation.value(ocm); true } else false
-                    }
-                }
-                mapStyleApplied.value = chosenStyleUrl.value
-                map.setStyle(chosenStyleUrl.value) {
-                    mapReady.value = map
-                    mapReadyCallback.value()
-                }
-                map.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(39.0, 35.0), 5.2))
+                } else false
             }
         }
-    }
-
-    DisposableEffect(mapView, lifecycleOwner) {
-        val lifecycle = lifecycleOwner.lifecycle
-        var destroyed = false
-        fun destroyOnce() {
-            if (!destroyed) {
-                destroyed = true
-                mapView.onDestroy()
-            }
-        }
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
-                Lifecycle.Event.ON_STOP -> mapView.onStop()
-                Lifecycle.Event.ON_DESTROY -> destroyOnce()
-                else -> Unit
-            }
-        }
-        lifecycle.addObserver(observer)
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) mapView.onStart()
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) mapView.onResume()
         onDispose {
-            lifecycle.removeObserver(observer)
-            mapReady.value = null
-            if (!destroyed) {
-                if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) mapView.onPause()
-                if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) mapView.onStop()
-                destroyOnce()
-            }
-        }
-    }
-
-    val loadedMap = mapReady.value
-    LaunchedEffect(styleUrl) {
-        val map = mapReady.value
-        if (map != null && styleUrl != mapStyleApplied.value) {
-            mapReady.value = null
-            map.setStyle(styleUrl) {
-                mapStyleApplied.value = styleUrl
-                mapReady.value = map
-                mapReadyCallback.value()
-            }
+            current.removeOnMapLongClickListener(longPress)
+            current.setOnMarkerClickListener { false }
         }
     }
     LaunchedEffect(loadedMap, focusedStop) {
@@ -355,7 +317,11 @@ fun OnlineMap(
     ) RouteProgress.locate(route, gps.point) else null
     val maneuver = position?.nextManeuverIndex?.let { route?.maneuvers?.getOrNull(it) }
     Box(modifier) {
-        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        MapHostViewport(
+            modifier = Modifier.fillMaxSize(),
+            requestedSlot = slot,
+            unavailableMessage = "Harita başka bir bölümde görüntüleniyor.",
+        )
         Box(modifier = Modifier.align(Alignment.TopStart)) {
             OutlinedButton(onClick = { layerMenu.value = true }, enabled = canChangeLayer) {
                 Text("Katman: " + layer.titleTr, fontSize = 14.sp, color = Color.White)
