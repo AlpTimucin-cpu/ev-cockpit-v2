@@ -19,6 +19,7 @@ internal object OverlayIds {
     const val FINISH_ICON = "img-destination"
     const val WEATHER_ICON = "img-weather"
     const val VEHICLE_ICON = "img-vehicle"
+    const val VEHICLE_UNKNOWN_ICON = "img-vehicle-unknown"
     const val STATION_AC_ICON = "img-station-ac"
     const val STATION_50_ICON = "img-station-dc50"
     const val STATION_100_ICON = "img-station-dc100"
