@@ -24,7 +24,8 @@ fun RouteWeatherStrip(state: DashboardUiState, modifier: Modifier = Modifier) {
     ) {
         Column(Modifier.padding(t.spaceM),
             verticalArrangement = Arrangement.spacedBy(t.spaceS)) {
-            Text("ROTA BOYUNCA HAVA", color = t.text,
+            Text(if (state.demo) "ROTA BOYUNCA HAVA • DEMO / ÖRNEK"
+                else "ROTA BOYUNCA HAVA", color = t.text,
                 fontSize = t.titleText)
             if (state.weatherSamples.isEmpty()) {
                 Text("Sıcaklık: — • Yağış: —", color = t.secondary, fontSize = t.bodyText)
@@ -38,7 +39,8 @@ fun RouteWeatherStrip(state: DashboardUiState, modifier: Modifier = Modifier) {
                     state.weatherSamples.forEach { sample ->
                         Column(
                             Modifier.background(t.panelRaised, t.cornerSmall)
-                                .widthIn(min = t.target).padding(t.spaceS),
+                                .widthIn(min = t.weatherSampleMinWidth)
+                                .padding(t.spaceS),
                             verticalArrangement = Arrangement.spacedBy(t.spaceXS),
                         ) {
                             Text("≈" + DashboardFormat.whole(sample.distanceAlongKm) + " km",
@@ -48,10 +50,14 @@ fun RouteWeatherStrip(state: DashboardUiState, modifier: Modifier = Modifier) {
                             Text(temp, color = t.text, fontSize = t.titleText)
                             Text(
                                 when (sample.rainExpected.value) {
-                                    true -> "Yağış uyarısı"
+                                    true -> "Yağış uyarısı var"
                                     false -> "Yağış uyarısı yok"
                                     null -> "Yağış: —"
-                                }, color = t.secondary, fontSize = t.labelText)
+                                }, color = if (sample.rainExpected.value == true)
+                                    t.caution else t.secondary,
+                                fontSize = t.labelText,
+                                softWrap = true,
+                            )
                         }
                     }
                 }
