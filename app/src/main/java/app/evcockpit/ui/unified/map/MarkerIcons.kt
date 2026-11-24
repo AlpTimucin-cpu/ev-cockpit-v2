@@ -30,6 +30,7 @@ class MarkerIcons(context: Context) {
         OverlayIds.FINISH_ICON to icon(OverlayIds.FINISH_ICON),
         OverlayIds.WEATHER_ICON to icon(OverlayIds.WEATHER_ICON),
         OverlayIds.VEHICLE_ICON to icon(OverlayIds.VEHICLE_ICON),
+        OverlayIds.VEHICLE_UNKNOWN_ICON to icon(OverlayIds.VEHICLE_UNKNOWN_ICON),
     )
 
     private fun icon(id: String): Bitmap = cached.getOrPut(id) {
