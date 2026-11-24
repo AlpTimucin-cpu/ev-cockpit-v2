@@ -28,6 +28,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.evcockpit.BuildConfig
 import app.evcockpit.ui.MapLayer
+import android.os.SystemClock
+import app.evcockpit.domain.nav.PolylineGeometry
 import app.evcockpit.ui.finalhmi.CockpitDesignTokens
 import app.evcockpit.ui.finalhmi.F1DarkRoadContrast
 import kotlinx.coroutines.delay
@@ -75,6 +77,12 @@ class MapHostState internal constructor(context: Context) {
         private set
 
     val mapView: MapView
+    private val overlayInstaller = OverlayInstaller(appContext)
+    private var overlayModel: OverlayModel = OverlayModel()
+    private var lastVehicleUpdateElapsedMs: Long = 0L
+    private var lastVehicle: OverlayVehicle? = null
+    var cameraController: CameraController? = null
+        private set
 
     init {
         MapLibre.getInstance(appContext)
@@ -110,6 +118,7 @@ class MapHostState internal constructor(context: Context) {
                 instance.moveCamera(CameraUpdateFactory.newLatLngZoom(
                     LatLng(39.0, 35.0), 5.2,
                 ))
+                cameraController = CameraController(instance)
                 map = instance
             }
         }
@@ -176,6 +185,8 @@ class MapHostState internal constructor(context: Context) {
                         }.getOrNull()
                     }
                 } else emptyList()
+                runCatching { overlayInstaller.install(style, overlayModel) }
+                    .onFailure { debug("Overlay kurulamadı: ${it.javaClass.simpleName}") }
                 readyMap = active
                 loadState = MapHostLoadState.READY
                 if (!fallbackUsed) issue = null
@@ -190,6 +201,47 @@ class MapHostState internal constructor(context: Context) {
             issue = "Harita 15 saniye içinde açılamadı. Yeniden dene."
             debug("Stil zaman aşımı: ${requested.id}")
         }
+    }
+
+    /**
+     * Kaynaklar yalnız gerçek ViewModel verisiyle güncellenir; boş durum çizmez.
+     * Araç imleci en çok 2Hz, hız düşükken heading dondurulur.
+     */
+    fun updateOverlays(model: OverlayModel) {
+        val now = SystemClock.elapsedRealtime()
+        val incoming = model.vehicle
+        val previous = lastVehicle
+        val chosen = if (incoming == null) {
+            lastVehicle = null
+            null
+        } else if (previous != null &&
+            now - lastVehicleUpdateElapsedMs <
+                (1_000.0 / CockpitDesignTokens.overlayMaxPositionHz).toLong()) {
+            previous
+        } else {
+            val speed = incoming.speedMetersPerSecond
+            val bearing = if (speed != null && speed.isFinite() &&
+                speed < CockpitDesignTokens.overlayCarHeadingFreezeMetersPerSecond)
+                previous?.bearingDegrees
+            else incoming.bearingDegrees?.let { angle ->
+                PolylineGeometry.circularHeadingDegrees(
+                    previous?.bearingDegrees, angle, 0.35)
+            }
+            incoming.copy(bearingDegrees = bearing).also {
+                lastVehicle = it
+                lastVehicleUpdateElapsedMs = now
+            }
+        }
+        overlayModel = model.copy(vehicle = chosen)
+        readyMap?.style?.let { style ->
+            overlayInstaller.install(style, overlayModel)
+        }
+        chosen?.let { cameraController?.follow(it) }
+    }
+
+    fun detach() {
+        cameraController?.dispose()
+        cameraController = null
     }
 
     private fun debug(message: String) {
@@ -243,6 +295,7 @@ fun ProvideSharedMapHost(content: @Composable () -> Unit) {
             if (resumed) view.onPause()
             if (started) view.onStop()
             (view.parent as? ViewGroup)?.removeView(view)
+            host.detach()
             view.onDestroy()
         }
     }
