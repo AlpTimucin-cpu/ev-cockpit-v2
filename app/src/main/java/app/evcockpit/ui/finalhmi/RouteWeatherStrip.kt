@@ -49,11 +49,7 @@ fun RouteWeatherStrip(state: DashboardUiState, modifier: Modifier = Modifier) {
                                 ?.let { DashboardFormat.whole(it) + " °C" } ?: "— °C"
                             Text(temp, color = t.text, fontSize = t.titleText)
                             Text(
-                                when (sample.rainExpected.value) {
-                                    true -> "Yağış uyarısı var"
-                                    false -> "Yağış uyarısı yok"
-                                    null -> "Yağış: —"
-                                }, color = if (sample.rainExpected.value == true)
+                                rainWarningText(sample.rainExpected.value), color = if (sample.rainExpected.value == true)
                                     t.caution else t.secondary,
                                 fontSize = t.labelText,
                                 softWrap = true,
@@ -64,4 +60,11 @@ fun RouteWeatherStrip(state: DashboardUiState, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/** true = uyarı VAR; eski kısa metin yanlışlıkla belirsiz kalıyordu. */
+internal fun rainWarningText(value: Boolean?): String = when (value) {
+    true -> "Yağış uyarısı var"
+    false -> "Yağış uyarısı yok"
+    null -> "Yağış: —"
 }
