@@ -261,10 +261,12 @@ fun ProvideSharedMapHost(content: @Composable () -> Unit) {
 fun MapHostViewport(
     modifier: Modifier = Modifier,
     unavailableMessage: String = "Harita başka bir panelde görüntüleniyor.",
+    requestedSlot: Any? = null,
 ) {
     val host = LocalSharedMapHost.current
     val inspection = LocalInspectionMode.current
-    val slot = remember { Any() }
+    val localSlot = remember { Any() }
+    val slot = requestedSlot ?: localSlot
     DisposableEffect(host, slot) {
         host?.claim(slot)
         onDispose { host?.release(slot) }
