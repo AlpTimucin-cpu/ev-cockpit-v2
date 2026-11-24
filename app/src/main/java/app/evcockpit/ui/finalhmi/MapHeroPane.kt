@@ -434,6 +434,11 @@ private fun applyDarkRoadContrast(style: Style) {
         (style.getLayer("highway_minor") as? LineLayer)
             ?.setProperties(PropertyFactory.lineColor(t.mapRoadMinorContrast.toArgb()))
     }
+    // Türkiye genel açılış kamerası zoom 5,2: bu katman yalnız zoom < 6'da var.
+    runCatching {
+        (style.getLayer("highway_motorway_subtle") as? LineLayer)
+            ?.setProperties(PropertyFactory.lineColor(t.mapRoadMinorContrast.toArgb()))
+    }
 }
 
 @Composable
