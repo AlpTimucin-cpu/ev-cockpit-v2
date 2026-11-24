@@ -12,10 +12,11 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -41,8 +42,9 @@ object F1DashboardLayoutPolicy {
 }
 
 /**
- * 5 sekmeli F1 ekranı; yalnız HARİTA açık. Diğer sekmeler F2'ye kadar
- * açıklamalı yer tutucudur. A–C arka plan işlevleri eski ekranlarda korunur.
+ * A0 üretim kabuğu: NavHost başlangıç hedefi HARİTA.
+ * Diğer sekmeler A–C servislerinin mevcut ekranlarına bağlanabilir.
+ * Kayıtlı veri bulunmazsa gerçek mapper yalnız boş değer gösterir.
  */
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -50,13 +52,31 @@ fun MapFirstDashboardScreen(
     state: DashboardUiState,
     onDemoChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    demoAvailable: Boolean = false,
+    tabContent: @Composable (FinalDashboardTab, () -> Unit) -> Unit = { tab, _ ->
+        A0UnconnectedTab(tab)
+    },
+    diagnosticContent: @Composable () -> Unit = {
+        Text("Tanı ekranı mevcut değil.", color = CockpitDesignTokens.secondary)
+    },
 ) {
     val t = CockpitDesignTokens
-    var selected by rememberSaveable { mutableStateOf(FinalDashboardTab.HARITA) }
+    val controller = rememberNavController()
+    val backEntry by controller.currentBackStackEntryAsState()
+    val selected = FinalDashboardTab.entries.firstOrNull {
+        it.name == backEntry?.destination?.route
+    } ?: FinalDashboardTab.AYARLAR
+    val navigateTab: (FinalDashboardTab) -> Unit = { destination ->
+        controller.navigate(destination.name) {
+            popUpTo(controller.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
     Column(modifier.fillMaxSize().background(t.background)) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val compactHeader = maxWidth < t.compactMaxWidth
-            DashboardTopStatus(state, compactHeader, onDemoChange)
+            DashboardTopStatus(state, compactHeader, onDemoChange, demoAvailable)
         }
 
         if (state.demo) {
@@ -85,61 +105,76 @@ fun MapFirstDashboardScreen(
                 F1DashboardLayoutPolicy.useWideMapFirst(
                     maxWidth.value.toInt(), maxHeight.value.toInt())
 
-            if (selected == FinalDashboardTab.HARITA) {
-                if (wide) {
-                    Row(
-                        Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.spacedBy(t.spaceS),
-                    ) {
-                        MapHeroPane(
-                            state = state,
-                            onOpenRouteTab = { selected = FinalDashboardTab.ROTA },
-                            modifier = Modifier.weight(t.mapWeight).fillMaxHeight(),
-                        )
+            NavHost(
+                navController = controller,
+                startDestination = FinalDashboardTab.HARITA.name,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                composable(FinalDashboardTab.HARITA.name) {
+                    if (wide) {
+                        Row(
+                            Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(t.spaceS),
+                        ) {
+                            MapHeroPane(
+                                state = state,
+                                onOpenRouteTab = { navigateTab(FinalDashboardTab.ROTA) },
+                                modifier = Modifier.weight(t.mapWeight).fillMaxHeight(),
+                            )
+                            Column(
+                                Modifier.weight(t.dataWeight).fillMaxHeight()
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(t.spaceS),
+                            ) {
+                                DashboardRightPane(state)
+                            }
+                        }
+                    } else {
                         Column(
-                            Modifier.weight(t.dataWeight).fillMaxHeight()
-                                .verticalScroll(rememberScrollState()),
+                            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(t.spaceS),
                         ) {
+                            MapHeroPane(
+                                state = state,
+                                onOpenRouteTab = { navigateTab(FinalDashboardTab.ROTA) },
+                                modifier = Modifier.fillMaxWidth().height(t.phoneMapHeight),
+                            )
                             DashboardRightPane(state)
                         }
                     }
-                } else {
-                    Column(
-                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(t.spaceS),
-                    ) {
-                        MapHeroPane(
-                            state = state,
-                            onOpenRouteTab = { selected = FinalDashboardTab.ROTA },
-                            modifier = Modifier.fillMaxWidth().height(t.phoneMapHeight),
-                        )
-                        DashboardRightPane(state)
-                    }
                 }
-            } else {
-                Surface(
-                    color = t.panel, shape = t.corner,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    Column(
-                        Modifier.padding(t.spaceXL),
-                        verticalArrangement = Arrangement.spacedBy(t.spaceM),
-                    ) {
-                        Text(selected.titleTr, fontSize = t.headText,
-                            color = t.text)
-                        Text("Bu sekme F2'de bağlanacak.",
-                            color = t.secondary, fontSize = t.bodyText)
-                        Text("F1 yalnız ana ekran iskeletini ve bağımsız veri " +
-                            "gösterim kurallarını doğrular. A–C sekmeleri eski " +
-                            "uygulamada korunmuştur.", color = t.secondary,
-                            fontSize = t.bodyText)
+                FinalDashboardTab.entries.filter { it != FinalDashboardTab.HARITA }
+                    .forEach { destination ->
+                        composable(destination.name) {
+                            tabContent(destination) {
+                                controller.navigate(A0_DIAGNOSTIC_ROUTE) {
+                                    launchSingleTop = true
+                                }
+                            }
+                        }
                     }
+                composable(A0_DIAGNOSTIC_ROUTE) {
+                    diagnosticContent()
                 }
             }
         }
 
-        FinalBottomBar(selected = selected, onSelect = { selected = it })
+        FinalBottomBar(selected = selected, onSelect = navigateTab)
+    }
+}
+
+private const val A0_DIAGNOSTIC_ROUTE = "obd_tani"
+
+/** A0'da henüz bağlanmamış alanlarda sahte veri ya da boş etkileşim yok. */
+@Composable
+private fun A0UnconnectedTab(tab: FinalDashboardTab) {
+    val t = CockpitDesignTokens
+    Surface(color = t.panel, shape = t.corner, modifier = Modifier.fillMaxSize()) {
+        Column(Modifier.padding(t.spaceXL), verticalArrangement = Arrangement.spacedBy(t.spaceM)) {
+            Text(tab.titleTr, color = t.text, fontSize = t.headText)
+            Text("Bu alan henüz gerçek veri kaynağına bağlanmadı.",
+                color = t.secondary, fontSize = t.bodyText)
+        }
     }
 }
 
@@ -158,6 +193,7 @@ private fun DashboardTopStatus(
     state: DashboardUiState,
     compact: Boolean,
     onDemoChange: (Boolean) -> Unit,
+    demoAvailable: Boolean,
 ) {
     val t = CockpitDesignTokens
     val time = state.clock.value ?: "—"
@@ -191,7 +227,7 @@ private fun DashboardTopStatus(
                     StatusLabel("Batarya", battery)
                     StatusLabel("Menzil (tahmini)", range)
                 }
-                DemoModeButton(state.demo, onDemoChange)
+                if (demoAvailable) DemoModeButton(state.demo, onDemoChange)
             }
         } else {
             Row(
@@ -203,7 +239,7 @@ private fun DashboardTopStatus(
             ) {
                 header()
                 Spacer(Modifier.weight(1f))
-                DemoModeButton(state.demo, onDemoChange)
+                if (demoAvailable) DemoModeButton(state.demo, onDemoChange)
             }
         }
     }
@@ -231,7 +267,7 @@ private fun DemoModeButton(demo: Boolean, onChange: (Boolean) -> Unit) {
     ) {
         Box(Modifier.padding(horizontal = t.spaceM),
             contentAlignment = Alignment.Center) {
-            Text(if (demo) "Boş veri" else "DEMO aç", color = t.text,
+            Text(if (demo) "Demo modu: açık" else "Demo modu: kapalı", color = t.text,
                 fontSize = t.bodyText)
         }
     }
