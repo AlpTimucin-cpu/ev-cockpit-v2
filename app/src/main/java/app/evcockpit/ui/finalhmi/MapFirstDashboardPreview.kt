@@ -79,6 +79,52 @@ private fun F1Dikey360BuyukYazi() {
     F1DemoPreview()
 }
 
+/**
+ * H1: yalnız hava şeridi. Harita veya cihaz verisi kullanılmaz.
+ * 360dp, fontScale 1.3: üç örnek eşit genişlikte çok satırlı.
+ */
+@Preview(
+    name = "F1 H1 hava 3 örnek 360dp / yazı 1.3",
+    widthDp = 360, heightDp = 250,
+    fontScale = 1.3f,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    showBackground = true,
+)
+@Composable
+private fun F1HavaUcOrnekBuyukYazi() {
+    FinalCockpitTheme {
+        RouteWeatherStrip(
+            state = DemoDashboardMapper.map(1_795_460_000_000L),
+        )
+    }
+}
+
+/**
+ * H1: beş örnek; 393dp telefonda kaydırma ve kenar solması görünür.
+ * Ek örnekler yalnız DEMO mappper'dan gelir, canlı hava verisi değildir.
+ */
+@Preview(
+    name = "F1 H1 hava 5 örnek 393dp / kaydır",
+    widthDp = 393, heightDp = 250,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    showBackground = true,
+)
+@Composable
+private fun F1HavaBesOrnekKaydir() {
+    val demo = DemoDashboardMapper.map(1_795_460_000_000L)
+    val samples = demo.weatherSamples
+    FinalCockpitTheme {
+        RouteWeatherStrip(
+            state = demo.copy(
+                weatherSamples = samples + listOf(
+                    samples[0].copy(distanceAlongKm = 100.0),
+                    samples[1].copy(distanceAlongKm = 125.0),
+                ),
+            ),
+        )
+    }
+}
+
 @Composable
 private fun F1DemoPreview() {
     FinalCockpitTheme {
