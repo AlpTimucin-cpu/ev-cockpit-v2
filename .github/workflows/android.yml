@@ -40,6 +40,18 @@ jobs:
       - name: Test and build debug APK
         run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
+      - name: Compile unsigned release and verify debug demo exclusion
+        run: |
+          set -euo pipefail
+          gradle :app:assembleRelease --stacktrace
+          APK='app/build/outputs/apk/release/app-release-unsigned.apk'
+          test -s "$APK"
+          if unzip -p "$APK" 'classes*.dex' | strings | grep -q 'DemoDashboardMapper'; then
+            echo 'ERROR: Debug DEMO mapper was found in release DEX.' >&2
+            exit 1
+          fi
+          echo 'Release compiled; DEMO mapper not present in release DEX.'
+
       - name: JUnit test count (XML evidence)
         run: |
           python3 - <<'PY'
