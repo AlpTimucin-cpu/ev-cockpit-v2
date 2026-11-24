@@ -54,7 +54,7 @@ class MarkerIcons(context: Context) {
             OverlayIds.START_ICON -> t.startPinColor
             OverlayIds.FINISH_ICON -> t.finishPinColor
             OverlayIds.WEATHER_ICON -> t.weatherIconColor
-            OverlayIds.VEHICLE_ICON -> t.accent
+            OverlayIds.VEHICLE_ICON, OverlayIds.VEHICLE_UNKNOWN_ICON -> t.accent
             else -> t.neutralTrack
         }
         if (id == OverlayIds.VEHICLE_ICON) {
