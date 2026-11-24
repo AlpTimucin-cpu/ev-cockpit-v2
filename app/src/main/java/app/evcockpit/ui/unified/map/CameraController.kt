@@ -32,9 +32,11 @@ class CameraController(private val map: MapLibreMap) {
         val bearing = if (mode == FollowMode.FOLLOW_BEARING)
             fix.bearingDegrees?.takeIf { it.isFinite() } ?: current.bearing
         else current.bearing
-        val camera = CameraPosition.Builder(current)
+        val camera = CameraPosition.Builder()
             .target(LatLng(fix.point.latitude, fix.point.longitude))
+            .zoom(current.zoom)
             .bearing(bearing)
+            .tilt(current.tilt)
             .build()
         map.animateCamera(CameraUpdateFactory.newCameraPosition(camera),
             t.cameraAnimationMs)
