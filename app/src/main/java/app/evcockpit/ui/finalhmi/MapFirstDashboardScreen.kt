@@ -291,7 +291,6 @@ private fun DemoModeButton(demo: Boolean, onChange: (Boolean) -> Unit) {
 private fun FinalBottomBar(
     selected: FinalDashboardTab,
     onSelect: (FinalDashboardTab) -> Unit,
-    onOpenMola: (() -> Unit)? = null,
 ) {
     val t = CockpitDesignTokens
     Row(
