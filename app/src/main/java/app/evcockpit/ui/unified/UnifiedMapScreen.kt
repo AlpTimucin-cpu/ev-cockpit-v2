@@ -1,6 +1,14 @@
 package app.evcockpit.ui.unified
 
 import android.os.SystemClock
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.evcockpit.obd.ObdViewModel
+import app.evcockpit.ui.tesla.DriveModeViewModel
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -32,6 +40,39 @@ fun UnifiedMapScreen(
 ) {
     val t = CockpitDesignTokens
     val state by vm.state.collectAsStateWithLifecycle()
+    val live: C6NavigationViewModel = viewModel()
+    val progress by live.state.collectAsStateWithLifecycle()
+    val voiceEnabled by live.voiceEnabled.collectAsStateWithLifecycle()
+    val voiceStatus by live.voiceStatus.collectAsStateWithLifecycle()
+    val obd: ObdViewModel = viewModel()
+    val gps by obd.gps.collectAsStateWithLifecycle()
+    val drive: DriveModeViewModel = viewModel()
+    val driveState by drive.state.collectAsStateWithLifecycle()
+    val navigating = state.mode == SheetMode.Navigating
+    val navRoute = state.currentRoute?.takeIf { navigating }
+    val lifecycle = LocalLifecycleOwner.current
+    DisposableEffect(lifecycle, navRoute) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> live.track(navRoute)
+                Lifecycle.Event.ON_STOP -> live.suspendTracking()
+                else -> Unit
+            }
+        }
+        lifecycle.lifecycle.addObserver(observer)
+        if (lifecycle.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) live.track(navRoute)
+        onDispose {
+            lifecycle.lifecycle.removeObserver(observer)
+            live.suspendTracking()
+        }
+    }
+    val gpsPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true) obd.startGps()
+        else obd.denyGps()
+    }
     val c5: C5RouteDataViewModel = viewModel()
     val c5Data by c5.state.collectAsStateWithLifecycle()
     val routeId = state.currentRoute?.id
@@ -50,6 +91,7 @@ fun UnifiedMapScreen(
     val gpsFailed = UserMessage(stringResource(R.string.a0b_c4_gps_failed))
     val gpsLabel = stringResource(R.string.a0b_c4_gps_origin)
     val addressSource = stringResource(R.string.a0b_c4_geocoder_source)
+    val startGpsMessage = UserMessage(stringResource(R.string.a0b_c6_gps_required))
     fun select(fieldValue: PlaceField, option: PhotonPlace) {
         val place = Place(
             "${option.point.latitude},${option.point.longitude}", option.label,
@@ -63,19 +105,36 @@ fun UnifiedMapScreen(
         field = null
         vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.HALF))
     }
-    val overlay = remember(state.origin, state.destination, state.routes, state.selectedRouteIndex, c5Data, routeId) {
-        C5Projection.overlay(C4RouteOverlays.from(state), c5Data, routeId)
+    val overlay = remember(state.origin, state.destination, state.routes, state.selectedRouteIndex, c5Data, routeId, progress.vehicle, navigating) {
+        val base = C5Projection.overlay(C4RouteOverlays.from(state), c5Data, routeId)
+        base.copy(vehicle = progress.vehicle,
+            alternativeRoutes = if (navigating) emptyList() else base.alternativeRoutes)
+    }
+    LaunchedEffect(host?.map, navigating, host?.activeSlot) {
+        if (host != null && host.activeSlot === slot) {
+            host.cameraController?.setMode(if (navigating) FollowMode.FOLLOW_BEARING else FollowMode.OFF)
+            if (navigating) progress.vehicle?.let { host.cameraController?.follow(it) }
+        }
     }
     LaunchedEffect(host, host?.activeSlot, overlay) {
         if (host != null && host.activeSlot === slot) host.updateOverlays(overlay)
     }
     DisposableEffect(host, slot) {
-        onDispose { if (host != null && host.activeSlot === slot) host.updateOverlays(OverlayModel()) }
+        onDispose {
+            if (host != null && host.activeSlot === slot) {
+                host.cameraController?.setMode(FollowMode.OFF)
+                host.updateOverlays(OverlayModel())
+            }
+            live.endNavigation()
+        }
     }
     BackHandler {
         focus.clearFocus()
         field = null
-        vm.dispatch(UnifiedEvent.Back)
+        if (navigating) {
+            live.endNavigation()
+            vm.dispatch(UnifiedEvent.StopNavigation)
+        } else vm.dispatch(UnifiedEvent.Back)
     }
     LaunchedEffect(state.exitRequested) {
         if (state.exitRequested) {
@@ -87,8 +146,8 @@ fun UnifiedMapScreen(
         val heightPx = with(density) { maxHeight.toPx() }
         val topPx = with(density) { t.spaceM.toPx().toInt() }
         val bottomPx = (heightPx * t.sheetHalfFraction).toInt()
-        LaunchedEffect(host?.readyMap, host?.activeSlot, overlay.selectedRoute, heightPx) {
-            if (host != null && host.activeSlot === slot && overlay.selectedRoute.size >= 2 &&
+        LaunchedEffect(host?.readyMap, host?.activeSlot, overlay.selectedRoute, heightPx, navigating) {
+            if (!navigating && host != null && host.activeSlot === slot && overlay.selectedRoute.size >= 2 &&
                 heightPx > topPx + bottomPx) {
                 runCatching { host.cameraController?.fitRoute(overlay.selectedRoute, topPx, bottomPx) }
             }
@@ -98,6 +157,33 @@ fun UnifiedMapScreen(
             unavailableMessage = stringResource(R.string.a0b_unified_map_no_data),
             requestedSlot = slot,
         )
+        if (navigating) {
+            NavigationPanel(
+                progress, voiceEnabled, voiceStatus,
+                onVoice = live::toggleVoice,
+                onStop = {
+                    live.endNavigation()
+                    vm.dispatch(UnifiedEvent.StopNavigation)
+                },
+                onRecenter = {
+                    host?.cameraController?.setMode(FollowMode.FOLLOW_BEARING)
+                    progress.vehicle?.let { host?.cameraController?.follow(it) }
+                },
+                onReroute = {
+                    val fix = progress.vehicle
+                    if (fix != null && C6NavigationPolicy.validFix(gps, SystemClock.elapsedRealtime()) &&
+                        driveState.allowComplexActions) {
+                        live.endNavigation()
+                        vm.dispatch(UnifiedEvent.StopNavigation)
+                        vm.dispatch(UnifiedEvent.ChooseOrigin(Place("gps", gpsLabel,
+                            fix.point.latitude, fix.point.longitude, "GPS")))
+                        vm.calculateRoutes(failure, invalid)
+                    }
+                },
+                canReroute = progress.vehicle != null && driveState.allowComplexActions,
+                modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(t.spaceM),
+            )
+        } else {
         if (state.detent == SheetDetent.PEEK) {
             Button(onClick = { vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.FULL)) },
                 modifier = Modifier.align(Alignment.TopCenter)
@@ -150,6 +236,12 @@ fun UnifiedMapScreen(
                         }
                     }
                     if (origin) {
+                        if (!gps.active) OutlinedButton(onClick = {
+                            gpsPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION))
+                        }, modifier = Modifier.fillMaxWidth().heightIn(min = t.target)) {
+                            Text(stringResource(R.string.a0b_c6_start_gps))
+                        }
                         OutlinedButton(onClick = {
                             val gps = (context.applicationContext as? CockpitApplication)
                                 ?.locationRepository?.state?.value
@@ -193,13 +285,23 @@ fun UnifiedMapScreen(
                         if (routes.value.size == 1) Text(stringResource(R.string.a0b_c4_single), color = t.secondary)
                         state.currentRoute?.let { route ->
                             Text(stringResource(R.string.a0b_c4_source, route.source), color = t.secondary)
+                            Button(onClick = {
+                                if (C6NavigationPolicy.validFix(gps, SystemClock.elapsedRealtime())) {
+                                    focus.clearFocus()
+                                    vm.dispatch(UnifiedEvent.StartNavigation)
+                                } else {
+                                    vm.dispatch(UnifiedEvent.AddBanner(Banner(startGpsMessage, BannerKind.WARNING)))
+                                }
+                            }, modifier = Modifier.fillMaxWidth().heightIn(min = t.target)) {
+                                Text(stringResource(R.string.a0b_c6_start))
+                            }
                             C5RoutePanel(route, c5Data) { c5.refresh(route) }
                         }
                     }
                     Loadable.Idle -> Unit
                 }
             } else when (state.mode) {
-                SheetMode.Navigating -> NavigationPanel(state)
+                SheetMode.Navigating -> Unit
                 is SheetMode.StopDetail -> StopDetailPanel(state)
                 SheetMode.Energy -> EnergyPanel(state)
                 else -> Unit
@@ -210,6 +312,7 @@ fun UnifiedMapScreen(
                         modifier = Modifier.padding(t.spaceM), fontSize = t.bodyText)
                 }
             }
+        }
         }
     }
 }
