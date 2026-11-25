@@ -60,7 +60,6 @@ fun MapFirstDashboardScreen(
     onRouteRequested: () -> Unit = {},
     externalOpenRequest: Pair<Long, Int>? = null,
     onExternalOpenConsumed: (Pair<Long, Int>) -> Unit = {},
-    onOpenMola: (() -> Unit)? = null,
     tabContent: @Composable (FinalDashboardTab, () -> Unit, (FinalDashboardTab) -> Unit) -> Unit = { tab, _, _ ->
         A0UnconnectedTab(tab)
     },
@@ -173,7 +172,7 @@ fun MapFirstDashboardScreen(
             }
         }
 
-        FinalBottomBar(selected = selected, onSelect = navigateTab, onOpenMola = onOpenMola)
+        FinalBottomBar(selected = selected, onSelect = navigateTab)
     }
 }
 
@@ -318,15 +317,6 @@ private fun FinalBottomBar(
                         color = if (tab == selected) t.text else t.secondary,
                         fontWeight = if (tab == selected) FontWeight.Bold else FontWeight.Normal,
                         maxLines = 1)
-                }
-            }
-        }
-        if (onOpenMola != null) {
-            Surface(onClick = onOpenMola, modifier = Modifier.weight(1f).heightIn(min = t.tabBarHeight),
-                shape = t.cornerSmall, color = t.panelRaised) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(t.spaceXXS)) {
-                    Text(stringResource(R.string.mola_open_original), color = t.text,
-                        fontSize = t.tabText, maxLines = 1)
                 }
             }
         }
