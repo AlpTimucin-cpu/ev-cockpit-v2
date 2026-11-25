@@ -94,12 +94,12 @@
     <string name="a0_demo_off">Demo modu: kapalı</string>
     <string name="a0b_unified_search_where">Nereye?</string>
     <string name="a0b_unified_search_origin">Nereden?</string>
-    <string name="a0b_unified_search_hint">Adres araması C4 aşamasında bağlanacak</string>
+    <string name="a0b_unified_search_hint">Şehir, semt veya adres yaz</string>
     <string name="a0b_unified_no_gps">Konum henüz alınmadı</string>
     <string name="a0b_unified_idle">Rota seçilmedi</string>
     <string name="a0b_unified_idle_desc">Bir hedef seçildiğinde gerçek rota seçenekleri burada gösterilir.</string>
     <string name="a0b_unified_route">Rota önizleme</string>
-    <string name="a0b_unified_route_empty">Rota hesabı henüz bağlanmadı.</string>
+    <string name="a0b_unified_route_empty">Rota hesaplanmadı.</string>
     <string name="a0b_unified_navigation">Navigasyon</string>
     <string name="a0b_unified_navigation_empty">Başlatılmış bir rota yok.</string>
     <string name="a0b_unified_station">Şarj durağı</string>
@@ -111,7 +111,7 @@
     <string name="a0b_unified_half">Yarı açık</string>
     <string name="a0b_unified_full">Tam aç</string>
     <string name="a0b_unified_handle">Panel yüksekliğini değiştir</string>
-    <string name="a0b_unified_map_no_data">Rota ve istasyon verisi henüz bağlanmadı</string>
+    <string name="a0b_unified_map_no_data">Harita şu anda kullanılamıyor</string>
     <string name="a0b_unified_retry">Yeniden dene</string>
     <string name="a0b_unified_charge_unknown">Ücret: — (tarife yok)</string>
     <string name="a0b_unified_source_unknown">Kaynak: yok</string>
@@ -119,4 +119,20 @@
     <string name="a0b_unified_invalid_route">Rota yüklenemedi</string>
     <string name="a0b_unified_no_recent">Son arama bulunmuyor</string>
     <string name="a0b_unified_expand_origin">Başlangıç noktasını değiştir</string>
+    <string name="a0b_c4_origin">Nereden?</string>
+    <string name="a0b_c4_destination">Nereye?</string>
+    <string name="a0b_c4_calculate">Rota hesapla</string>
+    <string name="a0b_c4_loading">OSRM yol ağı sorgulanıyor…</string>
+    <string name="a0b_c4_failed">OSRM rota servisi kullanılamıyor veya yol bulunamadı.</string>
+    <string name="a0b_c4_invalid">Farklı başlangıç ve hedef noktaları seç.</string>
+    <string name="a0b_c4_gps">Konumumu kullan</string>
+    <string name="a0b_c4_gps_failed">Güncel ve yeterli doğrulukta GPS konumu yok.</string>
+    <string name="a0b_c4_gps_origin">Konumum (GPS)</string>
+    <string name="a0b_c4_selected">Seçildi: %1$s</string>
+    <string name="a0b_c4_option">%1$d. rota · %2$.1f km · %3$d dk</string>
+    <string name="a0b_c4_selected_option">Seçili · %1$d. rota · %2$.1f km · %3$d dk</string>
+    <string name="a0b_c4_source">Kaynak: %1$s. Süre tahminidir, canlı trafik yok.</string>
+    <string name="a0b_c4_single">Servis yalnız bir gerçek rota döndürdü.</string>
+    <string name="a0b_c4_geocoder_source">Adres / il-ilçe önerisi</string>
+    <string name="a0b_c4_clear">Temizle</string>
 </resources>
