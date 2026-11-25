@@ -55,6 +55,12 @@ class C5ProjectionTest {
         assertNull(C5Projection.plannedCost(plan, 50.0, data))
         val current = data.copy(catalog = TariffCatalog(listOf(old.copy(updatedAt = LocalDate.now()))))
         assertEquals(180.0, C5Projection.plannedCost(plan, 50.0, current)!!, 0.001)
+        for (confidence in listOf(ChargerConfidence.UNKNOWN, ChargerConfidence.PROBABLE_CCS2)) {
+            val ambiguous = plan.copy(stops = plan.stops.map {
+                it.copy(charger = it.charger.copy(confidence = confidence))
+            })
+            assertNull(C5Projection.plannedCost(ambiguous, 50.0, current))
+        }
         assertEquals(0.0, C5Projection.plannedCost(plan.copy(stops = emptyList()), 50.0, C5Data())!!, 0.001)
     }
 }
