@@ -26,6 +26,7 @@ fun AddressSearchDialog(
     title: String, query: String, options: List<PhotonPlace>, status: String,
     loading: Boolean, onQuery: (String) -> Unit, onRetry: () -> Unit,
     onChoose: (PhotonPlace) -> Unit, onDismiss: () -> Unit,
+    onMapPick: () -> Unit = {},
 ) {
     val t = CockpitDesignTokens
     val requester = remember { FocusRequester() }
@@ -56,6 +57,9 @@ fun AddressSearchDialog(
                 if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (!loading && AutocompletePolicy.eligible(query)) {
                     TextButton(onClick = onRetry) { Text(stringResource(R.string.a0b_search_retry)) }
+                }
+                OutlinedButton(onClick = { keyboard?.hide(); onMapPick() }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.a0b_map_pick_action))
                 }
                 LazyColumn(Modifier.weight(1f).fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(t.spaceXS)) {
