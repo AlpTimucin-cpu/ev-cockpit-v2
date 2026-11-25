@@ -1,6 +1,12 @@
 package app.evcockpit.ui.unified
 
+import android.content.Context
+import app.evcockpit.R
+import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.lifecycle.SavedStateHandle
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.evcockpit.navigation.GeoPoint
@@ -23,12 +29,46 @@ import kotlinx.coroutines.flow.StateFlow
 @HiltViewModel
 class UnifiedViewModel @Inject constructor(
     private val saved: SavedStateHandle,
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(restore())
     val state: StateFlow<UnifiedUiState> = mutable
 
     private var routeJob: Job? = null
     private var requestGeneration = 0L
+    private var endpointsTouched = false
+    private val routeStore = C7RouteStore(context)
+
+    init {
+        viewModelScope.launch {
+            try {
+                val last = routeStore.last.first()
+                if (!endpointsTouched && mutable.value.origin == null && mutable.value.destination == null) {
+                    mutable.value = mutable.value.copy(origin = last.origin, destination = last.destination,
+                        detent = if (last.origin != null || last.destination != null) SheetDetent.HALF else mutable.value.detent)
+                    persist(mutable.value)
+                }
+                state.map { C7RouteCodec.session(it.origin, it.destination) }.distinctUntilChanged().collect { endpoints ->
+                    try { routeStore.saveLast(endpoints) }
+                    catch (c: CancellationException) { throw c }
+                    catch (_: Exception) { dispatch(UnifiedEvent.AddBanner(Banner(UserMessage(context.getString(R.string.a0b_c7_storage_failed)), BannerKind.WARNING))) }
+                }
+            } catch (c: CancellationException) { throw c }
+            catch (_: Exception) { dispatch(UnifiedEvent.AddBanner(Banner(UserMessage(context.getString(R.string.a0b_c7_storage_failed)), BannerKind.WARNING))) }
+        }
+    }
+
+    fun restoreSavedRoute(route: C7SavedRoute, notice: UserMessage) {
+        if (!C7RouteCodec.valid(route)) return
+        endpointsTouched = true
+        requestGeneration++
+        routeJob?.cancel()
+        val restored = UnifiedUiState(origin = route.endpoints.origin?.let(C7RouteCodec::historical),
+            destination = route.endpoints.destination?.let(C7RouteCodec::historical),
+            detent = SheetDetent.HALF, banners = listOf(Banner(notice, BannerKind.INFO)))
+        mutable.value = restored
+        persist(restored)
+    }
 
     /** Explicit request only; changing either endpoint invalidates an in-flight response. */
     fun calculateRoutes(failure: UserMessage, invalid: UserMessage) {
@@ -77,6 +117,7 @@ class UnifiedViewModel @Inject constructor(
 
     fun dispatch(event: UnifiedEvent) {
         if (event is UnifiedEvent.ChooseOrigin || event is UnifiedEvent.ChooseDestination) {
+            endpointsTouched = true
             requestGeneration++
             routeJob?.cancel()
         }
@@ -90,8 +131,9 @@ class UnifiedViewModel @Inject constructor(
             val lat = saved.get<Double>("${prefix}_lat") ?: return null
             val lon = saved.get<Double>("${prefix}_lon") ?: return null
             val name = saved.get<String>("${prefix}_name") ?: return null
-            return Place(prefix, name, lat, lon,
-                saved.get<String>("${prefix}_source") ?: "KAYIT")
+            val source = saved.get<String>("${prefix}_source") ?: "KAYIT"
+            if (prefix == "origin" && source == "GPS") return null
+            return Place(prefix, name, lat, lon, source)
                 .takeIf { it.valid }
         }
         val origin = read("origin")
