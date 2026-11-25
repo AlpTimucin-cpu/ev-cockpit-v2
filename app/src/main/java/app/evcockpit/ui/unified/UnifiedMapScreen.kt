@@ -91,6 +91,9 @@ fun UnifiedMapScreen(
     val autocomplete: PlaceAutocompleteViewModel = viewModel()
     val search by autocomplete.state.collectAsStateWithLifecycle()
     var field by remember { mutableStateOf<PlaceField?>(null) }
+    var mapPick by remember { mutableStateOf<PlaceField?>(null) }
+    val mapPickSource = stringResource(R.string.a0b_map_pick_source)
+    val mapPickLabel = stringResource(R.string.a0b_map_pick_label)
     val context = LocalContext.current
     val layerPrefs = remember(context.applicationContext) { MapLayerPreferences(context.applicationContext) }
     val mapKeys = remember(context.applicationContext) { MapTilerKeyStore(context.applicationContext) }
@@ -117,10 +120,10 @@ fun UnifiedMapScreen(
     val startGpsMessage = UserMessage(stringResource(R.string.a0b_c6_gps_required))
     val restoreNotice = UserMessage(stringResource(R.string.a0b_c7_recalculate))
     val savedSource = stringResource(R.string.a0b_c7_source_saved)
-    fun select(fieldValue: PlaceField, option: PhotonPlace) {
+    fun select(fieldValue: PlaceField, option: PhotonPlace, source: String = addressSource) {
         val place = Place(
             "${option.point.latitude},${option.point.longitude}", option.label,
-            option.point.latitude, option.point.longitude, addressSource,
+            option.point.latitude, option.point.longitude, source,
         )
         if (!place.valid) return
         focus.clearFocus()
@@ -143,6 +146,11 @@ fun UnifiedMapScreen(
             onRetry = { autocomplete.retry(currentField) },
             onChoose = { select(currentField, it) },
             onDismiss = { autocomplete.cancel(currentField); field = null },
+            onMapPick = {
+                autocomplete.cancel(currentField)
+                field = null
+                mapPick = currentField
+            },
         )
     }
     val overlay = remember(state.origin, state.destination, state.routes, state.selectedRouteIndex, c5Data, routeId, progress.vehicle, navigating) {
@@ -170,6 +178,10 @@ fun UnifiedMapScreen(
     }
     BackHandler {
         focus.clearFocus()
+        if (mapPick != null) {
+            mapPick = null
+            return@BackHandler
+        }
         field = null
         if (navigating) {
             live.endNavigation()
@@ -187,7 +199,7 @@ fun UnifiedMapScreen(
         val topPx = with(density) { t.spaceM.toPx().toInt() }
         val bottomPx = (heightPx * t.sheetHalfFraction).toInt()
         val attributionInset = with(density) { t.mapAttributionSafeInset.toPx().toInt() }
-        val covered = if (navigating) 0 else when (state.detent) {
+        val covered = if (navigating || mapPick != null) 0 else when (state.detent) {
             SheetDetent.PEEK -> with(density) { t.sheetPeekHeight.toPx().toInt() }
             SheetDetent.HALF -> bottomPx
             SheetDetent.FULL -> 0
@@ -209,7 +221,35 @@ fun UnifiedMapScreen(
             unavailableMessage = stringResource(R.string.a0b_unified_map_no_data),
             requestedSlot = slot,
         )
-        if (navigating) {
+        if (mapPick != null) {
+            Text("+", color = t.text, fontSize = t.headText,
+                modifier = Modifier.align(Alignment.Center).background(t.mutedScrim, t.cornerSmall).padding(t.spaceS))
+            Surface(modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(t.spaceXS),
+                shape = t.cornerSmall, color = t.panel) {
+                Column(Modifier.padding(t.spaceS), verticalArrangement = Arrangement.spacedBy(t.spaceXS)) {
+                    Text(stringResource(R.string.a0b_map_pick_help), color = t.text)
+                    Row(horizontalArrangement = Arrangement.spacedBy(t.spaceXS)) {
+                        OutlinedButton(onClick = { mapPick = null }, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.a0b_c7_cancel))
+                        }
+                        Button(enabled = host?.readyMap != null && driveState.mode != app.evcockpit.ui.tesla.DriveMode.DRIVING,
+                            onClick = {
+                                val which = mapPick
+                                val point = host?.readyMap?.cameraPosition?.target
+                                if (which != null && point != null) {
+                                    val coordinate = runCatching { app.evcockpit.navigation.GeoPoint(point.latitude, point.longitude) }.getOrNull()
+                                    if (coordinate != null) {
+                                        val label = String.format(java.util.Locale.US, "%s %.5f, %.5f", mapPickLabel,
+                                            coordinate.latitude, coordinate.longitude)
+                                        select(which, PhotonPlace(label, coordinate), mapPickSource)
+                                        mapPick = null
+                                    }
+                                }
+                            }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.a0b_map_pick_confirm)) }
+                    }
+                }
+            }
+        } else if (navigating) {
             NavigationPanel(
                 progress, voiceEnabled, voiceStatus,
                 onVoice = live::toggleVoice,
