@@ -234,4 +234,9 @@
     <string name="a0b_search_hint">Şehir, mahalle, cadde veya yer adı</string>
     <string name="a0b_search_clear">Temizle</string>
     <string name="a0b_search_retry">Tekrar ara</string>
+    <string name="a0b_map_pick_action">Haritadan seç</string>
+    <string name="a0b_map_pick_source">Harita — manuel koordinat</string>
+    <string name="a0b_map_pick_label">Haritadan seçilen nokta</string>
+    <string name="a0b_map_pick_help">Haritayı kaydırarak artı işaretini istediğin konuma getir.</string>
+    <string name="a0b_map_pick_confirm">Konumu seç</string>
 </resources>
