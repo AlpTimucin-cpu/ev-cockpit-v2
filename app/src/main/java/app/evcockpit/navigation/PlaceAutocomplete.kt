@@ -191,6 +191,17 @@ class PlaceAutocompleteViewModel @JvmOverloads constructor(
     private fun isCurrent(field: PlaceField, revision: Long): Boolean =
         revision == if (field == PlaceField.ORIGIN) originRevision else destinationRevision
 
+    fun cancel(field: PlaceField) {
+        nextRevision(field)
+        if (field == PlaceField.ORIGIN) {
+            originJob?.cancel()
+            mutable.value = mutable.value.copy(searchingOrigin = false)
+        } else {
+            destinationJob?.cancel()
+            mutable.value = mutable.value.copy(searchingDestination = false)
+        }
+    }
+
     fun retry(field: PlaceField) = onTextChanged(field,
         if (field == PlaceField.ORIGIN) mutable.value.originText else mutable.value.destinationText)
 
