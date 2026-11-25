@@ -9,7 +9,7 @@ import java.util.Locale
 
 /** DEĞER + KAYNAK + ZAMAN. Null asla sıfır sayılmaz. */
 enum class DashboardOrigin {
-    NONE, SYSTEM, GPS, OPEN_METEO, OBD_VERIFIED, MANUAL, MODEL, DEMO,
+    NONE, SYSTEM, GPS, OPEN_METEO, OBD_VERIFIED, OBD_UNVERIFIED, MANUAL, MODEL, DEMO,
 }
 
 data class StampedValue<T>(
