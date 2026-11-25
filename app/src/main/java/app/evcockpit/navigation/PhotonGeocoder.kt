@@ -21,6 +21,7 @@ data class PhotonPlace(val label: String, val point: GeoPoint)
  */
 object PhotonPolicy {
     const val MIN_INTERVAL_MS = 10_000L
+    const val ACCEPT_LANGUAGE = "tr,en;q=0.7"
     fun canRequest(query: String, elapsedSinceLastMs: Long): Boolean =
         query.trim().length >= 3 && query.length <= 120 &&
             elapsedSinceLastMs >= MIN_INTERVAL_MS
@@ -85,7 +86,7 @@ class PhotonGeocoder(
         connection.connectTimeout = 6_000
         connection.readTimeout = 6_000
         connection.instanceFollowRedirects = false
-        connection.setRequestProperty("Accept-Language", "tr,en;q=0.7")
+        connection.setRequestProperty("Accept-Language", PhotonPolicy.ACCEPT_LANGUAGE)
         connection.setRequestProperty("User-Agent",
             "EV-Cockpit-v2-Personal/0.4 (https://github.com/AlpTimucin-cpu/ev-cockpit-v2)")
         try {
