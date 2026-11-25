@@ -67,10 +67,10 @@ fun UnifiedMapScreen(
         )
     }
     LaunchedEffect(host, host?.activeSlot, overlay) {
-        if (host?.activeSlot === slot) host.updateOverlays(overlay)
+        if (host != null && host.activeSlot === slot) host.updateOverlays(overlay)
     }
     DisposableEffect(host, slot) {
-        onDispose { if (host?.activeSlot === slot) host.updateOverlays(OverlayModel()) }
+        onDispose { if (host != null && host.activeSlot === slot) host.updateOverlays(OverlayModel()) }
     }
     BackHandler {
         field = null
@@ -87,7 +87,7 @@ fun UnifiedMapScreen(
         val topPx = with(density) { t.spaceM.toPx().toInt() }
         val bottomPx = (heightPx * t.sheetHalfFraction).toInt()
         LaunchedEffect(host?.readyMap, host?.activeSlot, overlay.selectedRoute, heightPx) {
-            if (host?.activeSlot === slot && overlay.selectedRoute.size >= 2 &&
+            if (host != null && host.activeSlot === slot && overlay.selectedRoute.size >= 2 &&
                 heightPx > topPx + bottomPx) {
                 runCatching { host.cameraController?.fitRoute(overlay.selectedRoute, topPx, bottomPx) }
             }
@@ -97,6 +97,13 @@ fun UnifiedMapScreen(
             unavailableMessage = stringResource(R.string.a0b_unified_map_no_data),
             requestedSlot = slot,
         )
+        if (state.detent == SheetDetent.PEEK) {
+            Button(onClick = { vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.FULL)) },
+                modifier = Modifier.align(Alignment.TopCenter)
+                    .padding(t.spaceM).heightIn(min = t.target)) {
+                Text(stringResource(R.string.a0b_unified_search_where))
+            }
+        }
         ThreeDetentSheet(
             detent = state.detent,
             onDetent = { vm.dispatch(UnifiedEvent.SetDetent(it)) },
