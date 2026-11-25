@@ -89,20 +89,7 @@ class UnifiedViewModel @Inject constructor(
                     GeoPoint(origin.latitude, origin.longitude),
                     GeoPoint(destination.latitude, destination.longitude), "",
                 ).mapIndexed { index, route ->
-                    RouteModel(
-                        id = "osrm-$generation-$index",
-                        geometry = route.geometry.map { WgsPoint(it.latitude, it.longitude) },
-                        distanceMeters = route.distanceMeters,
-                        durationSeconds = route.durationSeconds,
-                        source = route.provider,
-                        maneuvers = route.maneuvers.mapNotNull { step ->
-                            val point = route.geometry.getOrNull(step.geometryIndex) ?: return@mapNotNull null
-                            app.evcockpit.domain.nav.RouteManeuver(
-                                WgsPoint(point.latitude, point.longitude), "OSRM", null, null, 0.0,
-                                step.instructionTr, step.geometryIndex, step.type,
-                            )
-                        },
-                    )
+                    toDomain(route, generation, index)
                 }
                 if (generation == requestGeneration)
                     dispatch(UnifiedEvent.RoutesReady(routes))
@@ -111,6 +98,47 @@ class UnifiedViewModel @Inject constructor(
             } catch (_: Exception) {
                 if (generation == requestGeneration)
                     dispatch(UnifiedEvent.RoutesFailed(failure))
+            }
+        }
+    }
+
+    private fun toDomain(route: app.evcockpit.navigation.NavigationRoute, generation: Long, index: Int) =
+        RouteModel(
+            id = "route-$generation-$index",
+            geometry = route.geometry.map { WgsPoint(it.latitude, it.longitude) },
+            distanceMeters = route.distanceMeters,
+            durationSeconds = route.durationSeconds,
+            source = route.provider,
+            maneuvers = route.maneuvers.mapNotNull { step ->
+                val point = route.geometry.getOrNull(step.geometryIndex) ?: return@mapNotNull null
+                app.evcockpit.domain.nav.RouteManeuver(WgsPoint(point.latitude, point.longitude),
+                    route.provider, null, null, 0.0, step.instructionTr, step.geometryIndex, step.type)
+            },
+        )
+
+    fun calculateVia(stops: List<GeoPoint>, origin: Place, destination: Place, failure: UserMessage) {
+        if (!origin.valid || !destination.valid || stops.size > 48 || origin.latitude == destination.latitude &&
+            origin.longitude == destination.longitude) return
+        dispatch(UnifiedEvent.ChooseOrigin(origin))
+        dispatch(UnifiedEvent.ChooseDestination(destination))
+        val generation = ++requestGeneration
+        dispatch(UnifiedEvent.LoadRoutes)
+        routeJob = viewModelScope.launch {
+            try {
+                val key = app.evcockpit.navigation.EncryptedRouteKeyStore(context).read()
+                if (key.isNullOrBlank()) {
+                    if (generation == requestGeneration) dispatch(UnifiedEvent.RoutesFailed(
+                        UserMessage(context.getString(R.string.a0b_c8_ors_key))))
+                    return@launch
+                }
+                val waypoints = listOf(GeoPoint(origin.latitude, origin.longitude)) + stops +
+                    GeoPoint(destination.latitude, destination.longitude)
+                val route = app.evcockpit.navigation.OrsRouteProvider().calculateVia(waypoints, key)
+                if (generation == requestGeneration) dispatch(UnifiedEvent.RoutesReady(
+                    listOf(toDomain(route, generation, 0))))
+            } catch (c: CancellationException) { throw c }
+            catch (_: Exception) {
+                if (generation == requestGeneration) dispatch(UnifiedEvent.RoutesFailed(failure))
             }
         }
     }
