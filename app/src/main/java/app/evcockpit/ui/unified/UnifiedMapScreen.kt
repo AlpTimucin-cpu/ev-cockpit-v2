@@ -16,7 +16,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -131,6 +130,20 @@ fun UnifiedMapScreen(
             UnifiedEvent.ChooseOrigin(place) else UnifiedEvent.ChooseDestination(place))
         field = null
         vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.HALF))
+    }
+    field?.let { currentField ->
+        val origin = currentField == PlaceField.ORIGIN
+        AddressSearchDialog(
+            title = stringResource(if (origin) R.string.a0b_c4_origin else R.string.a0b_c4_destination),
+            query = if (origin) search.originText else search.destinationText,
+            options = if (origin) search.originResults else search.destinationResults,
+            status = if (origin) search.originStatus else search.destinationStatus,
+            loading = if (origin) search.searchingOrigin else search.searchingDestination,
+            onQuery = { autocomplete.onTextChanged(currentField, it) },
+            onRetry = { autocomplete.retry(currentField) },
+            onChoose = { select(currentField, it) },
+            onDismiss = { field = null },
+        )
     }
     val overlay = remember(state.origin, state.destination, state.routes, state.selectedRouteIndex, c5Data, routeId, progress.vehicle, navigating) {
         val base = C5Projection.overlay(C4RouteOverlays.from(state), c5Data, routeId)
@@ -280,40 +293,19 @@ fun UnifiedMapScreen(
                 for (currentField in listOf(PlaceField.ORIGIN, PlaceField.DESTINATION)) {
                     val origin = currentField == PlaceField.ORIGIN
                     val selected = if (origin) state.origin else state.destination
-                    val query = if (origin) search.originText else search.destinationText
-                    val options = if (origin) search.originResults else search.destinationResults
-                    val status = if (origin) search.originStatus else search.destinationStatus
-                    val loading = if (origin) search.searchingOrigin else search.searchingDestination
-                    OutlinedTextField(
-                        value = selected?.name ?: query,
-                        onValueChange = { value ->
-                            if (selected != null) vm.dispatch(if (origin)
-                                UnifiedEvent.ChooseOrigin(null) else UnifiedEvent.ChooseDestination(null))
-                            field = currentField
-                            vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.FULL))
-                            autocomplete.onTextChanged(currentField, value)
-                        },
-                        label = { Text(stringResource(if (origin) R.string.a0b_c4_origin else R.string.a0b_c4_destination)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = t.target)
-                            .onFocusChanged {
-                                if (it.isFocused) {
-                                    field = currentField
-                                    vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.FULL))
-                                }
-                            },
-                    )
-                    if (field == currentField && selected == null) {
-                        Text(status, color = t.secondary, fontSize = t.labelText)
-                        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                        options.forEach { option ->
-                            OutlinedButton(onClick = { select(currentField, option) },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = t.target)) {
-                                Text(option.label)
-                            }
+                    val label = stringResource(if (origin) R.string.a0b_c4_origin else R.string.a0b_c4_destination)
+                    OutlinedButton(onClick = {
+                        focus.clearFocus()
+                        autocomplete.onTextChanged(currentField, "")
+                        field = currentField
+                    }, modifier = Modifier.fillMaxWidth().heightIn(min = t.target)) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Text(label, color = t.secondary, fontSize = t.labelText)
+                            Text(selected?.name ?: stringResource(R.string.a0b_search_pick), color = t.text,
+                                maxLines = 2)
                         }
                     }
-                    if (origin) {
+                }
                         if (!gps.active) OutlinedButton(onClick = {
                             gpsPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
                                 Manifest.permission.ACCESS_COARSE_LOCATION))
@@ -335,8 +327,6 @@ fun UnifiedMapScreen(
                         }, modifier = Modifier.fillMaxWidth().heightIn(min = t.target)) {
                             Text(stringResource(R.string.a0b_c4_gps))
                         }
-                    }
-                }
                 C7LibraryPanel(state, library,
                     onChoose = { which, item ->
                         focus.clearFocus()
