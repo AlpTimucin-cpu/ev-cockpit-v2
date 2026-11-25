@@ -49,7 +49,9 @@ class OsrmRouteProviderTest {
         assertEquals("Yola devam edin", OsrmResponseParser.instruction("continue", "", ""))
         assertEquals("sola yönüne devam edin", OsrmResponseParser.instruction("turn", "left", ""))
         val query = PhotonPolicy.requestUrl("Niğde otogar", GeoPoint(38.1, 34.7))
-        assertTrue(query.contains("lang=tr"))
+        // Explicit unsupported lang can cause a 400; use the documented Accept-Language header.
+        assertFalse(query.contains("lang="))
+        assertTrue(PhotonPolicy.ACCEPT_LANGUAGE.startsWith("tr"))
         assertTrue(query.contains("lat=38.10000"))
         assertTrue(query.contains("lon=34.70000"))
         assertTrue(query.contains("zoom=6"))

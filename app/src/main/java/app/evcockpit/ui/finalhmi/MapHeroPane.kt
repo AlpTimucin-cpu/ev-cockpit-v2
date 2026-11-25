@@ -34,6 +34,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.evcockpit.ui.MapLayer
+import app.evcockpit.ui.unified.map.LocalSharedMapHost
+import app.evcockpit.ui.unified.map.MapHostLoadState
+import app.evcockpit.ui.unified.map.MapHostViewport
 import kotlinx.coroutines.delay
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -52,143 +55,13 @@ fun MapHeroPane(
     onOpenRouteTab: () -> Unit = {},
 ) {
     val t = CockpitDesignTokens
-    val context = LocalContext.current
     val inspection = LocalInspectionMode.current
-    val owner = LocalLifecycleOwner.current
-    var layer by remember { mutableStateOf(MapLayer.DARK) }
+    val host = LocalSharedMapHost.current
     var layerMenu by remember { mutableStateOf(false) }
-    var loadState by remember { mutableStateOf(MapLoadState.LOADING) }
-    var issue by remember { mutableStateOf<String?>(null) }
-    var fallbackUsed by remember { mutableStateOf(false) }
-    var requestVersion by remember { mutableIntStateOf(0) }
-    var map by remember { mutableStateOf<MapLibreMap?>(null) }
-
-    // Harita görüntüsü F1'de gerçek bir ağ kaynağı kullanır.
-    // Yüklenmezse siyah ekranı başarı sanmayız; açıklama ve yeniden deneme sunarız.
-    val mapView = remember(context, inspection) {
-        if (inspection) null else {
-            MapLibre.getInstance(context)
-            // Compose içinde varsayılan GLSurfaceView siyah kalabilmektedir.
-            // TextureView, Compose katmanlarıyla aynı kompozisyon yüzeyinde çizilir.
-            MapView(context, MapLibreMapOptions.createFromAttributes(context)
-                .textureMode(true)).apply {
-                onCreate(null)
-                addOnDidFailLoadingMapListener(
-                    MapView.OnDidFailLoadingMapListener { _ ->
-                        f1MapLog("Yükleme hatası: katman=${layer.id}, " +
-                            "durum=$loadState, yedek=$fallbackUsed")
-                        if (loadState == MapLoadState.READY) {
-                            // Stil zaten başarılıyken geçici karo hatası,
-                            // DARK stilini sebepsiz yere LIBERTY'ye çevirmemeli.
-                            f1MapLog("Stil hazır; geçici karo hatasında yedek geçiş yok.")
-                        } else if (!fallbackUsed && layer == MapLayer.DARK) {
-                            fallbackUsed = true
-                            issue = "Koyu harita yüklenemedi; Sokak katmanı denendi."
-                            f1MapLog("DARK → LIBERTY yedek geçişi")
-                            layer = MapLayer.LIBERTY
-                        } else {
-                            loadState = MapLoadState.ERROR
-                            issue = "Harita veya karolar yüklenemedi. İnterneti denetle ya da tekrar dene."
-                        }
-                    },
-                )
-                getMapAsync { ready ->
-                    // Logo ve bilgi atfı haritanın iki ayrı alt köşesinde görünür kalır.
-                    // MapLibre kenar boşluğu PIXEL ister, dp'yi yalnız burada çeviririz.
-                    val marginPx = (t.mapAttributionSafeInset.value *
-                        context.resources.displayMetrics.density).roundToInt()
-                    ready.uiSettings.apply {
-                        setLogoGravity(Gravity.BOTTOM or Gravity.START)
-                        setAttributionGravity(Gravity.BOTTOM or Gravity.END)
-                        setLogoMargins(marginPx, 0, 0, marginPx)
-                        setAttributionMargins(0, 0, marginPx, marginPx)
-                    }
-                    map = ready
-                    // Başlangıç Türkiye'ye genel bakış; kullanıcının GPS konumu DEĞİL.
-                    ready.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                        LatLng(39.0, 35.0), 5.2,
-                    ))
-                }
-            }
-        }
-    }
-
-    DisposableEffect(owner, mapView) {
-        if (mapView == null) return@DisposableEffect onDispose { }
-        var started = false
-        var resumed = false
-        val listener = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> if (!started) {
-                    mapView.onStart()
-                    started = true
-                }
-                Lifecycle.Event.ON_RESUME -> if (!resumed) {
-                    mapView.onResume()
-                    resumed = true
-                }
-                Lifecycle.Event.ON_PAUSE -> if (resumed) {
-                    mapView.onPause()
-                    resumed = false
-                }
-                Lifecycle.Event.ON_STOP -> if (started) {
-                    mapView.onStop()
-                    started = false
-                }
-                else -> Unit
-            }
-        }
-        owner.lifecycle.addObserver(listener)
-        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            mapView.onStart(); started = true
-        }
-        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            mapView.onResume(); resumed = true
-        }
-        onDispose {
-            owner.lifecycle.removeObserver(listener)
-            if (resumed) mapView.onPause()
-            if (started) mapView.onStop()
-            mapView.onDestroy()
-            map = null
-        }
-    }
-
-    // Stil yükleme ASENKRON; callback gelmeden başarılı/boş harita demeyiz.
-    // Aynı stili getMapAsync + LaunchedEffect içinden iki kez yüklemekten kaçınılır.
-    LaunchedEffect(map, layer, requestVersion) {
-        val active = map ?: return@LaunchedEffect
-        // Lambda, değişken Compose state'ini geç çağrıldığı anda okumamalı.
-        val requestedLayer = layer
-        val requestedVersion = requestVersion
-        if (requestedLayer.styleUrl.isBlank()) return@LaunchedEffect
-        f1MapLog("Stil isteği: katman=${requestedLayer.id}, " +
-            "sürüm=$requestedVersion, yedek=$fallbackUsed")
-        loadState = MapLoadState.LOADING
-        if (!fallbackUsed) issue = null
-        active.setStyle(requestedLayer.styleUrl) { style ->
-            if (requestedLayer != layer || requestedVersion != requestVersion) {
-                f1MapLog("Eski stil callback yok sayıldı: ${requestedLayer.id}, " +
-                    "aktif=${layer.id}, sürüm=$requestedVersion/$requestVersion")
-            } else {
-                val changed = if (requestedLayer == MapLayer.DARK)
-                    applyDarkRoadContrast(style) else emptyList()
-                f1MapLog("Stil hazır: ${requestedLayer.id}, " +
-                    "yedek=$fallbackUsed, kontrast=${changed.joinToString()}")
-                loadState = MapLoadState.READY
-                // DARK → LIBERTY otomatik yedek uyarısı korunur.
-                if (!fallbackUsed) issue = null
-            }
-        }
-        delay(15_000L)
-        // Önceki isteğin timer'ı yeni isteğe hata yazmasın.
-        if (layer == requestedLayer && requestVersion == requestedVersion &&
-            loadState == MapLoadState.LOADING) {
-            f1MapLog("Stil zaman aşımı: ${requestedLayer.id}")
-            loadState = MapLoadState.ERROR
-            issue = "Harita 15 saniye içinde açılamadı. Yeniden dene."
-        }
-    }
+    val layer = host?.layer ?: MapLayer.DARK
+    val map = host?.map
+    val loadState = host?.loadState ?: MapHostLoadState.LOADING
+    val issue = host?.issue
 
     Surface(
         modifier = modifier,
@@ -220,19 +93,10 @@ fun MapHeroPane(
             BoxWithConstraints(
                 Modifier.fillMaxWidth().weight(1f).background(t.mapFallback),
             ) {
-                if (mapView != null) {
-                    AndroidView(
-                        factory = { mapView },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            "MapLibre önizleme\nGerçek rota yüklenmedi",
-                            color = t.secondary, fontSize = t.bodyText,
-                        )
-                    }
-                }
+                MapHostViewport(
+                    modifier = Modifier.fillMaxSize(),
+                    unavailableMessage = "Harita gösterilemiyor • yalnız gerçek harita verisi",
+                )
 
                 // Kısa harita: 48dp × 3 düğme, tek satır ve SAĞ üst köşe.
                 // F3 konum eylemi devre dışı olduğundan kısa moddan çıkarılır.
@@ -255,10 +119,7 @@ fun MapHeroPane(
                             layerMenu = layerMenu,
                             onMenuChange = { layerMenu = it },
                             onChoose = { candidate ->
-                                fallbackUsed = false
-                                issue = null
-                                layer = candidate
-                                requestVersion++
+                                host?.selectLayer(candidate)
                             },
                         )
                     }
@@ -281,16 +142,13 @@ fun MapHeroPane(
                             layerMenu = layerMenu,
                             onMenuChange = { layerMenu = it },
                             onChoose = { candidate ->
-                                fallbackUsed = false
-                                issue = null
-                                layer = candidate
-                                requestVersion++
+                                host?.selectLayer(candidate)
                             },
                         )
                     }
                 }
 
-                if (!inspection && loadState != MapLoadState.READY) {
+                if (!inspection && loadState != MapHostLoadState.READY) {
                     Surface(
                         color = t.mutedScrim,
                         shape = t.cornerSmall,
@@ -302,16 +160,14 @@ fun MapHeroPane(
                             verticalArrangement = Arrangement.spacedBy(t.spaceXXS),
                         ) {
                             Text(
-                                if (loadState == MapLoadState.LOADING)
+                                if (loadState == MapHostLoadState.LOADING)
                                     "Harita yükleniyor…" else "Harita gösterilemiyor",
                                 color = t.text, fontSize = t.bodyText,
                             )
-                            if (loadState == MapLoadState.ERROR) {
+                            if (loadState == MapHostLoadState.ERROR) {
                                 OutlinedButton(
                                     onClick = {
-                                        issue = null
-                                        fallbackUsed = false
-                                        requestVersion++
+                                        host?.retry()
                                     },
                                     modifier = Modifier.heightIn(min = t.target),
                                 ) { Text("Yeniden dene", fontSize = t.bodyText) }

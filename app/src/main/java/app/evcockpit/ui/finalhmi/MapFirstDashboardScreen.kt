@@ -11,6 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.res.stringResource
+import app.evcockpit.R
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -53,6 +56,10 @@ fun MapFirstDashboardScreen(
     onDemoChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     demoAvailable: Boolean = false,
+    mapContent: @Composable (Modifier) -> Unit = { modifier -> MapHeroPane(state, modifier) },
+    onRouteRequested: () -> Unit = {},
+    externalOpenRequest: Pair<Long, Int>? = null,
+    onExternalOpenConsumed: (Pair<Long, Int>) -> Unit = {},
     tabContent: @Composable (FinalDashboardTab, () -> Unit, (FinalDashboardTab) -> Unit) -> Unit = { tab, _, _ ->
         A0UnconnectedTab(tab)
     },
@@ -68,11 +75,27 @@ fun MapFirstDashboardScreen(
     } ?: if (backEntry?.destination?.route == A0_DIAGNOSTIC_ROUTE)
         FinalDashboardTab.AYARLAR else FinalDashboardTab.HARITA
     val navigateTab: (FinalDashboardTab) -> Unit = { destination ->
-        controller.navigate(destination.name) {
+        val target = if (destination == FinalDashboardTab.ROTA) {
+            onRouteRequested()
+            FinalDashboardTab.HARITA
+        } else destination
+        controller.navigate(target.name) {
             popUpTo(controller.graph.findStartDestination().id) { saveState = true }
             launchSingleTop = true
             restoreState = true
         }
+    }
+    LaunchedEffect(externalOpenRequest, backEntry != null) {
+        val request = externalOpenRequest ?: return@LaunchedEffect
+        if (backEntry == null) return@LaunchedEffect
+        when (request.second) {
+            0 -> navigateTab(FinalDashboardTab.HARITA)
+            1 -> controller.navigate(A0_DIAGNOSTIC_ROUTE) { launchSingleTop = true }
+            2 -> navigateTab(FinalDashboardTab.ROTA)
+            3 -> navigateTab(FinalDashboardTab.SARJ)
+            5 -> navigateTab(FinalDashboardTab.AYARLAR)
+        }
+        onExternalOpenConsumed(request)
     }
     Column(modifier.fillMaxSize().background(t.background)) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -117,11 +140,7 @@ fun MapFirstDashboardScreen(
                             Modifier.fillMaxSize(),
                             horizontalArrangement = Arrangement.spacedBy(t.spaceS),
                         ) {
-                            MapHeroPane(
-                                state = state,
-                                onOpenRouteTab = { navigateTab(FinalDashboardTab.ROTA) },
-                                modifier = Modifier.weight(t.mapWeight).fillMaxHeight(),
-                            )
+                            mapContent(Modifier.weight(t.mapWeight).fillMaxHeight())
                             Column(
                                 Modifier.weight(t.dataWeight).fillMaxHeight()
                                     .verticalScroll(rememberScrollState()),
@@ -131,16 +150,9 @@ fun MapFirstDashboardScreen(
                             }
                         }
                     } else {
-                        Column(
-                            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(t.spaceS),
-                        ) {
-                            MapHeroPane(
-                                state = state,
-                                onOpenRouteTab = { navigateTab(FinalDashboardTab.ROTA) },
-                                modifier = Modifier.fillMaxWidth().height(t.phoneMapHeight),
-                            )
-                            DashboardRightPane(state)
+                        Column(Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(t.spaceXS)) {
+                            mapContent(Modifier.weight(1f).fillMaxWidth())
                         }
                     }
                 }
@@ -184,9 +196,7 @@ private fun DashboardRightPane(state: DashboardUiState) {
     val t = CockpitDesignTokens
     TripMetricsPane(state, modifier = Modifier.fillMaxWidth())
     Spacer(Modifier.height(t.spaceXXS))
-    RouteWeatherStrip(state)
-    Spacer(Modifier.height(t.spaceXXS))
-    ChargePlanCard(state)
+    // C8: route weather and charging belong to the selected route's unified sheet.
 }
 
 @Composable
@@ -202,13 +212,16 @@ private fun DashboardTopStatus(
         ?.let { DashboardFormat.whole(it) + " °C" } ?: "— °C"
     val battery = DashboardFormat.number(state.socPercent, " %")
     val range = DashboardFormat.number(state.estimatedRangeKm, " km")
+    val batteryTitle = when (state.socPercent.source) {
+        DashboardOrigin.OBD_UNVERIFIED -> androidx.compose.ui.res.stringResource(app.evcockpit.R.string.a0b_c8_soc_obd)
+        DashboardOrigin.MANUAL -> "Batarya (manuel)"
+        DashboardOrigin.MODEL, DashboardOrigin.DEMO -> "Batarya (tahmini)"
+        else -> "Batarya"
+    }
     val header = @Composable {
         StatusLabel("Saat", time)
         StatusLabel("Dış sıcaklık", temperature)
-        StatusLabel(if (state.socPercent.source == DashboardOrigin.MANUAL)
-            "Batarya (manuel)" else if (state.socPercent.source in setOf(
-                DashboardOrigin.MODEL, DashboardOrigin.DEMO))
-            "Batarya (tahmini)" else "Batarya", battery)
+        StatusLabel(batteryTitle, battery)
         StatusLabel("Menzil (tahmini)", range)
     }
     Surface(color = t.panel, shape = t.cornerSmall) {
@@ -225,7 +238,7 @@ private fun DashboardTopStatus(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    StatusLabel("Batarya", battery)
+                    StatusLabel(batteryTitle, battery)
                     StatusLabel("Menzil (tahmini)", range)
                 }
                 if (demoAvailable) DemoModeButton(state.demo, onDemoChange)

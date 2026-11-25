@@ -58,6 +58,51 @@ object CockpitDesignTokens {
     val mapSummaryHeight = 116.dp
     val mapControlsVerticalMinHeight = 280.dp
     // Kısa haritada sağ üstte üç düğme; 48dp asgari erişilebilir dokunma hedefi.
+    // A0b/C2: harita GeoJSON katman ve çizim değerleri tek kaynaktan.
+    val routeAltColor = Color(0xFF8292A8)
+    val routeCasingColor = Color(0xFF102033)
+    val stationAcColor = Color(0xFF4FA0EF)
+    val stationDc50Color = Color(0xFF20BFA4)
+    val stationDc100Color = Color(0xFFAA76E6)
+    val stationDc150Color = Color(0xFFDA83D9)
+    val vehicleAccuracyFill = Color(0x331677FF)
+    val startPinColor = Color(0xFF25CF8F)
+    val finishPinColor = Color(0xFFFFB364)
+    val weatherIconColor = caution
+    val routeSelectedWidth = 6.dp
+    val routeCasingWidth = 9.dp
+    val routeAlternativeWidth = 5.dp
+    val stationMarkerSize = 42.dp
+    val vehicleMarkerSize = 34.dp
+    val endpointMarkerSize = 36.dp
+    val weatherMarkerSize = 30.dp
+    val mapLabelSize = 12.sp
+    val mapMarkerSelectedScale = 1.3f
+    const val maxAlternativeOverlayRoutes = 3
+    const val accuracyCircleVertices = 64
+    const val maxOverlayStations = 250
+    const val maxOverlayWeatherAlerts = 120
+    const val overlayMaxSampledRoutePoints = 2500
+    const val overlaySimplificationToleranceMeters = 12.0
+    const val overlayCarHeadingFreezeMetersPerSecond = 1.5
+    const val overlayMaxPositionHz = 2.0
+    const val cameraAnimationMs = 300
+    // C3: üç duraklı ekran; Android dp alanı çalışma anında ölçülür.
+    val sheetPeekHeight = 120.dp
+    const val sheetHalfFraction = 0.45f
+    val sheetCorner = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    val sheetHandleWidth = 42.dp
+    val sheetHandleHeight = 5.dp
+    val sheetHandleTouchHeight = 48.dp
+    val sheetHandleColor = outline
+    val sheetAnchorMinGap = 24.dp
+    val sheetVelocityThreshold = 125.dp
+    const val sheetPositionalThresholdFraction = 0.5f
+    val sheetContentPadding = 16.dp
+    val searchBarHeight = 56.dp
+    val searchBarCorner = RoundedCornerShape(18.dp)
+    val sheetDefaultFullTopInset = 8.dp
+    val panelCardSpacing = 9.dp
     val mapControlTouchTarget = 48.dp
     val mapControlVisualRadius = RoundedCornerShape(10.dp)
     val mapControlSpacing = 4.dp

@@ -30,6 +30,8 @@
         android:name=".CockpitApplication"
         android:allowBackup="false"
         android:label="ID.4 Yol Arkadaşı"
+        android:icon="@mipmap/ic_ev_cockpit"
+        android:roundIcon="@mipmap/ic_ev_cockpit"
         android:theme="@android:style/Theme.Material.NoActionBar">
         <activity
             android:name=".MainActivity"

@@ -25,7 +25,13 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
             border = androidx.compose.foundation.BorderStroke(t.cardOutlineWidth, t.outline)) {
             Column(Modifier.fillMaxWidth().padding(t.spaceM),
                 verticalArrangement = Arrangement.spacedBy(t.spaceXXS)) {
-                Text(if (state.demo) "HIZ • DEMO" else "HIZ • GPS",
+                Text(when {
+                    state.demo -> "HIZ • DEMO"
+                    state.speedKmh.source == DashboardOrigin.OBD_UNVERIFIED ->
+                        androidx.compose.ui.res.stringResource(app.evcockpit.R.string.a0b_c8_speed_obd)
+                    state.speedKmh.source == DashboardOrigin.GPS -> "HIZ • GPS"
+                    else -> androidx.compose.ui.res.stringResource(app.evcockpit.R.string.a0b_c8_speed_unknown)
+                },
                     color = t.secondary, fontSize = t.labelText)
                 Text(DashboardFormat.number(state.speedKmh, " km/sa"),
                     color = t.text, fontSize = t.speedText,
@@ -43,6 +49,7 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
                 ) {
                     InfoMetric("Batarya" + when (state.socPercent.source) {
                         DashboardOrigin.MANUAL -> " (manuel)"
+                        DashboardOrigin.OBD_UNVERIFIED -> androidx.compose.ui.res.stringResource(app.evcockpit.R.string.a0b_c8_pid_suffix)
                         DashboardOrigin.MODEL -> " (tahmini)"
                         DashboardOrigin.DEMO -> " (DEMO)"
                         else -> ""
@@ -90,7 +97,8 @@ fun TripMetricsPane(state: DashboardUiState, modifier: Modifier = Modifier) {
                             ?.let { DashboardFormat.oneDecimal(it) + " kWh/100 km" }
                             ?: "— kWh/100 km", Modifier.weight(1f).fillMaxHeight())
                     val power = state.powerKw.value?.takeIf { it.isFinite() }
-                    InfoMetric("Anlık güç",
+                    InfoMetric(if (state.powerKw.source == DashboardOrigin.OBD_UNVERIFIED)
+                        androidx.compose.ui.res.stringResource(app.evcockpit.R.string.a0b_c8_power_obd) else "Anlık güç",
                         power?.let { DashboardFormat.oneDecimal(it) + " kW" } ?: "— kW",
                         Modifier.weight(1f).fillMaxHeight(),
                         valueColor = when {

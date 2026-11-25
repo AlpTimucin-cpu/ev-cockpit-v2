@@ -10,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -29,12 +30,17 @@ enum class PlaceField { ORIGIN, DESTINATION }
 object AutocompletePolicy {
     const val MIN_LENGTH = 3
     const val MAX_LENGTH = 120
-    const val DEBOUNCE_MS = 250L
+    const val DEBOUNCE_MS = 600L
     const val CITY_REQUEST_GAP_MS = 2_500L
     const val CACHE_MAX = 16
 
     fun eligible(value: String): Boolean =
         value.trim().length in MIN_LENGTH..MAX_LENGTH
+
+    fun isLocalityQuery(value: String): Boolean =
+        value.none { it.isDigit() } && value.trim().split(Regex("\\s+")).size <= 2 &&
+            !Regex("(?i)(cadde|caddesi|sokak|sokağı|bulvar|mahalle|mah\\.|cad\\.|sk\\.)")
+                .containsMatchIn(value)
 
     fun normalized(value: String): String = value.trim().lowercase(
         java.util.Locale.forLanguageTag("tr-TR")
@@ -56,9 +62,7 @@ class OpenMeteoCityGeocoder {
         try {
             if (conn.responseCode != HttpURLConnection.HTTP_OK) return@withContext emptyList()
             val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
-                val buffer = CharArray(96_000)
-                val count = reader.read(buffer)
-                if (count < 1) "" else String(buffer, 0, count)
+                app.evcockpit.planner.data.BoundedResponseReader.read(reader, 96_000)
             }
             OpenMeteoCityParser.parse(raw)
         } finally {
@@ -99,36 +103,39 @@ interface PlaceSuggestionSource {
 class PublicPlaceSuggestionSource(
     private val cities: OpenMeteoCityGeocoder = OpenMeteoCityGeocoder(),
     private val photon: PhotonGeocoder = PhotonGeocoder(),
+    private val mapTilerKey: suspend () -> String? = { null },
+    private val mapTiler: MapTilerAddressGeocoder = MapTilerAddressGeocoder(),
 ) : PlaceSuggestionSource {
     private val mutex = Mutex()
     private val cache = LinkedHashMap<String, List<PhotonPlace>>()
     private var lastCityAtMs = -AutocompletePolicy.CITY_REQUEST_GAP_MS
-    private var lastPhotonAtMs = -PhotonPolicy.MIN_INTERVAL_MS
 
     override suspend fun suggest(query: String): List<PhotonPlace> {
         if (!AutocompletePolicy.eligible(query)) return emptyList()
         val key = AutocompletePolicy.normalized(query)
         return mutex.withLock {
             cache[key]?.let { return@withLock it }
-            val now = SystemClock.elapsedRealtime()
-            val wait = (AutocompletePolicy.CITY_REQUEST_GAP_MS -
-                (now - lastCityAtMs)).coerceAtLeast(0)
-            if (wait > 0) delay(wait)
-            lastCityAtMs = SystemClock.elapsedRealtime()
-
-            // Photon is a public fair-use demo. Keep its original 10-second budget,
-            // while city suggestions remain available at a slower, bounded cadence.
-            val address = if (lastCityAtMs - lastPhotonAtMs >= PhotonPolicy.MIN_INTERVAL_MS) {
-                lastPhotonAtMs = lastCityAtMs
-                safeFetch { photon.search(query) }
+            // Always submit the latest debounced address query. Photon itself waits
+            // for its fair-use interval. Cancellation while waiting sends no request.
+            val keyValue = try { mapTilerKey() } catch (c: CancellationException) { throw c } catch (_: Exception) { null }
+            val primary = keyValue?.let { safeFetch { mapTiler.search(query, it) } }.orEmpty()
+            val address = primary.ifEmpty { safeFetch { photon.search(query) } }
+            // Do not replace a street/house-number query with an unrelated city centre.
+            val places = if (address.isEmpty() && AutocompletePolicy.isLocalityQuery(query)) {
+                val now = SystemClock.elapsedRealtime()
+                val wait = (AutocompletePolicy.CITY_REQUEST_GAP_MS -
+                    (now - lastCityAtMs)).coerceAtLeast(0)
+                if (wait > 0) delay(wait)
+                lastCityAtMs = SystemClock.elapsedRealtime()
+                safeFetch { cities.search(query) }
             } else emptyList()
-            val places = safeFetch { cities.search(query) }
             val combined = (address + places).distinctBy {
                 it.label + "|" + it.point.latitude + "|" + it.point.longitude
             }.take(10)
-            cache[key] = combined
-            if (cache.size > AutocompletePolicy.CACHE_MAX) {
-                cache.remove(cache.keys.first())
+            // An empty response can mean quota, timeout or temporary outage.
+            if (combined.isNotEmpty()) {
+                cache[key] = combined
+                if (cache.size > AutocompletePolicy.CACHE_MAX) cache.remove(cache.keys.first())
             }
             combined
         }
@@ -157,6 +164,7 @@ data class PlaceSuggestionState(
 class PlaceAutocompleteViewModel @JvmOverloads constructor(
     application: Application,
     private val source: PlaceSuggestionSource = PublicPlaceSuggestionSource(
+        mapTilerKey = { app.evcockpit.ui.MapTilerKeyStore(application).key.first() },
         photon = PhotonGeocoder {
             val gps = (application as? CockpitApplication)?.locationRepository?.state?.value
             gps?.point?.takeIf {
@@ -177,8 +185,28 @@ class PlaceAutocompleteViewModel @JvmOverloads constructor(
     val state = mutable.asStateFlow()
     private var originJob: Job? = null
     private var destinationJob: Job? = null
+    private var originRevision = 0L
+    private var destinationRevision = 0L
+    private fun nextRevision(field: PlaceField): Long = if (field == PlaceField.ORIGIN) ++originRevision else ++destinationRevision
+    private fun isCurrent(field: PlaceField, revision: Long): Boolean =
+        revision == if (field == PlaceField.ORIGIN) originRevision else destinationRevision
+
+    fun cancel(field: PlaceField) {
+        nextRevision(field)
+        if (field == PlaceField.ORIGIN) {
+            originJob?.cancel()
+            mutable.value = mutable.value.copy(searchingOrigin = false)
+        } else {
+            destinationJob?.cancel()
+            mutable.value = mutable.value.copy(searchingDestination = false)
+        }
+    }
+
+    fun retry(field: PlaceField) = onTextChanged(field,
+        if (field == PlaceField.ORIGIN) mutable.value.originText else mutable.value.destinationText)
 
     fun onTextChanged(field: PlaceField, raw: String) {
+        val revision = nextRevision(field)
         val text = raw.take(AutocompletePolicy.MAX_LENGTH)
         val local = offline.suggest(text)
         val onlineEligible = AutocompletePolicy.eligible(text)
@@ -207,9 +235,11 @@ class PlaceAutocompleteViewModel @JvmOverloads constructor(
         if (!onlineEligible) return
         val job = viewModelScope.launch {
             delay(AutocompletePolicy.DEBOUNCE_MS)
+            if (!isCurrent(field, revision)) return@launch
             markLoading(field)
             try {
                 val online = source.suggest(text)
+                if (!isCurrent(field, revision)) return@launch
                 val combined = (online + local).distinctBy {
                     it.label + "|" + it.point.latitude + "|" + it.point.longitude
                 }.take(10)
@@ -221,6 +251,7 @@ class PlaceAutocompleteViewModel @JvmOverloads constructor(
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (_: Exception) {
+                if (!isCurrent(field, revision)) return@launch
                 setResults(field, local, if (local.isNotEmpty())
                     "İl/ilçe önerileri kullanılabilir • tam adres çevrim dışı."
                 else "Adres önerileri alınamadı. İnternet bağlantısını kontrol et.")
@@ -230,6 +261,7 @@ class PlaceAutocompleteViewModel @JvmOverloads constructor(
     }
 
     fun selected(field: PlaceField, place: PhotonPlace) {
+        nextRevision(field)
         if (field == PlaceField.ORIGIN) {
             originJob?.cancel()
             mutable.value = mutable.value.copy(
@@ -247,6 +279,7 @@ class PlaceAutocompleteViewModel @JvmOverloads constructor(
     }
 
     fun useGpsOrigin() {
+        nextRevision(PlaceField.ORIGIN)
         originJob?.cancel()
         mutable.value = mutable.value.copy(
             originText = "", originResults = emptyList(), searchingOrigin = false,
