@@ -27,6 +27,8 @@ import app.evcockpit.ui.finalhmi.CockpitDesignTokens
 import app.evcockpit.ui.unified.*
 import app.evcockpit.weather.RouteHourlyForecastPolicy
 
+private const val STATION_PAGE_SIZE = 20
+
 @Composable
 fun C5RoutePanel(route: RouteModel, data: C5Data, refresh: () -> Unit) {
     val t = CockpitDesignTokens
@@ -75,7 +77,8 @@ fun C5RoutePanel(route: RouteModel, data: C5Data, refresh: () -> Unit) {
     currentData.stationMessage?.let { Text(it, color = t.secondary) }
     if (!currentData.complete) Text(stringResource(R.string.a0b_c5_partial), color = t.caution)
     Text(stringResource(R.string.a0b_c5_occupancy), color = t.secondary)
-    currentData.stations.forEach { station ->
+    var visibleCount by remember(route.id, currentData.stations) { mutableIntStateOf(STATION_PAGE_SIZE) }
+    currentData.stations.take(visibleCount).forEach { station ->
         var expanded by remember(station.id) { mutableStateOf(false) }
         OutlinedButton(onClick = { expanded = !expanded },
             modifier = Modifier.fillMaxWidth().heightIn(min = t.target)) {
@@ -92,6 +95,13 @@ fun C5RoutePanel(route: RouteModel, data: C5Data, refresh: () -> Unit) {
                 amount, price.source, price.updatedAt ?: unknown)
                 else stringResource(R.string.a0b_c5_price_unknown))
             if (amount != null && price.stale) Text(stringResource(R.string.a0b_c5_stale), color = t.caution)
+        }
+    }
+    if (visibleCount < currentData.stations.size) {
+        OutlinedButton(onClick = { visibleCount += STATION_PAGE_SIZE },
+            modifier = Modifier.fillMaxWidth().heightIn(min = t.target)) {
+            Text(stringResource(R.string.a0b_c5_more_stations,
+                visibleCount, currentData.stations.size))
         }
     }
     Text(stringResource(R.string.a0b_c5_weather), color = t.text, fontSize = t.titleText)
