@@ -40,6 +40,7 @@ fun UnifiedMapScreen(
 ) {
     val t = CockpitDesignTokens
     val state by vm.state.collectAsStateWithLifecycle()
+    val library: C7LibraryViewModel = viewModel()
     val live: C6NavigationViewModel = viewModel()
     val progress by live.state.collectAsStateWithLifecycle()
     val voiceEnabled by live.voiceEnabled.collectAsStateWithLifecycle()
@@ -92,6 +93,8 @@ fun UnifiedMapScreen(
     val gpsLabel = stringResource(R.string.a0b_c4_gps_origin)
     val addressSource = stringResource(R.string.a0b_c4_geocoder_source)
     val startGpsMessage = UserMessage(stringResource(R.string.a0b_c6_gps_required))
+    val restoreNotice = UserMessage(stringResource(R.string.a0b_c7_recalculate))
+    val savedSource = stringResource(R.string.a0b_c7_source_saved)
     fun select(fieldValue: PlaceField, option: PhotonPlace) {
         val place = Place(
             "${option.point.latitude},${option.point.longitude}", option.label,
@@ -100,6 +103,7 @@ fun UnifiedMapScreen(
         if (!place.valid) return
         focus.clearFocus()
         autocomplete.selected(fieldValue, option)
+        library.saveAddress("RECENT", place)
         vm.dispatch(if (fieldValue == PlaceField.ORIGIN)
             UnifiedEvent.ChooseOrigin(place) else UnifiedEvent.ChooseDestination(place))
         field = null
@@ -259,6 +263,23 @@ fun UnifiedMapScreen(
                         }
                     }
                 }
+                C7LibraryPanel(state, library,
+                    onChoose = { which, item ->
+                        focus.clearFocus()
+                        field = null
+                        val place = Place("saved:${item.point.latitude},${item.point.longitude}", item.label,
+                            item.point.latitude, item.point.longitude, savedSource)
+                        autocomplete.selected(which, PhotonPlace(item.label, item.point))
+                        vm.dispatch(if (which == PlaceField.ORIGIN) UnifiedEvent.ChooseOrigin(place)
+                            else UnifiedEvent.ChooseDestination(place))
+                        vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.HALF))
+                    },
+                    onOpen = { item ->
+                        focus.clearFocus()
+                        field = null
+                        vm.restoreSavedRoute(item, restoreNotice)
+                    },
+                )
                 Button(onClick = {
                     focus.clearFocus()
                     field = null
