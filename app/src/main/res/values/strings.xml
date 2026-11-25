@@ -213,4 +213,17 @@
     <string name="a0b_c7_as_origin">Başlangıç</string>
     <string name="a0b_c7_as_destination">Hedef</string>
     <string name="a0b_c7_source_saved">KAYIT</string>
+    <string name="a0b_c8_ors_key">Duraklı rota için Ayarlar bölümünde HeiGIT / ORS anahtarı gerekli.</string>
+    <string name="a0b_c8_via_failed">Duraklı rota alınamadı. İnternet, kota ve ORS anahtarını kontrol et.</string>
+    <string name="a0b_c8_map_target">Haritadan seçilen hedef</string>
+    <string name="a0b_c8_speed_obd">HIZ • OBD (PID doğrulanmadı)</string>
+    <string name="a0b_c8_speed_unknown">HIZ • veri yok</string>
+    <string name="a0b_c8_pid_suffix"> (PID doğrulanmadı)</string>
+    <string name="a0b_c8_power_obd">Güç (OBD, PID doğrulanmadı)</string>
+    <string name="a0b_c8_soc_obd">Batarya (OBD, PID doğrulanmadı)</string>
+    <string name="a0b_c8_zoom_in">Yakınlaştır</string>
+    <string name="a0b_c8_zoom_out">Uzaklaştır</string>
+    <string name="a0b_c8_layers">Katman</string>
+    <string name="a0b_c8_key_required"> • API anahtarı gerekli</string>
+    <string name="a0b_c8_map_retry">Haritayı yeniden yükle</string>
 </resources>
