@@ -18,4 +18,7 @@ data class RouteManeuver(
     val modifier: String?,
     val roadName: String?,
     val distanceMeters: Double,
+    val instructionTr: String? = null,
+    val geometryIndex: Int? = null,
+    val providerType: Int? = null,
 )
