@@ -77,6 +77,40 @@ class SheetReducerTest {
         assertEquals(SheetMode.RoutePreview(0), s.mode)
     }
 
+    @Test fun secilenAlternatifNavigasyonVeEnerjideKorunur() {
+        var s = UnifiedUiState(routes = Loadable.Ready(listOf(route, route.copy(id = "r2"))),
+            mode = SheetMode.RoutePreview(0))
+        s = SheetReducer.reduce(s, UnifiedEvent.ChooseAlternative(1))
+        s = SheetReducer.reduce(s, UnifiedEvent.ShowEnergy)
+        assertEquals("r2", s.currentRoute?.id)
+        s = SheetReducer.reduce(s, UnifiedEvent.StartNavigation)
+        assertEquals("r2", s.currentRoute?.id)
+        s = SheetReducer.reduce(s, UnifiedEvent.StopNavigation)
+        assertEquals(SheetMode.RoutePreview(1), s.mode)
+        assertEquals("r2", s.currentRoute?.id)
+    }
+
+    @Test fun rotaDegisinceEskiIstasyonVeHavaTemizlenir() {
+        val station = StationOnRoute("s1", "TEST", 38.0, 34.8,
+            100.0, true, 25000.0, 400.0)
+        val weather = WeatherPoint(0.0, 10.0, false, 100L)
+        val ready = UnifiedUiState(destination = destination,
+            routes = Loadable.Ready(listOf(route, route.copy(id = "r2"))),
+            mode = SheetMode.RoutePreview(0),
+            stations = Loadable.Ready(listOf(station)),
+            weather = Loadable.Ready(listOf(weather)))
+        val same = SheetReducer.reduce(ready, UnifiedEvent.ChooseAlternative(0))
+        assertEquals(ready.stations, same.stations)
+        assertEquals(ready.weather, same.weather)
+        for (event in listOf(UnifiedEvent.ChooseAlternative(1),
+            UnifiedEvent.ChooseOrigin(origin), UnifiedEvent.ChooseDestination(null),
+            UnifiedEvent.LoadRoutes, UnifiedEvent.RoutesFailed(UserMessage("TEST")))) {
+            val changed = SheetReducer.reduce(ready, event)
+            assertEquals(Loadable.Idle, changed.stations)
+            assertEquals(Loadable.Idle, changed.weather)
+        }
+    }
+
     @Test fun panelGeriZinciriFullHalfPeekIdleCikis() {
         var s = UnifiedUiState(
             mode = SheetMode.Energy, detent = SheetDetent.FULL)
