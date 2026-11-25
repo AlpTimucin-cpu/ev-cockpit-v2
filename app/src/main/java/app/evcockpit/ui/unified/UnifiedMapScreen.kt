@@ -25,6 +25,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.evcockpit.CockpitApplication
 import app.evcockpit.R
+import app.evcockpit.ui.MapLayer
+import app.evcockpit.ui.MapLayerPreferences
+import app.evcockpit.ui.MapTilerKeyStore
+import app.evcockpit.ui.MapStyleResolver
+import org.maplibre.android.camera.CameraUpdateFactory
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import app.evcockpit.navigation.PlaceAutocompleteViewModel
 import app.evcockpit.navigation.PlaceField
 import app.evcockpit.navigation.PhotonPlace
@@ -37,6 +46,7 @@ import app.evcockpit.ui.unified.sheet.*
 fun UnifiedMapScreen(
     vm: UnifiedViewModel = viewModel(),
     onExit: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val t = CockpitDesignTokens
     val state by vm.state.collectAsStateWithLifecycle()
@@ -83,8 +93,21 @@ fun UnifiedMapScreen(
     val search by autocomplete.state.collectAsStateWithLifecycle()
     var field by remember { mutableStateOf<PlaceField?>(null) }
     val context = LocalContext.current
+    val layerPrefs = remember(context.applicationContext) { MapLayerPreferences(context.applicationContext) }
+    val mapKeys = remember(context.applicationContext) { MapTilerKeyStore(context.applicationContext) }
+    val preferredLayer by layerPrefs.selected.collectAsStateWithLifecycle(MapLayer.DARK)
+    val mapKey by mapKeys.key.collectAsStateWithLifecycle(null)
+    val scope = rememberCoroutineScope()
+    var layerMenu by remember { mutableStateOf(false) }
     val host = LocalSharedMapHost.current
     val slot = remember { Any() }
+    LaunchedEffect(host, preferredLayer, mapKey, host?.activeSlot) {
+        if (host != null && host.activeSlot === slot) {
+            val style = MapStyleResolver.url(preferredLayer, mapKey)
+            if (style != null) host.requestStyle(preferredLayer, style)
+            else host.requestStyle(MapLayer.DARK)
+        }
+    }
     val density = LocalDensity.current
     val focus = LocalFocusManager.current
     val failure = UserMessage(stringResource(R.string.a0b_c4_failed))
@@ -146,10 +169,22 @@ fun UnifiedMapScreen(
             onExit()
         }
     }
-    BoxWithConstraints(Modifier.fillMaxSize().background(t.background)) {
+    BoxWithConstraints(modifier.fillMaxSize().background(t.background)) {
         val heightPx = with(density) { maxHeight.toPx() }
         val topPx = with(density) { t.spaceM.toPx().toInt() }
         val bottomPx = (heightPx * t.sheetHalfFraction).toInt()
+        val attributionInset = with(density) { t.mapAttributionSafeInset.toPx().toInt() }
+        val covered = if (navigating) 0 else when (state.detent) {
+            SheetDetent.PEEK -> with(density) { t.sheetPeekHeight.toPx().toInt() }
+            SheetDetent.HALF -> bottomPx
+            SheetDetent.FULL -> 0
+        }
+        LaunchedEffect(host?.map, host?.activeSlot, covered) {
+            if (host != null && host.activeSlot === slot) host.map?.uiSettings?.apply {
+                setLogoMargins(attributionInset, 0, 0, attributionInset + covered)
+                setAttributionMargins(0, 0, attributionInset, attributionInset + covered)
+            }
+        }
         LaunchedEffect(host?.readyMap, host?.activeSlot, overlay.selectedRoute, heightPx, navigating) {
             if (!navigating && host != null && host.activeSlot === slot && overlay.selectedRoute.size >= 2 &&
                 heightPx > topPx + bottomPx) {
@@ -188,11 +223,50 @@ fun UnifiedMapScreen(
                 modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(t.spaceM),
             )
         } else {
-        if (state.detent == SheetDetent.PEEK) {
-            Button(onClick = { vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.FULL)) },
-                modifier = Modifier.align(Alignment.TopCenter)
-                    .padding(t.spaceM).heightIn(min = t.target)) {
-                Text(stringResource(R.string.a0b_unified_search_where))
+        Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(t.spaceXS),
+            verticalArrangement = Arrangement.spacedBy(t.spaceXS)) {
+            if (state.detent != SheetDetent.FULL) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(t.spaceXS)) {
+                    val zoomIn = stringResource(R.string.a0b_c8_zoom_in)
+                    val zoomOut = stringResource(R.string.a0b_c8_zoom_out)
+                    OutlinedButton(onClick = { host?.map?.animateCamera(CameraUpdateFactory.zoomIn()) },
+                        enabled = host?.map != null, modifier = Modifier.size(t.mapControlTouchTarget)
+                            .semantics { contentDescription = zoomIn }, contentPadding = PaddingValues(t.spaceXXS)) { Text("+") }
+                    OutlinedButton(onClick = { host?.map?.animateCamera(CameraUpdateFactory.zoomOut()) },
+                        enabled = host?.map != null, modifier = Modifier.size(t.mapControlTouchTarget)
+                            .semantics { contentDescription = zoomOut }, contentPadding = PaddingValues(t.spaceXXS)) { Text("−") }
+                    Box {
+                        OutlinedButton(onClick = { layerMenu = true }, modifier = Modifier.heightIn(min = t.mapControlTouchTarget)) {
+                            Text(stringResource(R.string.a0b_c8_layers))
+                        }
+                        DropdownMenu(expanded = layerMenu, onDismissRequest = { layerMenu = false }) {
+                            MapLayer.entries.forEach { layer ->
+                                val style = MapStyleResolver.url(layer, mapKey)
+                                DropdownMenuItem(text = { Text(layer.titleTr + if (style == null)
+                                    stringResource(R.string.a0b_c8_key_required) else "") },
+                                    enabled = style != null, onClick = {
+                                        layerMenu = false
+                                        if (style != null) {
+                                            host?.selectLayer(layer, style)
+                                            scope.launch { layerPrefs.choose(layer) }
+                                        }
+                                    })
+                            }
+                        }
+                    }
+                    if (state.detent == SheetDetent.PEEK) Button(onClick = {
+                        vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.FULL))
+                    }, modifier = Modifier.weight(1f).heightIn(min = t.mapControlTouchTarget),
+                        contentPadding = PaddingValues(t.spaceXS)) {
+                        Text(stringResource(R.string.a0b_unified_search_where), maxLines = 2)
+                    }
+                }
+                if (host?.loadState == MapHostLoadState.ERROR) {
+                    OutlinedButton(onClick = { host?.retry() }) { Text(stringResource(R.string.a0b_c8_map_retry)) }
+                } else if (host?.loadState == MapHostLoadState.LOADING) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+                host?.issue?.let { Text(it, color = t.caution, fontSize = t.labelText) }
             }
         }
         ThreeDetentSheet(
