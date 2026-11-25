@@ -16,6 +16,9 @@ object SheetReducer {
                 else s.copy(
                     origin = event.place,
                     routes = Loadable.Idle,
+                    stations = Loadable.Idle,
+                    weather = Loadable.Idle,
+                    selectedRouteIndex = 0,
                     mode = SheetMode.Idle,
                 )
             }
@@ -25,6 +28,9 @@ object SheetReducer {
                 else s.copy(
                     destination = event.place,
                     routes = Loadable.Idle,
+                    stations = Loadable.Idle,
+                    weather = Loadable.Idle,
+                    selectedRouteIndex = 0,
                     mode = SheetMode.Idle,
                     detent = if (event.place != null) SheetDetent.HALF else s.detent,
                 )
@@ -32,7 +38,9 @@ object SheetReducer {
             UnifiedEvent.LoadRoutes ->
                 if (s.destination == null)
                     s.warn("Önce bir hedef seç.", "Hedef ara")
-                else s.copy(routes = Loadable.Loading, detent = SheetDetent.HALF)
+                else s.copy(routes = Loadable.Loading, stations = Loadable.Idle,
+                    weather = Loadable.Idle, selectedRouteIndex = 0,
+                    mode = SheetMode.Idle, detent = SheetDetent.HALF)
             is UnifiedEvent.RoutesReady -> {
                 if (event.values.isEmpty()) {
                     s.copy(routes = Loadable.Failed(
@@ -41,15 +49,20 @@ object SheetReducer {
                 } else s.copy(
                     routes = Loadable.Ready(event.values),
                     mode = SheetMode.RoutePreview(0),
+                    selectedRouteIndex = 0,
                     detent = SheetDetent.HALF,
                 )
             }
             is UnifiedEvent.RoutesFailed ->
-                s.copy(routes = Loadable.Failed(event.reason), mode = SheetMode.Idle)
+                s.copy(routes = Loadable.Failed(event.reason), stations = Loadable.Idle,
+                    weather = Loadable.Idle, selectedRouteIndex = 0, mode = SheetMode.Idle)
             is UnifiedEvent.ChooseAlternative -> {
                 val routes = (s.routes as? Loadable.Ready)?.value
                 if (routes != null && event.index in routes.indices)
-                    s.copy(mode = SheetMode.RoutePreview(event.index))
+                    s.copy(mode = SheetMode.RoutePreview(event.index),
+                        selectedRouteIndex = event.index,
+                        stations = if (s.selectedRouteIndex == event.index) s.stations else Loadable.Idle,
+                        weather = if (s.selectedRouteIndex == event.index) s.weather else Loadable.Idle)
                 else s.warn("Seçilen alternatif rota bulunamadı.", "Rotaları yenile")
             }
             UnifiedEvent.StartNavigation -> {
@@ -59,7 +72,7 @@ object SheetReducer {
             }
             UnifiedEvent.StopNavigation ->
                 s.copy(mode = if (s.currentRoute != null)
-                    SheetMode.RoutePreview(0) else SheetMode.Idle,
+                    SheetMode.RoutePreview(s.selectedRouteIndex) else SheetMode.Idle,
                     detent = SheetDetent.HALF)
             is UnifiedEvent.ShowStation -> {
                 val stations = (s.stations as? Loadable.Ready)?.value
