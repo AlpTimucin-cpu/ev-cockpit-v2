@@ -195,13 +195,16 @@ private fun DashboardTopStatus(
         ?.let { DashboardFormat.whole(it) + " °C" } ?: "— °C"
     val battery = DashboardFormat.number(state.socPercent, " %")
     val range = DashboardFormat.number(state.estimatedRangeKm, " km")
+    val batteryTitle = when (state.socPercent.source) {
+        DashboardOrigin.OBD_UNVERIFIED -> androidx.compose.ui.res.stringResource(app.evcockpit.R.string.a0b_c8_soc_obd)
+        DashboardOrigin.MANUAL -> "Batarya (manuel)"
+        DashboardOrigin.MODEL, DashboardOrigin.DEMO -> "Batarya (tahmini)"
+        else -> "Batarya"
+    }
     val header = @Composable {
         StatusLabel("Saat", time)
         StatusLabel("Dış sıcaklık", temperature)
-        StatusLabel(if (state.socPercent.source == DashboardOrigin.MANUAL)
-            "Batarya (manuel)" else if (state.socPercent.source in setOf(
-                DashboardOrigin.MODEL, DashboardOrigin.DEMO))
-            "Batarya (tahmini)" else "Batarya", battery)
+        StatusLabel(batteryTitle, battery)
         StatusLabel("Menzil (tahmini)", range)
     }
     Surface(color = t.panel, shape = t.cornerSmall) {
@@ -218,7 +221,7 @@ private fun DashboardTopStatus(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    StatusLabel("Batarya", battery)
+                    StatusLabel(batteryTitle, battery)
                     StatusLabel("Menzil (tahmini)", range)
                 }
                 if (demoAvailable) DemoModeButton(state.demo, onDemoChange)
