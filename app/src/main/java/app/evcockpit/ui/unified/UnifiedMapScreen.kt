@@ -210,8 +210,8 @@ fun UnifiedMapScreen(
                 setAttributionMargins(0, 0, attributionInset, attributionInset + covered)
             }
         }
-        LaunchedEffect(host?.readyMap, host?.activeSlot, overlay.selectedRoute, heightPx, navigating) {
-            if (!navigating && host != null && host.activeSlot === slot && overlay.selectedRoute.size >= 2 &&
+        LaunchedEffect(host?.readyMap, host?.activeSlot, overlay.selectedRoute, heightPx, navigating, mapPick) {
+            if (!navigating && mapPick == null && host != null && host.activeSlot === slot && overlay.selectedRoute.size >= 2 &&
                 heightPx > topPx + bottomPx) {
                 runCatching { host.cameraController?.fitRoute(overlay.selectedRoute, topPx, bottomPx) }
             }
