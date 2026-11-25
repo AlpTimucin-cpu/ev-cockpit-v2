@@ -20,7 +20,7 @@ class MolaProductionWiringTest {
         assertTrue(activity.contains("if (target == 4) return"))
         assertTrue(shell.contains("LaunchedEffect(externalOpenRequest"))
         assertTrue(shell.contains("onExternalOpenConsumed(request)"))
-        assertTrue(shell.contains("R.string.mola_open_original"))
-        assertTrue(activity.contains("getLaunchIntentForPackage"))
+        assertFalse(shell.contains("onOpenMola"))
+        assertFalse(activity.contains("onOpenMola ="))
     }
 }
