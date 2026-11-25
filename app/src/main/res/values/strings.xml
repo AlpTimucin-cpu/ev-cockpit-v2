@@ -170,4 +170,21 @@
     <string name="a0b_c5_plan_cancel">Planı iptal et</string>
     <string name="a0b_c5_park">Planlamayı araç park halindeyken yap.</string>
     <string name="a0b_c5_more_stations">Daha fazla istasyon göster (%1$d / %2$d)</string>
+    <string name="a0b_c6_start_gps">GPS takibini başlat</string>
+    <string name="a0b_c6_start">Navigasyonu başlat</string>
+    <string name="a0b_c6_stop">Navigasyonu bitir</string>
+    <string name="a0b_c6_wait">Güncel GPS bekleniyor; yönlendirme duraklatıldı.</string>
+    <string name="a0b_c6_distance">Kalan mesafe: %1$.1f km</string>
+    <string name="a0b_c6_eta">Tahmini varış: %1$s · trafik ve şarj hariç</string>
+    <string name="a0b_c6_next">%1$s · %2$.0f m</string>
+    <string name="a0b_c6_no_step">Sıradaki manevra belirlenemedi.</string>
+    <string name="a0b_c6_off_route">Rota dışındasın. Güvenli yerde yeni rota hesapla.</string>
+    <string name="a0b_c6_unmatched">Rota eşleşmesi bekleniyor.</string>
+    <string name="a0b_c6_arrived">Hedefe ulaşıldı.</string>
+    <string name="a0b_c6_recenter">Konumuma dön</string>
+    <string name="a0b_c6_voice_on">Sesi aç</string>
+    <string name="a0b_c6_voice_off">Sesi kapat</string>
+    <string name="a0b_c6_reroute">GPS konumundan yeniden hesapla</string>
+    <string name="a0b_c6_gps_required">Navigasyon için güncel ve yeterli doğrulukta GPS gerekli.</string>
+    <string name="a0b_c6_preview_only">Rota önizleme; navigasyon başlatılmadı.</string>
 </resources>
