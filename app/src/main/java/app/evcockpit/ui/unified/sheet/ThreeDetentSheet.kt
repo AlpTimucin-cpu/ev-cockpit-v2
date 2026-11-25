@@ -75,11 +75,13 @@ fun ThreeDetentSheet(
             if (drag.currentValue != detent) onDetent(drag.currentValue)
         }
 
-        val offset = drag.offset.takeIf { it.isFinite() } ?: (availablePx - safePeek)
+        val offset = (drag.offset.takeIf { it.isFinite() } ?: (availablePx - safePeek))
+            .coerceIn(0f, availablePx)
+        val visibleHeight = with(density) { (availablePx - offset).toDp() }
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
+                .height(visibleHeight)
                 .offset { IntOffset(0, offset.roundToInt()) },
             color = t.panel,
             shape = t.sheetCorner,
@@ -105,7 +107,7 @@ fun ThreeDetentSheet(
                     )
                 }
                 Column(
-                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                    Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(t.panelCardSpacing),
                     content = content,
                 )
