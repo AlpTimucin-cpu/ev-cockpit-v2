@@ -146,18 +146,6 @@ class MainActivity : ComponentActivity() {
                     state = cockpit,
                     externalOpenRequest = openRequest,
                     onExternalOpenConsumed = { request -> if (externalOpen.value == request) externalOpen.value = null },
-                    onOpenMola = {
-                        if (!driveState.allowComplexActions) {
-                            android.widget.Toast.makeText(this@MainActivity, R.string.mola_open_parked, android.widget.Toast.LENGTH_LONG).show()
-                        } else {
-                        val launcher = listOf("me.app.fermataX.auto.mola", "me.app.fermataX.auto.mola.debug")
-                            .firstNotNullOfOrNull { packageManager.getLaunchIntentForPackage(it) }
-                        if (launcher != null) {
-                            try { startActivity(launcher) }
-                            catch (_: Exception) { android.widget.Toast.makeText(this@MainActivity, R.string.mola_open_failed, android.widget.Toast.LENGTH_LONG).show() }
-                        } else android.widget.Toast.makeText(this@MainActivity, R.string.mola_not_installed, android.widget.Toast.LENGTH_LONG).show()
-                        }
-                    },
                     mapContent = { modifier -> UnifiedMapScreen(vm = unified, modifier = modifier,
                         onExit = { finish() }) },
                     onRouteRequested = { unified.dispatch(UnifiedEvent.SetDetent(SheetDetent.FULL)) },
