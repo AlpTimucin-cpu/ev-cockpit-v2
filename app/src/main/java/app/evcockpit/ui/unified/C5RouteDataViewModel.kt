@@ -41,7 +41,13 @@ object C5Projection {
         geometry = route.geometry.map { GeoPoint(it.lat, it.lon) },
         distanceMeters = route.distanceMeters,
         durationSeconds = route.durationSeconds,
-        maneuvers = emptyList(),
+        maneuvers = route.maneuvers.mapNotNull { step ->
+            val index = step.geometryIndex ?: return@mapNotNull null
+            val text = step.instructionTr?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val type = step.providerType ?: return@mapNotNull null
+            if (index !in route.geometry.indices) return@mapNotNull null
+            app.evcockpit.navigation.RouteManeuver(text, index, type)
+        },
         provider = route.source,
     )
 
