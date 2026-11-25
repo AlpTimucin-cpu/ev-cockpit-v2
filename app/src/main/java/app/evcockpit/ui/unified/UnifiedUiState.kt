@@ -85,11 +85,12 @@ data class UnifiedUiState(
     val minArrivalSoc: Double = UnifiedDefaults.MIN_ARRIVAL_SOC,
     val banners: List<Banner> = emptyList(),
     val exitRequested: Boolean = false,
+    val selectedRouteIndex: Int = (mode as? SheetMode.RoutePreview)?.selected ?: 0,
 ) {
     val currentRoute: RouteModel?
         get() = when (val snapshot = routes) {
             is Loadable.Ready -> snapshot.value.getOrNull(
-                (mode as? SheetMode.RoutePreview)?.selected ?: 0)
+                selectedRouteIndex)
             else -> null
         }
 }
