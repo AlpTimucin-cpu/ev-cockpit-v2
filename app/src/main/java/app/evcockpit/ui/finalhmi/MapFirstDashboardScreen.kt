@@ -11,6 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.res.stringResource
+import app.evcockpit.R
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -55,6 +58,9 @@ fun MapFirstDashboardScreen(
     demoAvailable: Boolean = false,
     mapContent: @Composable (Modifier) -> Unit = { modifier -> MapHeroPane(state, modifier) },
     onRouteRequested: () -> Unit = {},
+    externalOpenRequest: Pair<Long, Int>? = null,
+    onExternalOpenConsumed: (Pair<Long, Int>) -> Unit = {},
+    onOpenMola: (() -> Unit)? = null,
     tabContent: @Composable (FinalDashboardTab, () -> Unit, (FinalDashboardTab) -> Unit) -> Unit = { tab, _, _ ->
         A0UnconnectedTab(tab)
     },
@@ -79,6 +85,18 @@ fun MapFirstDashboardScreen(
             launchSingleTop = true
             restoreState = true
         }
+    }
+    LaunchedEffect(externalOpenRequest, backEntry != null) {
+        val request = externalOpenRequest ?: return@LaunchedEffect
+        if (backEntry == null) return@LaunchedEffect
+        when (request.second) {
+            0 -> navigateTab(FinalDashboardTab.HARITA)
+            1 -> controller.navigate(A0_DIAGNOSTIC_ROUTE) { launchSingleTop = true }
+            2 -> navigateTab(FinalDashboardTab.ROTA)
+            3 -> navigateTab(FinalDashboardTab.SARJ)
+            5 -> navigateTab(FinalDashboardTab.AYARLAR)
+        }
+        onExternalOpenConsumed(request)
     }
     Column(modifier.fillMaxSize().background(t.background)) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -155,7 +173,7 @@ fun MapFirstDashboardScreen(
             }
         }
 
-        FinalBottomBar(selected = selected, onSelect = navigateTab)
+        FinalBottomBar(selected = selected, onSelect = navigateTab, onOpenMola = onOpenMola)
     }
 }
 
@@ -274,6 +292,7 @@ private fun DemoModeButton(demo: Boolean, onChange: (Boolean) -> Unit) {
 private fun FinalBottomBar(
     selected: FinalDashboardTab,
     onSelect: (FinalDashboardTab) -> Unit,
+    onOpenMola: (() -> Unit)? = null,
 ) {
     val t = CockpitDesignTokens
     Row(
@@ -299,6 +318,15 @@ private fun FinalBottomBar(
                         color = if (tab == selected) t.text else t.secondary,
                         fontWeight = if (tab == selected) FontWeight.Bold else FontWeight.Normal,
                         maxLines = 1)
+                }
+            }
+        }
+        if (onOpenMola != null) {
+            Surface(onClick = onOpenMola, modifier = Modifier.weight(1f).heightIn(min = t.tabBarHeight),
+                shape = t.cornerSmall, color = t.panelRaised) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(t.spaceXXS)) {
+                    Text(stringResource(R.string.mola_open_original), color = t.text,
+                        fontSize = t.tabText, maxLines = 1)
                 }
             }
         }
