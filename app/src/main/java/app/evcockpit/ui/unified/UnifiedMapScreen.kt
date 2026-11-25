@@ -142,7 +142,7 @@ fun UnifiedMapScreen(
             onQuery = { autocomplete.onTextChanged(currentField, it) },
             onRetry = { autocomplete.retry(currentField) },
             onChoose = { select(currentField, it) },
-            onDismiss = { field = null },
+            onDismiss = { autocomplete.cancel(currentField); field = null },
         )
     }
     val overlay = remember(state.origin, state.destination, state.routes, state.selectedRouteIndex, c5Data, routeId, progress.vehicle, navigating) {
