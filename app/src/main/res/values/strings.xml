@@ -226,4 +226,7 @@
     <string name="a0b_c8_layers">Katman</string>
     <string name="a0b_c8_key_required"> • API anahtarı gerekli</string>
     <string name="a0b_c8_map_retry">Haritayı yeniden yükle</string>
+    <string name="mola_open_original">Mola</string>
+    <string name="mola_open_failed">Orijinal Mola uygulaması açılamadı.</string>
+    <string name="mola_not_installed">Orijinal Mola telefonda bulunamadı.</string>
 </resources>
