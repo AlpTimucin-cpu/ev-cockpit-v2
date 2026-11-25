@@ -230,4 +230,8 @@
     <string name="mola_open_failed">Orijinal Mola uygulaması açılamadı.</string>
     <string name="mola_not_installed">Orijinal Mola telefonda bulunamadı.</string>
     <string name="mola_open_parked">Mola kısayolu için park hâli belirlenmeli; GPS takibini aç.</string>
+    <string name="a0b_search_pick">Adres seç</string>
+    <string name="a0b_search_hint">Şehir, mahalle, cadde veya yer adı</string>
+    <string name="a0b_search_clear">Temizle</string>
+    <string name="a0b_search_retry">Tekrar ara</string>
 </resources>
