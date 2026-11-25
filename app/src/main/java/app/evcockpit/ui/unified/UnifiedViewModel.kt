@@ -55,6 +55,13 @@ class UnifiedViewModel @Inject constructor(
                         distanceMeters = route.distanceMeters,
                         durationSeconds = route.durationSeconds,
                         source = route.provider,
+                        maneuvers = route.maneuvers.mapNotNull { step ->
+                            val point = route.geometry.getOrNull(step.geometryIndex) ?: return@mapNotNull null
+                            app.evcockpit.domain.nav.RouteManeuver(
+                                WgsPoint(point.latitude, point.longitude), "OSRM", null, null, 0.0,
+                                step.instructionTr, step.geometryIndex, step.type,
+                            )
+                        },
                     )
                 }
                 if (generation == requestGeneration)
