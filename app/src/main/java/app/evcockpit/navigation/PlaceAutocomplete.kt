@@ -10,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -102,6 +103,8 @@ interface PlaceSuggestionSource {
 class PublicPlaceSuggestionSource(
     private val cities: OpenMeteoCityGeocoder = OpenMeteoCityGeocoder(),
     private val photon: PhotonGeocoder = PhotonGeocoder(),
+    private val mapTilerKey: suspend () -> String? = { null },
+    private val mapTiler: MapTilerAddressGeocoder = MapTilerAddressGeocoder(),
 ) : PlaceSuggestionSource {
     private val mutex = Mutex()
     private val cache = LinkedHashMap<String, List<PhotonPlace>>()
@@ -114,7 +117,9 @@ class PublicPlaceSuggestionSource(
             cache[key]?.let { return@withLock it }
             // Always submit the latest debounced address query. Photon itself waits
             // for its fair-use interval. Cancellation while waiting sends no request.
-            val address = safeFetch { photon.search(query) }
+            val keyValue = try { mapTilerKey() } catch (c: CancellationException) { throw c } catch (_: Exception) { null }
+            val primary = keyValue?.let { safeFetch { mapTiler.search(query, it) } }.orEmpty()
+            val address = primary.ifEmpty { safeFetch { photon.search(query) } }
             // Do not replace a street/house-number query with an unrelated city centre.
             val places = if (address.isEmpty() && AutocompletePolicy.isLocalityQuery(query)) {
                 val now = SystemClock.elapsedRealtime()
@@ -159,6 +164,7 @@ data class PlaceSuggestionState(
 class PlaceAutocompleteViewModel @JvmOverloads constructor(
     application: Application,
     private val source: PlaceSuggestionSource = PublicPlaceSuggestionSource(
+        mapTilerKey = { app.evcockpit.ui.MapTilerKeyStore(application).key.first() },
         photon = PhotonGeocoder {
             val gps = (application as? CockpitApplication)?.locationRepository?.state?.value
             gps?.point?.takeIf {
