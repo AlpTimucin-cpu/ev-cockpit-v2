@@ -22,17 +22,22 @@ object C8DashboardProjection {
         val speed = gps.speedKmh?.takeIf {
             C6NavigationPolicy.validFix(gps, elapsed) && it.isFinite() && it in 0.0..300.0
         }
-        // Real dashboard must not promote unverified OBD values to verified telemetry.
         val manual = manualSoc?.takeIf { it.isFinite() && it in 0.0..100.0 }
-        val preview = route?.let { RouteAlternativePreview.calculate(it, profile, manual) }
+        val obdSoc = vehicle.socPct?.takeIf { vehicle.connected && !vehicle.demo &&
+            drive.obdSocFresh && it.isFinite() && it in 0.0..100.0 }
+        val obdSpeed = vehicle.speedKmh?.takeIf { vehicle.connected && !vehicle.demo &&
+            drive.obdSpeedFresh && it.isFinite() && it in 0.0..300.0 }
+        val obdPower = vehicle.powerKw?.takeIf { vehicle.connected && !vehicle.demo &&
+            drive.obdPowerFresh && it.isFinite() }
+        val soc = obdSoc ?: manual
+        val preview = route?.let { RouteAlternativePreview.calculate(it, profile, soc) }
         return base.copy(
-            speedKmh = stamp(speed, DashboardOrigin.GPS),
-            socPercent = stamp(manual, DashboardOrigin.MANUAL),
-            estimatedRangeKm = stamp(DashboardMath.estimatedRangeKm(manual,
+            speedKmh = stamp(speed ?: obdSpeed, if (speed != null) DashboardOrigin.GPS else DashboardOrigin.OBD_UNVERIFIED),
+            socPercent = stamp(soc, if (obdSoc != null) DashboardOrigin.OBD_UNVERIFIED else DashboardOrigin.MANUAL),
+            estimatedRangeKm = stamp(DashboardMath.estimatedRangeKm(soc,
                 profile.capacityAtSohKwh, preview?.averageKwhPer100Km), DashboardOrigin.MODEL),
             consumptionKwhPer100Km = stamp(preview?.averageKwhPer100Km, DashboardOrigin.MODEL),
-            // Unverified PID power is deliberately not shown as calibrated data.
-            powerKw = StampedValue(),
+            powerKw = stamp(obdPower, DashboardOrigin.OBD_UNVERIFIED),
             arrivalSocPercent = StampedValue(),
         )
     }
