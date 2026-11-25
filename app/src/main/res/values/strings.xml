@@ -166,7 +166,7 @@
     <string name="a0b_c5_plan_result">Plan: %1$d durak · varış %%%2$d · şarj %3$.0f dk</string>
     <string name="a0b_c5_stop">%1$s · %2$s · %%%3$d → %%%4$d</string>
     <string name="a0b_c5_cost">Tahmini şarj maliyeti: %1$.2f TL (batarya enerji farkı üzerinden)</string>
-    <string name="a0b_c5_cost_unknown">Toplam şarj maliyeti: — (eksik/eski tarife)</string>
+    <string name="a0b_c5_cost_unknown">Toplam şarj maliyeti: — (eksik/eski tarife veya soket tipi belirsiz)</string>
     <string name="a0b_c5_plan_cancel">Planı iptal et</string>
     <string name="a0b_c5_park">Planlamayı araç park halindeyken yap.</string>
     <string name="a0b_c5_more_stations">Daha fazla istasyon göster (%1$d / %2$d)</string>
