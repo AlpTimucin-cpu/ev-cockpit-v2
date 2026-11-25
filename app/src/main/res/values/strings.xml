@@ -229,4 +229,5 @@
     <string name="mola_open_original">Mola</string>
     <string name="mola_open_failed">Orijinal Mola uygulaması açılamadı.</string>
     <string name="mola_not_installed">Orijinal Mola telefonda bulunamadı.</string>
+    <string name="mola_open_parked">Mola kısayolu için park hâli belirlenmeli; GPS takibini aç.</string>
 </resources>
