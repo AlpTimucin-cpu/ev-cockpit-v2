@@ -2,6 +2,14 @@ package app.evcockpit.ui.unified
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import app.evcockpit.navigation.GeoPoint
+import app.evcockpit.navigation.OsrmRouteProvider
+import app.evcockpit.domain.nav.RouteModel
+import app.evcockpit.domain.nav.WgsPoint
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +27,52 @@ class UnifiedViewModel @Inject constructor(
     private val mutable = MutableStateFlow(restore())
     val state: StateFlow<UnifiedUiState> = mutable
 
+    private var routeJob: Job? = null
+    private var requestGeneration = 0L
+
+    /** Explicit request only; changing either endpoint invalidates an in-flight response. */
+    fun calculateRoutes(failure: UserMessage, invalid: UserMessage) {
+        val before = mutable.value
+        val origin = before.origin
+        val destination = before.destination
+        if (origin == null || destination == null || !origin.valid || !destination.valid ||
+            (origin.latitude == destination.latitude && origin.longitude == destination.longitude)) {
+            dispatch(UnifiedEvent.AddBanner(Banner(invalid, BannerKind.WARNING)))
+            return
+        }
+        if (routeJob?.isActive == true) return
+        val generation = ++requestGeneration
+        dispatch(UnifiedEvent.LoadRoutes)
+        routeJob = viewModelScope.launch {
+            try {
+                val routes = OsrmRouteProvider().calculateAlternatives(
+                    GeoPoint(origin.latitude, origin.longitude),
+                    GeoPoint(destination.latitude, destination.longitude), "",
+                ).mapIndexed { index, route ->
+                    RouteModel(
+                        id = "osrm-$generation-$index",
+                        geometry = route.geometry.map { WgsPoint(it.latitude, it.longitude) },
+                        distanceMeters = route.distanceMeters,
+                        durationSeconds = route.durationSeconds,
+                        source = route.provider,
+                    )
+                }
+                if (generation == requestGeneration)
+                    dispatch(UnifiedEvent.RoutesReady(routes))
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (_: Exception) {
+                if (generation == requestGeneration)
+                    dispatch(UnifiedEvent.RoutesFailed(failure))
+            }
+        }
+    }
+
     fun dispatch(event: UnifiedEvent) {
+        if (event is UnifiedEvent.ChooseOrigin || event is UnifiedEvent.ChooseDestination) {
+            requestGeneration++
+            routeJob?.cancel()
+        }
         val after = SheetReducer.reduce(mutable.value, event)
         mutable.value = after
         persist(after)
@@ -40,7 +93,6 @@ class UnifiedViewModel @Inject constructor(
         val detent = runCatching {
             SheetDetent.valueOf(saved.get<String>("sheet_detent") ?: "PEEK")
         }.getOrDefault(SheetDetent.PEEK)
-        val storedSelected = (saved.get<Int>("selected_index") ?: 0).coerceAtLeast(0)
         // Rota yalnız yeni ağ sorgusuyla üretilebilir. Kayıtlı seçimi gösteremeyiz.
         val staleRoute = mode in setOf("RoutePreview", "Navigating")
         return UnifiedUiState(
@@ -75,6 +127,6 @@ class UnifiedViewModel @Inject constructor(
             is SheetMode.StopDetail -> "StopDetail"
             is SheetMode.Energy -> "Energy"
         }
-        saved["selected_index"] = (s.mode as? SheetMode.RoutePreview)?.selected ?: 0
+        saved["selected_index"] = s.selectedRouteIndex
     }
 }
