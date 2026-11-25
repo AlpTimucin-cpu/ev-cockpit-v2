@@ -28,7 +28,8 @@ object C7RouteCodec {
     private const val MAX_LABEL = 180
 
     // A historical GPS point must never be presented as a current fix.
-    fun historical(place: Place): Place = place.copy(source = "KAYIT")
+    fun historical(place: Place): Place = place.copy(
+        id = if (place.id == "gps") "saved-gps" else place.id, source = "KAYIT")
     fun session(origin: Place?, destination: Place?): C7Endpoints =
         C7Endpoints(origin?.takeIf { it.valid && it.source != "GPS" && it.id != "gps" }?.let(::historical),
             destination?.takeIf { it.valid }?.let(::historical))
