@@ -53,6 +53,8 @@ fun MapFirstDashboardScreen(
     onDemoChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     demoAvailable: Boolean = false,
+    mapContent: @Composable (Modifier) -> Unit = { modifier -> MapHeroPane(state, modifier) },
+    onRouteRequested: () -> Unit = {},
     tabContent: @Composable (FinalDashboardTab, () -> Unit, (FinalDashboardTab) -> Unit) -> Unit = { tab, _, _ ->
         A0UnconnectedTab(tab)
     },
@@ -68,7 +70,11 @@ fun MapFirstDashboardScreen(
     } ?: if (backEntry?.destination?.route == A0_DIAGNOSTIC_ROUTE)
         FinalDashboardTab.AYARLAR else FinalDashboardTab.HARITA
     val navigateTab: (FinalDashboardTab) -> Unit = { destination ->
-        controller.navigate(destination.name) {
+        val target = if (destination == FinalDashboardTab.ROTA) {
+            onRouteRequested()
+            FinalDashboardTab.HARITA
+        } else destination
+        controller.navigate(target.name) {
             popUpTo(controller.graph.findStartDestination().id) { saveState = true }
             launchSingleTop = true
             restoreState = true
@@ -117,11 +123,7 @@ fun MapFirstDashboardScreen(
                             Modifier.fillMaxSize(),
                             horizontalArrangement = Arrangement.spacedBy(t.spaceS),
                         ) {
-                            MapHeroPane(
-                                state = state,
-                                onOpenRouteTab = { navigateTab(FinalDashboardTab.ROTA) },
-                                modifier = Modifier.weight(t.mapWeight).fillMaxHeight(),
-                            )
+                            mapContent(Modifier.weight(t.mapWeight).fillMaxHeight())
                             Column(
                                 Modifier.weight(t.dataWeight).fillMaxHeight()
                                     .verticalScroll(rememberScrollState()),
@@ -131,16 +133,9 @@ fun MapFirstDashboardScreen(
                             }
                         }
                     } else {
-                        Column(
-                            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(t.spaceS),
-                        ) {
-                            MapHeroPane(
-                                state = state,
-                                onOpenRouteTab = { navigateTab(FinalDashboardTab.ROTA) },
-                                modifier = Modifier.fillMaxWidth().height(t.phoneMapHeight),
-                            )
-                            DashboardRightPane(state)
+                        Column(Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(t.spaceXS)) {
+                            mapContent(Modifier.weight(1f).fillMaxWidth())
                         }
                     }
                 }
@@ -184,9 +179,7 @@ private fun DashboardRightPane(state: DashboardUiState) {
     val t = CockpitDesignTokens
     TripMetricsPane(state, modifier = Modifier.fillMaxWidth())
     Spacer(Modifier.height(t.spaceXXS))
-    RouteWeatherStrip(state)
-    Spacer(Modifier.height(t.spaceXXS))
-    ChargePlanCard(state)
+    // C8: route weather and charging belong to the selected route's unified sheet.
 }
 
 @Composable
