@@ -1,6 +1,11 @@
 package app.evcockpit.navigation
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -30,7 +35,7 @@ object PhotonPolicy {
         val lon = String.format(Locale.US, "%.5f", bias.longitude)
         return "https://photon.komoot.io/api/?q=" +
             URLEncoder.encode(query.trim(), "UTF-8") +
-            "&limit=8&lang=tr&lat=$lat&lon=$lon&zoom=6&location_bias_scale=0.4"
+            "&limit=8&lat=$lat&lon=$lon&zoom=6&location_bias_scale=0.4"
     }
 }
 
@@ -60,22 +65,27 @@ object PhotonParser {
 class PhotonGeocoder(
     private val focusPoint: () -> GeoPoint? = { null },
 ) {
-    private var lastRequestAtMs = -PhotonPolicy.MIN_INTERVAL_MS
+    companion object {
+        private val requestMutex = Mutex()
+        private var lastRequestAtMs = -PhotonPolicy.MIN_INTERVAL_MS
+    }
 
     suspend fun search(rawQuery: String): List<PhotonPlace> = withContext(Dispatchers.IO) {
         val query = rawQuery.trim()
-        val now = android.os.SystemClock.elapsedRealtime()
-        synchronized(this@PhotonGeocoder) {
-            if (!PhotonPolicy.canRequest(query, now - lastRequestAtMs)) {
-                throw IllegalArgumentException("Photon hız sınırı: ağdan en erken 10 saniyede bir sorgu.")
-            }
-            lastRequestAtMs = now
+        require(query.length in 3..120)
+        requestMutex.withLock {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val wait = (PhotonPolicy.MIN_INTERVAL_MS - (now - lastRequestAtMs)).coerceAtLeast(0L)
+            if (wait > 0) delay(wait)
+            currentCoroutineContext().ensureActive()
+            lastRequestAtMs = android.os.SystemClock.elapsedRealtime()
         }
         val connection = URL(PhotonPolicy.requestUrl(query, focusPoint())).openConnection()
             as HttpURLConnection
         connection.connectTimeout = 6_000
         connection.readTimeout = 6_000
         connection.instanceFollowRedirects = false
+        connection.setRequestProperty("Accept-Language", "tr,en;q=0.7")
         connection.setRequestProperty("User-Agent",
             "EV-Cockpit-v2-Personal/0.4 (https://github.com/AlpTimucin-cpu/ev-cockpit-v2)")
         try {
