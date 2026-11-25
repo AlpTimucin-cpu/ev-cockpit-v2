@@ -79,6 +79,9 @@ object C5Projection {
         if (!capacityKwh.isFinite() || capacityKwh <= 0.0) return null
         var total = 0.0
         for (stop in plan.stops) {
+            // Operator-level DC price does not prove this stop has a CCS2 DC connector.
+            if (stop.charger.confidence != app.evcockpit.planner.charging.ChargerConfidence.OSM_TAGGED_CCS2)
+                return null
             val tariff = TariffResolver.resolve(data.catalog, data.manual, stop.charger.operator, ChargingKind.DC)
             val price = tariff.priceTlPerKwh ?: return null
             if (tariff.stale || !price.isFinite() || price <= 0.0) return null
