@@ -284,10 +284,10 @@ fun ProvideSharedMapHost(content: @Composable () -> Unit) {
             }
         }
         owner.lifecycle.addObserver(observer)
-        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+        if (!started && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             view.onStart(); started = true
         }
-        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+        if (!resumed && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             view.onResume(); resumed = true
         }
         onDispose {
