@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,6 +39,7 @@ fun UnifiedMapScreen(
     val host = LocalSharedMapHost.current
     val slot = remember { Any() }
     val density = LocalDensity.current
+    val focus = LocalFocusManager.current
     val failure = UserMessage(stringResource(R.string.a0b_c4_failed))
     val invalid = UserMessage(stringResource(R.string.a0b_c4_invalid))
     val gpsFailed = UserMessage(stringResource(R.string.a0b_c4_gps_failed))
@@ -49,6 +51,7 @@ fun UnifiedMapScreen(
             option.point.latitude, option.point.longitude, addressSource,
         )
         if (!place.valid) return
+        focus.clearFocus()
         autocomplete.selected(fieldValue, option)
         vm.dispatch(if (fieldValue == PlaceField.ORIGIN)
             UnifiedEvent.ChooseOrigin(place) else UnifiedEvent.ChooseDestination(place))
@@ -56,15 +59,7 @@ fun UnifiedMapScreen(
         vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.HALF))
     }
     val overlay = remember(state.origin, state.destination, state.routes, state.selectedRouteIndex) {
-        val routes = (state.routes as? Loadable.Ready)?.value.orEmpty()
-        fun points(route: app.evcockpit.domain.nav.RouteModel) =
-            route.geometry.map { OverlayPoint(it.lat, it.lon) }
-        OverlayModel(
-            selectedRoute = routes.getOrNull(state.selectedRouteIndex)?.let(::points).orEmpty(),
-            alternativeRoutes = routes.filterIndexed { i, _ -> i != state.selectedRouteIndex }.map(::points),
-            origin = state.origin?.let { OverlayPoint(it.latitude, it.longitude) },
-            destination = state.destination?.let { OverlayPoint(it.latitude, it.longitude) },
-        )
+        C4RouteOverlays.from(state)
     }
     LaunchedEffect(host, host?.activeSlot, overlay) {
         if (host != null && host.activeSlot === slot) host.updateOverlays(overlay)
@@ -73,6 +68,7 @@ fun UnifiedMapScreen(
         onDispose { if (host != null && host.activeSlot === slot) host.updateOverlays(OverlayModel()) }
     }
     BackHandler {
+        focus.clearFocus()
         field = null
         vm.dispatch(UnifiedEvent.Back)
     }
@@ -167,6 +163,7 @@ fun UnifiedMapScreen(
                     }
                 }
                 Button(onClick = {
+                    focus.clearFocus()
                     field = null
                     vm.calculateRoutes(failure, invalid)
                 }, enabled = state.origin != null && state.destination != null && state.routes != Loadable.Loading,
