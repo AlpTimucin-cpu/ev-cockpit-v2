@@ -17,8 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.evcockpit.navigation.NavigationViewModel
-import app.evcockpit.navigation.PlaceAutocompleteViewModel
+import app.evcockpit.ui.unified.*
+import app.evcockpit.ui.finalhmi.*
 import app.evcockpit.obd.ManualSocStore
 import app.evcockpit.obd.ObdLogShare
 import app.evcockpit.obd.ObdViewModel
@@ -30,7 +30,6 @@ import app.evcockpit.storage.VehicleProfileStore
 import app.evcockpit.ui.DisplayPreferences
 import app.evcockpit.ui.ObdTestScreen
 import app.evcockpit.ui.PlannerScreen
-import app.evcockpit.ui.RouteScreen
 import app.evcockpit.ui.RouteSettingsScreen
 import app.evcockpit.ui.finalhmi.CockpitDesignTokens
 import app.evcockpit.ui.finalhmi.FinalCockpitTheme
@@ -40,7 +39,6 @@ import app.evcockpit.ui.finalhmi.MapFirstDashboardViewModel
 import app.evcockpit.ui.unified.map.ProvideSharedMapHost
 import app.evcockpit.ui.tesla.DriveModeViewModel
 import app.evcockpit.ui.tesla.SafeSocSelection
-import app.evcockpit.weather.RouteHourlyWeatherViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -70,10 +68,9 @@ class MainActivity : ComponentActivity() {
             val f1: MapFirstDashboardViewModel = viewModel()
             val dashboard by f1.state.collectAsStateWithLifecycle()
             val obd: ObdViewModel = viewModel()
-            val nav: NavigationViewModel = viewModel()
-            val search: PlaceAutocompleteViewModel = viewModel()
+            val unified: UnifiedViewModel = viewModel()
+            val unifiedState by unified.state.collectAsStateWithLifecycle()
             val planner: PlannerViewModel = viewModel()
-            val weather: RouteHourlyWeatherViewModel = viewModel()
             val drive: DriveModeViewModel = viewModel()
             val scope = rememberCoroutineScope()
 
@@ -86,10 +83,6 @@ class MainActivity : ComponentActivity() {
             val devices by obd.devices.collectAsStateWithLifecycle()
             val obdMessage by obd.message.collectAsStateWithLifecycle()
             val driveState by drive.state.collectAsStateWithLifecycle()
-            val navState by nav.state.collectAsStateWithLifecycle()
-            val voiceState by nav.voice.collectAsStateWithLifecycle()
-            val weatherSummary by weather.summary.collectAsStateWithLifecycle()
-            val planState by planner.state.collectAsStateWithLifecycle()
 
             val manualStore = remember { ManualSocStore(applicationContext) }
             val manualSoc by manualStore.socPct.collectAsStateWithLifecycle(null)
@@ -99,11 +92,13 @@ class MainActivity : ComponentActivity() {
             val socReading = SafeSocSelection.select(obdState, manualSoc, driveState)
             var diagnosisError by remember { mutableStateOf<String?>(null) }
 
-            LaunchedEffect(navState.route) {
-                // İstek yalnız mevcut ViewModel'de yapılır; ekran G/Ç işlemez.
-                weather.refresh(navState.route)
+            val selectedRoute = remember(unifiedState.currentRoute) {
+                unifiedState.currentRoute?.let(C5Projection::navigation)
             }
-
+            val cockpit = C8DashboardProjection.map(dashboard, gps, obdState, driveState,
+                manualSoc, selectedRoute, profile, android.os.SystemClock.elapsedRealtime())
+            val viaFailure = UserMessage(getString(R.string.a0b_c8_via_failed))
+            val gpsRequired = UserMessage(getString(R.string.a0b_c6_gps_required))
             // İzinler yalnız ilgili kullanıcı eylemiyle istenir; açılışta izin yağmuru yok.
             val gpsPermission = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestMultiplePermissions(),
@@ -128,49 +123,44 @@ class MainActivity : ComponentActivity() {
             FinalCockpitTheme {
                 ProvideSharedMapHost {
                     MapFirstDashboardScreen(
-                    state = dashboard,
+                    state = cockpit,
+                    mapContent = { modifier -> UnifiedMapScreen(vm = unified, modifier = modifier,
+                        onExit = { finish() }) },
+                    onRouteRequested = { unified.dispatch(UnifiedEvent.SetDetent(SheetDetent.FULL)) },
                     onDemoChange = f1::showDemo,
                     demoAvailable = f1.demoAvailable,
                     modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
                     tabContent = { tab, openDiagnosticRoute, navigateToTab ->
                         when (tab) {
-                            FinalDashboardTab.ROTA -> RouteScreen(
-                                state = navState,
-                                gps = gps,
-                                socPct = socReading.pct,
-                                socSource = socReading.source,
-                                vehicleProfile = profile,
-                                voice = voiceState,
-                                onToggleVoice = nav::toggleVoice,
-                                onSpeakNextManeuver = nav::testNextManeuver,
-                                onCalculate = nav::calculateSelected,
-                                onSelectDestination = nav::selectDestination,
-                                onSelectNamedDestination = nav::selectNamedDestination,
-                                onSelectOrigin = nav::selectOrigin,
-                                onUseGpsOrigin = nav::useGpsOrigin,
-                                onClearDestinationSelection = nav::clearDestinationSelection,
-                                onSelectAlternative = nav::selectAlternative,
-                                onManualSoc = { value ->
-                                    scope.launch { manualStore.save(value) }
-                                },
-                                searchVm = search,
-                                routeWeather = weatherSummary,
-                                onClear = nav::clear,
-                            )
+                            FinalDashboardTab.ROTA -> LaunchedEffect(Unit) {
+                                navigateToTab(FinalDashboardTab.HARITA)
+                            }
                             FinalDashboardTab.SARJ -> PlannerScreen(
                                 vm = planner,
-                                navigation = navState.route,
+                                navigation = selectedRoute,
                                 soc = socReading,
                                 gps = gps,
                                 onOpenRoute = { navigateToTab(FinalDashboardTab.ROTA) },
                                 onOpenSettings = { navigateToTab(FinalDashboardTab.AYARLAR) },
                                 onNavigate = { stops, destination ->
-                                    nav.navigateVia(stops, destination)
+                                    val point = gps.point
+                                    if (point != null && C6NavigationPolicy.validFix(gps, android.os.SystemClock.elapsedRealtime()) && driveState.allowComplexActions) {
+                                        val origin = Place("gps", getString(R.string.a0b_c4_gps_origin), point.latitude, point.longitude, "GPS")
+                                        val target = unifiedState.destination?.takeIf { it.latitude == destination.latitude && it.longitude == destination.longitude }
+                                            ?: Place("map", getString(R.string.a0b_c8_map_target), destination.latitude, destination.longitude, "HARİTA")
+                                        unified.calculateVia(stops, origin, target, viaFailure)
+                                    } else unified.dispatch(UnifiedEvent.AddBanner(Banner(gpsRequired, BannerKind.WARNING)))
                                     navigateToTab(FinalDashboardTab.ROTA)
                                 },
-                                onSelectDestination = nav::selectDestination,
+                                onSelectDestination = { point ->
+                                    unified.dispatch(UnifiedEvent.ChooseDestination(Place("map",
+                                        getString(R.string.a0b_c8_map_target), point.latitude, point.longitude, "HARİTA")))
+                                    navigateToTab(FinalDashboardTab.ROTA)
+                                },
                             )
-                            FinalDashboardTab.ENERJI -> A0EnergyPlaceholder()
+                            FinalDashboardTab.ENERJI -> Column(Modifier.fillMaxSize().padding(CockpitDesignTokens.spaceM)) {
+                                TripMetricsPane(cockpit)
+                            }
                             FinalDashboardTab.AYARLAR -> RouteSettingsScreen(
                                 gps = gps,
                                 darkTheme = darkPref,
