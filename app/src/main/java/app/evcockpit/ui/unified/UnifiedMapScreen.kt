@@ -32,6 +32,11 @@ fun UnifiedMapScreen(
 ) {
     val t = CockpitDesignTokens
     val state by vm.state.collectAsStateWithLifecycle()
+    val c5: C5RouteDataViewModel = viewModel()
+    val c5Data by c5.state.collectAsStateWithLifecycle()
+    val routeId = state.currentRoute?.id
+    LaunchedEffect(routeId) { c5.selectRoute(routeId) }
+    DisposableEffect(c5) { onDispose { c5.selectRoute(null) } }
     val autocomplete: PlaceAutocompleteViewModel = viewModel()
     val search by autocomplete.state.collectAsStateWithLifecycle()
     var field by remember { mutableStateOf<PlaceField?>(null) }
@@ -58,8 +63,8 @@ fun UnifiedMapScreen(
         field = null
         vm.dispatch(UnifiedEvent.SetDetent(SheetDetent.HALF))
     }
-    val overlay = remember(state.origin, state.destination, state.routes, state.selectedRouteIndex) {
-        C4RouteOverlays.from(state)
+    val overlay = remember(state.origin, state.destination, state.routes, state.selectedRouteIndex, c5Data, routeId) {
+        C5Projection.overlay(C4RouteOverlays.from(state), c5Data, routeId)
     }
     LaunchedEffect(host, host?.activeSlot, overlay) {
         if (host != null && host.activeSlot === slot) host.updateOverlays(overlay)
@@ -186,7 +191,10 @@ fun UnifiedMapScreen(
                             }
                         }
                         if (routes.value.size == 1) Text(stringResource(R.string.a0b_c4_single), color = t.secondary)
-                        state.currentRoute?.let { Text(stringResource(R.string.a0b_c4_source, it.source), color = t.secondary) }
+                        state.currentRoute?.let { route ->
+                            Text(stringResource(R.string.a0b_c4_source, route.source), color = t.secondary)
+                            C5RoutePanel(route, c5Data) { c5.refresh(route) }
+                        }
                     }
                     Loadable.Idle -> Unit
                 }
