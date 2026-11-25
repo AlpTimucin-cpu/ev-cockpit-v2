@@ -40,6 +40,8 @@ import app.evcockpit.ui.unified.map.ProvideSharedMapHost
 import app.evcockpit.ui.tesla.DriveModeViewModel
 import app.evcockpit.ui.tesla.SafeSocSelection
 import dagger.hilt.android.AndroidEntryPoint
+import app.evcockpit.integration.MolaOpenContract
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,9 +53,27 @@ import kotlinx.coroutines.withContext
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val externalOpen = MutableStateFlow<Pair<Long, Int>?>(null)
+    private var openSequence = 0L
+
+    private fun acceptOpenIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val target = MolaOpenContract.tabFor(intent.dataString) ?: return
+        // Legacy passenger URI is not a supported production destination.
+        if (target == 4) return
+        externalOpen.value = (++openSequence) to target
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        acceptOpenIntent(intent)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) acceptOpenIntent(intent)
         setContent {
+            val openRequest by externalOpen.collectAsStateWithLifecycle()
             val displayPrefs = remember { DisplayPreferences(applicationContext) }
             val keepScreenOn by displayPrefs.keepScreenOn.collectAsStateWithLifecycle(false)
             val darkPref by displayPrefs.darkTheme.collectAsStateWithLifecycle(true)
@@ -124,6 +144,16 @@ class MainActivity : ComponentActivity() {
                 ProvideSharedMapHost {
                     MapFirstDashboardScreen(
                     state = cockpit,
+                    externalOpenRequest = openRequest,
+                    onExternalOpenConsumed = { request -> if (externalOpen.value == request) externalOpen.value = null },
+                    onOpenMola = {
+                        val launcher = listOf("me.app.fermataX.auto.mola", "me.app.fermataX.auto.mola.debug")
+                            .firstNotNullOfOrNull { packageManager.getLaunchIntentForPackage(it) }
+                        if (launcher != null) {
+                            try { startActivity(launcher) }
+                            catch (_: Exception) { android.widget.Toast.makeText(this@MainActivity, R.string.mola_open_failed, android.widget.Toast.LENGTH_LONG).show() }
+                        } else android.widget.Toast.makeText(this@MainActivity, R.string.mola_not_installed, android.widget.Toast.LENGTH_LONG).show()
+                    },
                     mapContent = { modifier -> UnifiedMapScreen(vm = unified, modifier = modifier,
                         onExit = { finish() }) },
                     onRouteRequested = { unified.dispatch(UnifiedEvent.SetDetent(SheetDetent.FULL)) },
